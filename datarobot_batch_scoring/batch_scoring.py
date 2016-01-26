@@ -48,27 +48,32 @@ Options:
 
 Example:
 
-  batch_scoring --host https://beta.datarobot.com/api --user="greg@datarobot.com" --password="secret" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
+  batch_scoring --host https://beta.datarobot.com/api --user="<username>" --password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
 
 """
 
 from __future__ import print_function
 
-import sys
-import os
-import requests
-import getpass
 import collections
-import shelve
-import threading
+import copy
+import getpass
 import glob
-import json
-import pandas as pd
-import warnings
-import six
 import gzip
+import json
 import logging
+import os
+import shelve
+import sys
 import tempfile
+import threading
+import warnings
+from functools import partial
+from time import time
+
+import pandas as pd
+import requests
+import six
+from docopt import docopt
 
 if six.PY2:
     from . import grequests
@@ -76,10 +81,6 @@ if six.PY2:
 if six.PY3:
     from . import arequests
     from builtins import input
-
-from time import time
-from functools import partial
-from docopt import docopt
 
 
 class ShelveError(Exception):
@@ -484,7 +485,7 @@ class RunContext(object):
         else:
             comb = pred
         with self.lock:
-            # FIXME if an error happends during/after the append we
+            # if an error happends during/after the append we
             # might end up with inconsistent state
             # TODO write partition files instead of appending
             #  store checksum of each partition and back-check
@@ -801,7 +802,7 @@ def run_batch_predictions_v2(base_url, base_headers, user, pwd, api_token, creat
         model.predict_batch(dataset, out_file + ".tmp", n_jobs=concurrent, batch_size=n_samples)
 
         import csv
-        # Hack: swap order of prediction CSV schema to match api/v1
+        # swap order of prediction CSV schema to match api/v1
         with open(out_file + ".tmp", "rb") as input_file:
             with open(out_file, "wb") as output_file:
                 rdr = csv.DictReader(input_file)
@@ -825,7 +826,9 @@ def main():
     level = logging.DEBUG if args['--verbose'] else logging.INFO
     configure_logging(level)
 
-    root_logger.debug(args)
+    printed_args = copy.copy(args)
+    printed_args.pop('--password')
+    root_logger.debug(printed_args)
     root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
 
     if args['--version']:
