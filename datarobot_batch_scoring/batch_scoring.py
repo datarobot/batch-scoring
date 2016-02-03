@@ -80,10 +80,8 @@ from .utils import prompt_yesno, prompt_user
 
 if six.PY2:
     from . import grequests
-    input = raw_input
 if six.PY3:
     from . import arequests
-    from builtins import input
 
 
 class ShelveError(Exception):
