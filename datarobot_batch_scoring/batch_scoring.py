@@ -16,26 +16,36 @@ Usage:
 
 Batch score ``dataset`` by submitting prediction requests against ``host``
 using model ``model_id``. It will send batches of size ``n_samples``.
-Set ``n_samples`` such that the round-trip is roughly 10sec (see verbose output).
-Set ``n_concurrent`` to match the number of cores in the prediction API endpoint.
+Set ``n_samples`` such that the round-trip is roughly 10sec
+(see verbose output).
+Set ``n_concurrent`` to match the number of cores in the prediction
+API endpoint.
 
 The dataset has to be a single CSV file that can be gzipped (extension '.gz').
-The output ``out`` will be a single CSV files but remember that records might be
-unordered.
+The output ``out`` will be a single CSV files but remember that records
+might be unordered.
 
 Arguments:
   --host=<host>    The host to test [default: https://beta.datarobot.com/api].
   --api_version=<api_version>    The API version [default: v1]
-  --datarobot_key=<datarobot_key>   An additional datarobot_key for dedicated prediction instances.
+  --datarobot_key=<datarobot_key>   An additional datarobot_key
+                                    for dedicated prediction instances.
   --user=<user>  The username to acquire the api-token; if none prompt.
   --password=<pwd>  The password to acquire the api-token; if none prompt.
   --n_samples=<n_samples>  The number of samples per batch [default: 1000].
-  --n_retry=<n_retry>  The number of retries if a request failed; -1 means infinite [default: 3].
-  --n_concurrent=<n_concurrent>  The number of concurrent requests to submit [default: 4].
-  --api_token=<api_token>  The api token for the requests; if none use <pwd> to get token.
-  --out=<out>  The file to which the results should be written [default: out.csv].
-  --keep_cols=<keep_cols>  A comma separated list of column names to append to the predictions.
-  --delimiter=<delimiter>  Delimiter to use. If empty, will try to automatically determine this [default: ,].
+  --n_retry=<n_retry>  The number of retries if a request failed;
+                       -1 means infinite [default: 3].
+  --n_concurrent=<n_concurrent>  The number of concurrent requests to submit
+                                 [default: 4].
+  --api_token=<api_token>  The api token for the requests;
+                           if none use <pwd> to get token.
+  --out=<out>  The file to which the results should be written
+               [default: out.csv].
+  --keep_cols=<keep_cols>  A comma separated list of column names
+                           to append to the predictions.
+  --delimiter=<delimiter>  Delimiter to use.
+                           If empty, will try to automatically determine this
+                           [default: ,].
   --timeout=<timeout>  The timeout for each post request [default: 30].
 
 Options:
@@ -48,7 +58,9 @@ Options:
 
 Example:
 
-  batch_scoring --host https://beta.datarobot.com/api --user="<username>" --password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
+  $ batch_scoring --host https://beta.datarobot.com/api --user="<username>" \
+    --password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
+    ~/Downloads/diabetes_test.csv
 
 """
 
