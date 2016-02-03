@@ -76,6 +76,7 @@ import six
 from docopt import docopt
 
 from . import __version__
+from .utils import prompt_yesno, prompt_user
 
 if six.PY2:
     from . import grequests
@@ -539,13 +540,6 @@ class RunContext(object):
             os.remove(fname)
 
 
-def prompt_yesno(msg):
-    cmd = input('{} (yes/no)> '.format(msg)).strip().lower()
-    while cmd not in ('yes', 'no'):
-        cmd = input('Please type (yes/no)> ').strip().lower()
-    return cmd == 'yes'
-
-
 class NewRunContext(RunContext):
     """RunContext for a new run.
 
@@ -908,7 +902,7 @@ def main():
     timeout = int(args['--timeout'])
 
     if '--user' not in args:
-        user = input('user name> ').strip()
+        user = prompt_user()
     else:
         user = args['--user'].strip()
 
