@@ -14,47 +14,10 @@ Install package in virtualenv::
 
 Now ``batch_scoring`` script should be available in your PATH.
 
-From sdist
-^^^^^^^^^^
+You can also create virtualenvs with different python versions::
 
-For Python 2.7::
+    $ mkvirtualenv batch_scoring_3 -p /usr/bin/python3.5
 
-    $ python setup.py sdist
-
-For Python 3::
-
-    $ python3.X setup.py sdist
-
-Install via pip::
-
-    $ pip install dist/datarobot_batch_scoring-1.X.X.tar.gz
-
-Run from source
-^^^^^^^^^^^^^^^
-
-If you want to run the script without installation you have to
-specify the ``batch_scoring`` module in the python interpreter::
-
-    $ python -m datarobot_scoring.batch_scoring --help
-
-
-Install From S3
-^^^^^^^^^^^^^^^
-
-When trying to determine the path, first check the datarobot Amazon S3
-bucket to determine the most current version.  The path to S3 is:
-https://s3.amazonaws.com/datarobot_public/packages/
-
-To get access to S3 you must be authorized and have login credentials
-to obtain this you must reach out to Tom or Ulises.
-
-For Python 2.7::
-
-    $ pip install -U https://s3.amazonaws.com/datarobot_public/packages/datarobot_batch_scoring-X.X.X-py2.tar.gz
-
-For Python 3::
-
-    $ pip install -U https://s3.amazonaws.com/datarobot_public/packages/datarobot_batch_scoring-X.X.X-py3.tar.gz
 
 Deployment
 ----------
@@ -65,18 +28,23 @@ Deployment
   - acceptance testing
   - tag release (& push tag)
 
-2. Create sdist tarball
+2. Create a source and wheel distributions::
 
-  - Make py3 tarball::
+    $ python setup.py sdist bdist_wheel
 
-    $ python3.3 setup.py sdist
-    $ mv dist/datarobot_scoring-X.X.X.tar.gz dist/datarobot_scoring-X.X.X-py3.tar.gz
+3. Distribute artifacts using `twine <https://pypi.python.org/pypi/twine>`_::
 
-  - Make py2 tarball::
+    $ twine upload dist/datarobot_batch_scoring-X.X.X.tar.gz
 
-    $ python2.7 setup.py sdist
-    $ mv dist/datarobot_scoring-X.X.X.tar.gz dist/datarobot_scoring-X.X.X-py2.tar.gz
+  Contact `@bratchenko <https://github.com/bratchenko>`_ for access to pypi.
 
-3. Distribute tarballs
+Packaging for windows
+---------------------
+Use Python 3.4 only -- py2exe doesn't work with Python 3.5:
 
-  - TODO
+1. install py2exe (pip install py2exe)
+2. install requirements (pip install -r requirements34.txt)
+3. build dist (python setup.py py2exe)
+4. Distribute content of *dist* folder
+5. On target machine download "Microsoft Visual C++ 2010 Redistributable Package (x64)" (https://www.microsoft.com/en-us/download/details.aspx?id=14632) and install
+6. Enjoy!
