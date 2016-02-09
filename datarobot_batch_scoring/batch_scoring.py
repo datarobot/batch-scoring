@@ -95,6 +95,9 @@ if six.PY2:
 if six.PY3:
     from . import arequests
 
+# for successful py2exe dist package
+from dbm import dumb  # noqa
+
 
 class ShelveError(Exception):
     pass
