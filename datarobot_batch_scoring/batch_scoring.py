@@ -1,16 +1,13 @@
 """
 Usage:
-  batch_scoring [--host=<host>] [--user=<user>]
-                [--password=<pwd>] [--api_token=<api_token>]
-                [--datarobot_key=<datarobot_key>] [--verbose]
-                [--n_samples=<n_samples>] [--n_retry=<n_retry>]
+  batch_scoring --host=<host>  --user=<user>
+                {--password=<pwd> | --api_token=<api_token>}
+                <project_id>  <model_id>  <dataset_filepath>
+                [--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples>]
                 [--n_concurrent=<n_concurrent>]
-                [--out=<out>]
-                [--api_version=<api_version>]
-                [--pred_name=<pred_name>]
-                [--create_api_token] [--keep_cols=<keep_cols>]
-                [--delimiter=<delimiter>] [--timeout=<timeout>] [--version]
-                <project_id> <model_id> <dataset> [--resume|--cancel]
+                [--out=<filepath>] [--api_version=<api_version>]
+                [—create_api_token] [--n_retry=<n_retry>]
+                [--delimiter=<delimiter>] [--resume]
   batch_scoring -h | --help
   batch_scoring --version
 
@@ -738,6 +735,7 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, row):
         logger.error(('authorization failed -- '
                       'please check project id and model id permissions: {}')
                      .format(status))
+        logger.debug(r.content)
         rval = False
     else:
         logger.debug('authorization successfully')
