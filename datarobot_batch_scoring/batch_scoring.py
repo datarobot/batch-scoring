@@ -88,12 +88,14 @@ import six
 from docopt import docopt
 
 from . import __version__
+from .network import Network
 from .utils import prompt_yesno, prompt_user
 
+
 if six.PY2:
-    from . import grequests
-if six.PY3:
-    from . import arequests
+    from contextlib2 import ExitStack
+else:
+    from contextlib import ExitStack
 
 
 class ShelveError(Exception):
@@ -386,7 +388,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, batches, endpoint, headers, user, api_token,
-                 ctx, pred_name, timeout):
+                 ctx, pred_name):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -394,7 +396,6 @@ class WorkUnitGenerator(object):
         self.ctx = ctx
         self.queue = GeneratorBackedQueue(batches)
         self.pred_name = pred_name
-        self.timeout = timeout
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
@@ -447,22 +448,14 @@ class WorkUnitGenerator(object):
             data = batch.df.to_csv(encoding='utf8', index=False)
             logger.debug('batch {} transmitting {} bytes'
                          .format(batch.id, len(data)))
-            if six.PY2:
-                yield grequests.AsyncRequest(
-                    'POST', self.endpoint,
-                    headers=self.headers,
-                    timeout=self.timeout,
-                    data=data,
-                    auth=(self.user, self.api_token),
-                    callback=partial(self._response_callback,
-                                     batch=batch))
-            elif six.PY3:
-                yield ({'method': 'POST', 'url': self.endpoint,
-                        'headers': self.headers, 'data': data,
-                        'auth': (self.user, self.api_token),
-                        'timeout': self.timeout},
-                       partial(self._response_callback,
-                               batch=batch))
+            yield requests.Request(
+                method='POST',
+                url=self.endpoint,
+                headers=self.headers,
+                data=data,
+                auth=(self.user, self.api_token),
+                hooks = {'response': partial(self._response_callback,
+                                             batch=batch)})
 
 
 class RunContext(object):
@@ -663,39 +656,6 @@ def context_factory(resume, cancel, n_samples, out_file, pid, lid,
                              delimiter, dataset, pred_name)
 
 
-def exception_handler(request, *args):
-    response = getattr(request, 'response', None)
-    exc = args[0] if len(args) else None
-    if exc:
-        logger.warning('Exception: {} {}'.format(exc, type(exc)))
-    else:
-        logger.warn('Request failed -- retrying')
-
-    if response is None:
-        response = FakeResponse(400, 'No Response')
-
-    if six.PY2:
-        callback = request.kwargs['hooks']['response']
-    elif six.PY3:
-        callback = request[1]
-
-    callback(response)
-
-
-def requests_imap(requests, stream=False, size=None, exception_handler=None):
-    if six.PY2:
-        return grequests.imap(requests,
-                              stream=stream,
-                              size=size,
-                              exception_handler=exception_handler)
-    elif six.PY3:
-        return arequests.imap(requests,
-                              size=size,
-                              exception_handler=exception_handler)
-    else:
-        raise ValueError('Unsupported Python Version')
-
-
 def authorized(user, api_token, n_retry, endpoint, base_headers, row):
     """Check if user is authorized for the given model and that schema is correct.
 
@@ -778,9 +738,12 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
         sys.exit(1)
 
     try:
-        with context_factory(resume, cancel, n_samples, out_file, pid,
-                             lid, keep_cols, n_retry, delimiter,
-                             dataset, pred_name) as ctx:
+        with ExitStack() as stack:
+            ctx = stack.enter_context(
+                context_factory(resume, cancel, n_samples, out_file, pid,
+                                lid, keep_cols, n_retry, delimiter,
+                                dataset, pred_name))
+            network = stack.enter_context(Network(concurrent))
             n_batches_checkpointed_init = len(ctx.db['checkpoints'])
             root_logger.debug('number of batches checkpointed initially: {}'
                               .format(n_batches_checkpointed_init))
@@ -791,15 +754,12 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
                                               user=user,
                                               api_token=api_token,
                                               ctx=ctx,
-                                              pred_name=pred_name,
-                                              timeout=timeout)
+                                              pred_name=pred_name)
             t0 = time()
             i = 0
             while work_unit_gen.has_next():
-                responses = requests_imap(work_unit_gen,
-                                          stream=False,
-                                          size=concurrent,
-                                          exception_handler=exception_handler)
+                responses = network.perform_requests(
+                    work_unit_gen)
                 for r in responses:
                     i += 1
                     logger.info('{} responses sent | time elapsed {}s'
