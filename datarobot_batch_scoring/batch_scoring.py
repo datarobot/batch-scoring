@@ -110,9 +110,6 @@ class TargetType(object):
     BINARY = 'Binary'
 
 
-FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
-
-
 VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
 
 
@@ -743,7 +740,7 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
                 context_factory(resume, cancel, n_samples, out_file, pid,
                                 lid, keep_cols, n_retry, delimiter,
                                 dataset, pred_name))
-            network = stack.enter_context(Network(concurrent))
+            network = stack.enter_context(Network(concurrent, timeout))
             n_batches_checkpointed_init = len(ctx.db['checkpoints'])
             root_logger.debug('number of batches checkpointed initially: {}'
                               .format(n_batches_checkpointed_init))
