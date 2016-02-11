@@ -33,8 +33,8 @@ Arguments:
   --user=<user>  The username to acquire the api-token; if none prompt.
   --password=<pwd>  The password to acquire the api-token; if none prompt.
   --n_samples=<n_samples>  The number of samples per batch [default: 1000].
-  --n_retry=<n_retry>  The number of retries if a request failed;
-                       -1 means infinite [default: 3].
+  --n_retry=<n_retry>  The number of retries if a request failed [default: 3].
+                       -1 means infinite.
   --n_concurrent=<n_concurrent>  The number of concurrent requests to submit
                                  [default: 4].
   --api_token=<api_token>  The api token for the requests;
@@ -96,6 +96,9 @@ if six.PY2:
     from contextlib2 import ExitStack
 else:
     from contextlib import ExitStack
+
+# for successful py2exe dist package
+from dbm import dumb  # noqa
 
 
 class ShelveError(Exception):
