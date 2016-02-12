@@ -1,11 +1,10 @@
 import collections
 import logging
 import requests
-import six
 
-if six.PY2:
+try:
     from futures import ThreadPoolExecutor
-else:
+except ImportError:
     from concurrent.futures import ThreadPoolExecutor
 
 

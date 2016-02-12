@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Usage:
   batch_scoring --host=<host>  --user=<user>
                 {--password=<pwd> | --api_token=<api_token>}
                 <project_id>  <model_id>  <dataset_filepath>
@@ -23,42 +22,12 @@ The dataset has to be a single CSV file that can be gzipped (extension '.gz').
 The output ``out`` will be a single CSV files but remember that records
 might be unordered.
 
-Arguments:
-  --host=<host>    The host to test [default: https://beta.datarobot.com/api].
-  --api_version=<api_version>    The API version [default: v1]
-  --datarobot_key=<datarobot_key>   An additional datarobot_key
-                                    for dedicated prediction instances.
-  --user=<user>  The username to acquire the api-token; if none prompt.
-  --password=<pwd>  The password to acquire the api-token; if none prompt.
-  --n_samples=<n_samples>  The number of samples per batch [default: 1000].
-  --n_retry=<n_retry>  The number of retries if a request failed [default: 3].
-                       -1 means infinite.
-  --n_concurrent=<n_concurrent>  The number of concurrent requests to submit
-                                 [default: 4].
-  --api_token=<api_token>  The api token for the requests;
-                           if none use <pwd> to get token.
-  --out=<out>  The file to which the results should be written
-               [default: out.csv].
-  --keep_cols=<keep_cols>  A comma separated list of column names
-                           to append to the predictions.
-  --delimiter=<delimiter>  Delimiter to use.
-                           If empty, will try to automatically determine this
-                           [default: ,].
-  --timeout=<timeout>  The timeout for each post request [default: 30].
-
-Options:
-  -h --help
-  --version  Show version
-  -v --verbose  Verbose output
-  -c --create_api_token  If set we will request a new api token.
-  -r --resume   Resume a checkpointed run.
-  -c --cancel   Cancel a checkpointed run.
 
 Example:
 
   $ batch_scoring --host https://beta.datarobot.com/api --user="<username>" \
-    --password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
-    ~/Downloads/diabetes_test.csv
+--password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
+~/Downloads/diabetes_test.csv
 
 """
 
@@ -87,16 +56,18 @@ import argparse
 
 from . import __version__
 from .network import Network
-from .utils import prompt_yesno, prompt_user
+from .utils import prompt_yesno
 
 
 if six.PY2:
     from contextlib2 import ExitStack
-else:
+    import dumbdbm  # noqa
+elif six.PY3:
     from contextlib import ExitStack
+    # for successful py2exe dist package
+    from dbm import dumb  # noqa
 
-# for successful py2exe dist package
-from dbm import dumb  # noqa
+
 
 
 class ShelveError(Exception):
@@ -908,8 +879,7 @@ def main(argv=sys.argv[1:]):
     parser.add_argument('--timeout', type=int,
                         default=30, help='The timeout for each post request')
     parser.add_argument('--pred_name', type=str,
-                        nargs='?',
-                        help='pred_name')
+                        nargs='?')
 
     parsed_args = parser.parse_args()
     level = logging.DEBUG if parsed_args.verbose else logging.INFO
