@@ -20,23 +20,13 @@ else:
         "docopt>=0.6.1",
         "numpy>=1.8.0",
         "pandas>=0.15.1",
+        "requests>=2.7.0",
         ]
     if sys.version_info < (3, 0):
         install_requires.extend([
-            "requests>=2.2.1",
-            "gevent>=1.0.2",
+            "contextlib2>=0.5.1",
+            "futures>=3.0.4",
             ])
-    elif sys.version_info >= (3, 3):
-        install_requires.extend([
-            "aiohttp>=0.20.2",
-            "chardet>=2.3.0",
-            "python-dateutil>=2.4.2",
-            "pytz>=2015.2",
-            "requests>=2.7.0",
-            ])
-    else:
-        print('Python version {} is not supported'.format(sys.version_info))
-        sys.exit(1)
     extra['entry_points'] = {
         'console_scripts': [
             'batch_scoring = datarobot_batch_scoring.batch_scoring:main']}
