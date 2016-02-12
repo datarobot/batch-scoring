@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Usage:
   batch_scoring --host=<host>  --user=<user>
@@ -70,7 +71,7 @@ from time import time
 import pandas as pd
 import requests
 import six
-from docopt import docopt
+import argparse
 
 from . import __version__
 
@@ -491,6 +492,7 @@ class RunContext(object):
 
     def checkpoint_batch(self, batch, pred):
         if self.keep_cols and self.first_write:
+            # import ipdb; ipdb.set_trace()
             mask = [c in batch.df.columns for c in self.keep_cols]
             if not all(mask):
                 error('keep_cols "{}" not in columns {}.'.format(
@@ -631,7 +633,7 @@ class OldRunContext(RunContext):
                 if b.id not in already_processed_batches)
 
 
-def context_factory(resume, cancel, n_samples, out_file, pid, lid,
+def context_factory(resume, n_samples, out_file, pid, lid,
                     keep_cols, n_retry,
                     delimiter, dataset, pred_name):
     """Factory method for run contexts.
@@ -642,8 +644,6 @@ def context_factory(resume, cancel, n_samples, out_file, pid, lid,
         is_resume = None
         if resume:
             is_resume = True
-        elif cancel:
-            is_resume = False
         if is_resume is None:
             is_resume = prompt_yesno('Existing run found. Resume')
     else:
@@ -747,7 +747,7 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, row):
 def run_batch_predictions_v1(base_url, base_headers, user, pwd,
                              api_token, create_api_token,
                              pid, lid, n_retry, concurrent,
-                             resume, cancel, n_samples,
+                             resume, n_samples,
                              out_file, keep_cols, delimiter,
                              dataset, pred_name,
                              timeout):
@@ -772,7 +772,7 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
         sys.exit(1)
 
     try:
-        with context_factory(resume, cancel, n_samples, out_file, pid,
+        with context_factory(resume, n_samples, out_file, pid,
                              lid, keep_cols, n_retry, delimiter,
                              dataset, pred_name) as ctx:
             n_batches_checkpointed_init = len(ctx.db['checkpoints'])
@@ -868,54 +868,127 @@ def run_batch_predictions_v2(base_url, base_headers, user, pwd,
         error('{}'.format(oe), exit=False)
 
 
-def main():
+def main(argv=sys.argv[1:]):
     warnings.simplefilter('ignore')
-    args = docopt(__doc__)
+    parser = argparse.ArgumentParser(usage=__doc__)
+    parser.add_argument('--host', type=str,
+                        help='Specifies the hostname of the prediction '
+                        'API endpoint (the location of the data from where to get predictions)')
+    parser.add_argument('--user', type=str,
+                        help='Specifies the username used to acquire the api-token.'
+                        ' Use quotes if the name contains spaces.')
+    parser.add_argument('--password', type=str, nargs='?',
+                        help='Specifies the password used to acquire the api-token.'
+                        ' Use quotes if the name contains spaces.')
+    parser.add_argument('--api_token', type=str, nargs='?',
+                        help='Specifies the api token for the requests; if you do not have a token,'
+                        ' you must specify the password argument.')
+    parser.add_argument('project_id', type=str,
+                        help='Specifies the project identification string.')
+    parser.add_argument('model_id', type=str,
+                        help='Specifies the model identification string.')
+    parser.add_argument('dataset', type=str,
+                        help='Specifies the .csv input file that the script scores.')
+    parser.add_argument('--datarobot_key', type=str,
+                        nargs='?',
+                        help='An additional datarobot_key for dedicated prediction instances.')
+    parser.add_argument('--out', type=str,
+                        nargs='?',
+                        help='Specifies the file name, and optionally path, '
+                             'to which the results are written. '
+                             'If not specified, the default file name is out.csv,'
+                             ' written to the directory containing the script.')
+    parser.add_argument('--verbose', '-v', action="store_true",
+                        help='Provides status updates while the script is running.')
+    parser.add_argument('--n_samples', type=int,
+                        nargs='?',
+                        default=1000,
+                        help='Specifies the number of samples to use per batch.'
+                             ' Default sample size is 1000.')
+    parser.add_argument('--n_concurrent', type=int,
+                        nargs='?',
+                        default=4,
+                        help='Specifies the number of concurrent requests to submit.'
+                             ' By default, 4 concurrent requests are submitted.')
+    parser.add_argument('--api_version', type=str,
+                        nargs='?',
+                        default='v1',
+                        help='Specifies the API version, either v1 or v2. The default is v1.')
+    parser.add_argument('--create_api_token', action="store_true",
+                        default=False,
+                        help='Requests a new API token. To use this option, you must specify the '
+                             ' password argument for this request (not the api_token argument).')
+    parser.add_argument('--n_retry', type=int,
+                        default=3,
+                        help='Specifies the number of times DataRobot will retry '
+                             'if a request fails. '
+                             'A value of -1, the default, specifies an infinite number of retries.')
+    parser.add_argument('--keep_cols', type=str,
+                        nargs='?',
+                        help='Specifies the column names to append to the predictions. '
+                             'Enter as a comma-separated list.')
+    parser.add_argument('--delimiter', type=str,
+                        nargs='?',
+                        help='Specifies the delimiter to recognize in the input .csv file. '
+                             'If not specified, the script tries to automatically determine the '
+                             'delimiter, and if it cannot, defaults to comma ( , ).')
+    parser.add_argument('--resume', action='store_true',
+                        default=False,
+                        help='Starts the prediction from the point at which it was halted.'
+                             ' If the prediction stopped, for example due to error or network '
+                             'connection issue, you can run the same command with all the same '
+                             'all arguments plus this resume argument.')
+    parser.add_argument('--version', action='store_true',
+                        default=False,
+                        help='Show version')
+    parser.add_argument('--timeout', type=int,
+                        default=30, help='The timeout for each post request')
+    parser.add_argument('--pred_name', type=str,
+                        nargs='?',
+                        help='pred_name')
 
-    level = logging.DEBUG if args['--verbose'] else logging.INFO
+    parsed_args = parser.parse_args()
+    level = logging.DEBUG if parsed_args.verbose else logging.INFO
     configure_logging(level)
-
-    printed_args = copy.copy(args)
-    printed_args.pop('--password')
+    printed_args = copy.copy(vars(parsed_args))
+    printed_args.pop('password')
     root_logger.debug(printed_args)
     root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
 
-    if args['--version']:
+    if parsed_args.version:
         print('batch_scoring {}'.format(__version__))
         sys.exit(0)
 
     # parse args
-    host = args['--host']
-    pid = args['<project_id>']
-    lid = args['<model_id>']
-    n_retry = int(args['--n_retry'])
-    if args['--keep_cols']:
-        keep_cols = [s.strip() for s in args['--keep_cols'].split(',')]
+    host = parsed_args.host
+    pid = parsed_args.project_id
+    lid = parsed_args.model_id
+    n_retry = int(parsed_args.n_retry)
+    if parsed_args.keep_cols:
+        keep_cols = [s.strip() for s in parsed_args.keep_cols.split(',')]
     else:
         keep_cols = None
-    concurrent = int(args['--n_concurrent'])
-    dataset = args['<dataset>']
-    pred_name = args['--pred_name'] if args['--pred_name'] else 'prediction'
-    n_samples = int(args['--n_samples'])
-    delimiter = args['--delimiter']
-    resume = args['--resume']
-    cancel = args['--cancel']
-    out_file = args['--out']
-    datarobot_key = args.get('--datarobot_key', None)
-    pwd = args.get('--password', None)
-    timeout = int(args['--timeout'])
+    concurrent = int(parsed_args.n_concurrent)
+    dataset = parsed_args.dataset
+    n_samples = int(parsed_args.n_samples)
+    delimiter = parsed_args.delimiter
+    resume = parsed_args.resume
+    out_file = parsed_args.out
+    datarobot_key = parsed_args.datarobot_key
+    pwd = parsed_args.password
+    timeout = int(parsed_args.timeout)
 
-    if '--user' not in args:
+    if not hasattr(parsed_args, 'user'):
         user = input('user name> ').strip()
     else:
-        user = args['--user'].strip()
+        user = parsed_args.user.strip()
 
-    if not os.path.exists(args['<dataset>']):
-        error('file {} does not exist.'.format(args['<dataset>']))
+    if not os.path.exists(parsed_args.dataset):
+        error('file {} does not exist.'.format(parsed_args.dataset))
         sys.exit(1)
 
-    pid = args['<project_id>']
-    lid = args['<model_id>']
+    pid = parsed_args.project_id
+    lid = parsed_args.model_id
 
     try:
         verify_objectid(pid)
@@ -924,11 +997,12 @@ def main():
         error('{}'.format(e))
         sys.exit(1)
 
-    api_token = args.get('--api_token', None)
-    create_api_token = args.get('--create_api_token', None)
-    pwd = args.get('--password', None)
+    api_token = parsed_args.api_token
+    create_api_token = parsed_args.create_api_token
+    pwd = parsed_args.password
+    pred_name = parsed_args.pred_name
 
-    api_version = args['--api_version']
+    api_version = parsed_args.api_version
 
     base_url = '{}/{}/'.format(host, api_version)
     base_headers = {}
@@ -941,7 +1015,7 @@ def main():
         run_batch_predictions_v1(base_url, base_headers, user, pwd,
                                  api_token, create_api_token,
                                  pid, lid, n_retry, concurrent,
-                                 resume, cancel, n_samples,
+                                 resume, n_samples,
                                  out_file, keep_cols, delimiter,
                                  dataset, pred_name, timeout)
     elif api_version == 'v2':
