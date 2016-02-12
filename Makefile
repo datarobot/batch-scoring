@@ -1,5 +1,8 @@
 .PHONY: test
 
+flake8:
+	flake8 datarobot_batch_scoring
 
-test:
+
+test: flake8
 	@echo "Fake testing"
