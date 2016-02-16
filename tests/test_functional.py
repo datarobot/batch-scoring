@@ -1,5 +1,6 @@
 import subprocess
 import requests
+from bson import ObjectId
 
 
 def test_args_from_subprocess(live_server):
@@ -14,8 +15,8 @@ def test_args_from_subprocess(live_server):
                  ' --n_concurrent 1').format(webhost=live_server.url(),
                                              username='username',
                                              password='passowrd',
-                                             project_id='projectid',
-                                             model_id='modelid')
+                                             project_id=ObjectId(),
+                                             model_id=ObjectId())
 
     assert 0 == subprocess.call(arguments.split(' '))
 
