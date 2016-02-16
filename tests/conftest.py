@@ -1,9 +1,10 @@
 import uuid
-
 import pytest
 import pymongo
 
 import datarobot_sdk as dr
+
+pytest_plugins = ['liveserver_fixtures']
 
 
 @pytest.fixture(scope='session')
