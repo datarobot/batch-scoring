@@ -14,23 +14,35 @@ def session_id():
 
 
 def pytest_addoption(parser):
-    parser.addoption('--web-host', action='store', type=str,
-                     default='127.0.0.1', dest='webhost',
+    parser.addoption('--web-host',
+                     action='store',
+                     type=str,
+                     default='127.0.0.1',
+                     dest='webhost',
                      help=("Webserver host:port for testing. "
                            "Used for creation project, managing autopilot. "
                            "Using Prediction Resource Management on app side"))
-    parser.addoption('--job-router-management-api-endpoint', action='store', type=str,
-                     default='127.0.0.1:8008', dest='jrmngapi',
+    parser.addoption('--job-router-management-api-endpoint',
+                     action='store',
+                     type=str,
+                     default='127.0.0.1:8008',
+                     dest='jrmngapi',
                      help=("Job Router Management api host:port for testing"
                            "Used for checking how well main app integrated"
                            " with job router management api"))
-    parser.addoption('--predapi', action='store', type=str,
-                     default='127.0.0.1', dest='predapi',
+    parser.addoption('--predapi',
+                     action='store',
+                     type=str,
+                     default='127.0.0.1',
+                     dest='predapi',
                      help=("Dedicated prediction api endpoint"
                            "Used for performing requests to dedicicated prediction"
                            " api cluster"))
-    parser.addoption('--mongo', action='store', type=str,
-                     default='127.0.0.1:27017', dest='mongo_opt',
+    parser.addoption('--mongo',
+                     action='store',
+                     type=str,
+                     default='127.0.0.1:27017',
+                     dest='mongo_opt',
                      help=("Mongo endpoint for creation initial user. "
                            "Supports replicaset if it has ',' in str"))
 
@@ -74,6 +86,7 @@ def create_user(mongo_client):
             insert_dict['$set'].update({'account_permissions.PREDICTIONS_ADMIN': True})
         mongo_client.MMApp.users.update({'username': username}, insert_dict, upsert=True)
         return username, password, token
+
     yield create
     # clean username
     mongo_client.MMApp.users.remove({'username': non_local_username['username']})
@@ -87,8 +100,10 @@ def user(session_id, create_user):
 
 @pytest.yield_fixture(scope='function')
 def temp_project(v2_client):
-    project = dr.Project.start('tests/fixtures/temperatura.csv', project_name='Test project',
-                               autopilot_on=False, target='y')
+    project = dr.Project.start('tests/fixtures/temperatura.csv',
+                               project_name='Test project',
+                               autopilot_on=False,
+                               target='y')
     yield project
     project.delete()
 
@@ -100,8 +115,7 @@ def v2_client(user, request):
     """
     webhost = request.config.getoption("webhost")
     user, _, token = user
-    client = dr.Client(token=token,
-                       endpoint='http://{}/api/v2'.format(webhost))
+    client = dr.Client(token=token, endpoint='http://{}/api/v2'.format(webhost))
     return client
 
 
@@ -112,14 +126,15 @@ def v2_client_admin(prmadmin_user, request):
     """
     webhost = request.config.getoption("webhost")
     _, _, token = prmadmin_user
-    client = dr.Client(token=token,
-                       endpoint='http://{}/api/v2'.format(webhost))
+    client = dr.Client(token=token, endpoint='http://{}/api/v2'.format(webhost))
     return client
 
 
 @pytest.yield_fixture(scope='function')
 def temp_project_admin(v2_client_admin):
-    project = dr.Project.start('fixtures/regression.csv', project_name='Test project',
-                               autopilot_on=False, target='z')
+    project = dr.Project.start('fixtures/regression.csv',
+                               project_name='Test project',
+                               autopilot_on=False,
+                               target='z')
     yield project
     project.delete()
