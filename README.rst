@@ -6,14 +6,12 @@ A script to score CSV files via DataRobot's prediction API.
 How to install
 --------------
 
-From PyPI
-^^^^^^^^^
 Install or upgrade to last version:
 ::
 
     $ pip install -U datarobot_batch_scoring
 
-Install particular version:
+How to install particular version:
 ::
 
     $ pip install datarobot_batch_scoring==1.5.1
