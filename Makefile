@@ -5,4 +5,4 @@ flake8:
 
 test:
 	pip install -r requirements.txt
-	py.test -v --flake8 --junit-xml=testResults.xml tests/
+	py.test -v --junit-xml=testResults.xml tests/
