@@ -68,6 +68,7 @@ from __future__ import print_function
 
 import collections
 import copy
+import csv
 import getpass
 import glob
 import gzip
@@ -80,9 +81,10 @@ import tempfile
 import threading
 import warnings
 from functools import partial
+from itertools import filterfalse
+from pprint import pformat
 from time import time
 
-import pandas as pd
 import requests
 import six
 from docopt import docopt
@@ -105,7 +107,8 @@ class ShelveError(Exception):
     pass
 
 
-Batch = collections.namedtuple('Batch', 'id, df, rty_cnt')
+Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt')
+Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 
 class TargetType(object):
@@ -200,6 +203,17 @@ def verify_objectid(id_):
         raise ValueError('id {} not a valid project/model id'.format(id_))
 
 
+def iter_chunks(csvfile, chunk_size):
+    chunk = []
+    for line in csvfile:
+        chunk.append(line)
+        if len(chunk) >= chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
 class BatchGenerator(object):
     """Class to chunk a large csv files into a stream
     of batches of size ``--n_samples``.
@@ -216,32 +230,24 @@ class BatchGenerator(object):
         self.rty_cnt = n_retry
         self.sep = delimiter
 
-    def __iter__(self):
-        compression = None
+    def open(self):
         if self.dataset.endswith('.gz'):
-            logger.debug('using gzip compression')
-            compression = 'gzip'
+            return gzip.open(self.dataset)
+        else:
+            if six.PY2:
+                return open(self.dataset, 'rb')
+            else:
+                return open(self.dataset, newline='')
+
+    def __iter__(self):
         rows_read = 0
         sep = self.sep
 
-        engine = 'c'
-        engine_params = {'error_bad_lines': False,
-                         'warn_bad_lines': True}
-
-        if not sep:
-            sep = None
-            engine = 'python'
-            engine_params = {}
-            logger.warning('Guessing delimiter will result in slower parsing.')
-
         # handle unix tabs
-        # NOTE: on bash you have to use Ctrl-V + TAB
-        if sep == '\\t':
-            sep = '\t'
 
-        def _file_handle(fname):
-            root_logger.debug('Opening file name {}.'.format(fname))
-            return gzip.open(fname) if compression == 'gzip' else open(fname)
+        with self.open() as csvfile:
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(csvfile.read(1024))
 
         if sep is not None:
             if sep not in VALID_DELIMITERS:
@@ -249,7 +255,7 @@ class BatchGenerator(object):
                                  .format(sep))
 
             # if fixed sep check if we have at least one occurrence.
-            with _file_handle(self.dataset) as fd:
+            with self.open() as fd:
                 header = fd.readline()
                 if not header.strip():
                     raise ValueError("Input file '{}' is empty."
@@ -259,32 +265,24 @@ class BatchGenerator(object):
                         ("Delimiter '{}' not found. "
                          "Please check your input file "
                          "or consider the flag `--delimiter=''`.").format(sep))
+        if sep is None:
+            sep = dialect.delimiter
+        elif sep == '\\t':
+            # NOTE: on bash you have to use Ctrl-V + TAB
+            sep = '\t'
 
-        # TODO for some reason c parser bombs on python 3.4 wo latin1
-        batches = pd.read_csv(self.dataset, encoding='latin-1',
-                              sep=sep,
-                              iterator=True,
-                              chunksize=self.chunksize,
-                              compression=compression,
-                              engine=engine,
-                              **engine_params
-                              )
-        i = -1
-        for i, chunk in enumerate(batches):
-            if chunk.shape[0] == 0:
-                raise ValueError(
-                    "Input file '{}' is empty.".format(self.dataset))
-            if i == 0:
-                root_logger.debug('input columns: %r', chunk.columns.tolist())
-                root_logger.debug('input dtypes: %r', chunk.dtypes)
-                root_logger.debug('input head: %r', chunk.head(2))
+        csvfile = self.open()
+        reader = csv.reader(csvfile, dialect, delimiter=sep)
+        reader.fieldnames = [c.strip() for c in reader.fieldnames]
 
-            # strip white spaces
-            chunk.columns = [c.strip() for c in chunk.columns]
-            yield Batch(rows_read, chunk, self.rty_cnt)
-            rows_read += self.chunksize
+        for batch_num, chunk in enumerate(iter_chunks(csvfile,
+                                                      self.chunksize)):
+            if batch_num == 0:
+                root_logger.debug('input head: %r', pformat(chunk[:2]))
 
-        if i == -1:
+            yield Batch(rows_read, reader.fieldnames, chunk, self.rty_cnt)
+            rows_read += len(chunk)
+        else:
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
 
 
@@ -341,6 +339,24 @@ class GeneratorBackedQueue(object):
                 return False
 
 
+def unique_everseen(iterable, key=None):
+    "List unique elements, preserving order. Remember all elements ever seen."
+    # unique_everseen('AAAABBBCCDAABBB') --> A B C D
+    # unique_everseen('ABBCcAD', str.lower) --> A B C D
+    seen = set()
+    seen_add = seen.add
+    if key is None:
+        for element in filterfalse(seen.__contains__, iterable):
+            seen_add(element)
+            yield element
+    else:
+        for element in iterable:
+            k = key(element)
+            if k not in seen:
+                seen_add(k)
+                yield element
+
+
 def dataframe_from_predictions(result, pred_name):
     """Convert DR prediction api v1 into dataframe.
 
@@ -353,9 +369,9 @@ def dataframe_from_predictions(result, pred_name):
     """
     predictions = result['predictions']
     if result['task'] == TargetType.BINARY:
+        sorted_classes = unique_everseen()pd.np.unique(pred.columns.tolist())
         pred = pd.DataFrame([p['class_probabilities'] for p in
                              sorted(predictions, key=lambda p: p['row_id'])])
-        sorted_classes = pd.np.unique(pred.columns.tolist())
         pred = pred[sorted_classes]
     elif result['task'] == TargetType.REGRESSION:
         pred = pd.DataFrame({pred_name: [p["prediction"] for p in
@@ -369,9 +385,9 @@ def dataframe_from_predictions(result, pred_name):
 def process_successful_request(result, batch, ctx, pred_name):
     """Process a successful request. """
     pred = dataframe_from_predictions(result, pred_name)
-    if pred.shape[0] != batch.df.shape[0]:
+    if pred.fieldnames != batch.fieldnames:
         raise ValueError('Shape mismatch {}!={}'.format(
-            pred.shape[0], batch.df.shape[0]))
+            pred.fieldnames, batch.fieldnames))
     # offset index by batch.id
     pred.index = batch.df.index + batch.id
     pred.index.name = 'row_id'
