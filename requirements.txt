@@ -1,0 +1,5 @@
+pytest-flake8==0.1
+pymongo==2.8
+Flask==0.10.1
+-e git+git@github.com:datarobot/public_api_client.git@8385f96#egg=datarobot_sdk-v0.2.26
+-e .

@@ -3,95 +3,18 @@ DataRobot batch_scoring
 
 A script to score CSV files via DataRobot's prediction API.
 
-Installation
-------------
+How to install
+--------------
 
-From PyPI
-^^^^^^^^^
-
+Install or upgrade to last version:
 ::
 
     $ pip install -U datarobot_batch_scoring
 
-From source
-^^^^^^^^^^^
+How to install particular version:
+::
 
-Create virtualenv::
-
-    $ mkvirtualenv batch_scoring
-
-Install package in virtualenv::
-
-    $ pip install -e .
-
-Now ``batch_scoring`` script should be available in your PATH.
-
-From sdist
-^^^^^^^^^^
-
-For Python 2.7::
-
-    $ python setup.py sdist
-
-For Python 3::
-
-    $ python3.X setup.py sdist
-
-Install via pip::
-
-    $ pip install dist/datarobot_batch_scoring-1.X.X.tar.gz
-
-Run from source
-^^^^^^^^^^^^^^^
-
-If you want to run the script without installation you have to
-specify the ``batch_scoring`` module in the python interpreter::
-
-    $ python -m datarobot_scoring.batch_scoring --help
-
-
-Install From S3
-^^^^^^^^^^^^^^^
-
-When trying to determine the path, first check the datarobot Amazon S3
-bucket to determine the most current version.  The path to S3 is:
-https://s3.amazonaws.com/datarobot_public/packages/
-
-To get access to S3 you must be authorized and have login credentials
-to obtain this you must reach out to Tom or Ulises.
-
-For Python 2.7::
-
-    $ pip install -U https://s3.amazonaws.com/datarobot_public/packages/datarobot_batch_scoring-X.X.X-py2.tar.gz
-
-For Python 3::
-
-    $ pip install -U https://s3.amazonaws.com/datarobot_public/packages/datarobot_batch_scoring-X.X.X-py3.tar.gz
-
-Deployment
-----------
-
-1. Cut a release candidate
-
-  - update setup.py & datarobot_scoring/batch_scoring.py
-  - acceptance testing
-  - tag release (& push tag)
-
-2. Create sdist tarball
-
-  - Make py3 tarball::
-
-    $ python3.3 setup.py sdist
-    $ mv dist/datarobot_scoring-X.X.X.tar.gz dist/datarobot_scoring-X.X.X-py3.tar.gz
-
-  - Make py2 tarball::
-
-    $ python2.7 setup.py sdist
-    $ mv dist/datarobot_scoring-X.X.X.tar.gz dist/datarobot_scoring-X.X.X-py2.tar.gz
-
-3. Distribute tarballs
-
-  - TODO
+    $ pip install datarobot_batch_scoring==1.5.1
 
 Features
 --------
@@ -101,65 +24,64 @@ Features
   * Gzip support
   * Custom delimiters
 
-Usage
------
 
-::
-    Usage: batch_scoring [--host=<host>] [--user=<user>]
-                         [--password=<pwd>] [--api_token=<api_token>]
-                         [--datarobot_key=<datarobot_key>] [--verbose]
-                         [--n_samples=<n_samples>] [--n_retry=<n_retry>]
-                         [--n_concurrent=<n_concurrent>]
-                         [--out=<out>]
-                         [--api_version=<api_version>]
-                         [--create_api_token] [--keep_cols=<keep_cols>]
-                         [--delimiter=<delimiter>]
-                         {project_id}
-                         {model_id}
-                         {dataset}
-                         [--resume|--cancel]
+Running batch_scoring
+---------------------
 
-Batch score ``dataset`` by submitting prediction requests against ``host``
-using model ``model_id``. It will send batches of size ``n_samples``.
+The syntax for running the script is as follows.
+The following table describes the syntax conventions.
 
-Set ``n_samples`` such that the round-trip is roughly 10sec (see
-verbose output).
+============  =======
+ Convention   Meaning
+------------  -------
+[ ]           Optional argument
+< >           User supplied value
+{ | }         Required, mutually exclusive
+============  =======
 
-Set ``n_concurrent`` to match the number of cores in the prediction
-API endpoint.
+Required arguments:
 
-The dataset has to be a single CSV file that can be gzipped (extension
-'.gz').
+``batch_scoring --host=<host> --user=<user> <project_id> <model_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
 
-The output ``out`` will be a single CSV files but remember that
-records might be unordered.
+Additional recommended arguments
+``[--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples>]  [--n_concurrent=<n_concurrent>]``
 
-Arguments::
+Additional optional arguments
+``[--out=<filepath>] [--api_version=<api_version>] [—create_api_token]  [--n_retry=<n_retry>] [--delimiter=<delimiter>]  [--resume]``
 
-  --host=<host>    The host to test [default: https://beta.datarobot.com/api].
-  --api_version=<api_version>    The API version [default: v1]
-  --datarobot_key=<datarobot_key>   An additional datarobot_key for dedicated prediction instances.
-  --user=<user>  The username to acquire the api-token; if none prompt.
-  --password=<pwd>  The password to acquire the api-token; if none prompt.
-  --n_samples=<n_samples>  The number of samples per batch [default: 1000].
-  --n_retry=<n_retry>  The number of retries if a request failed; -1 means infinite [default: 3].
-  --n_concurrent=<n_concurrent>  The number of concurrent requests to submit [default: 4].
-  --api_token=<api_token>  The api token for the requests; if none use <pwd> to get token.
-  --out=<out>  The file to which the results should be written [default: out.csv].
-  --keep_cols=<keep_cols>  A comma separated list of column names to append to the predictions.
-  --delimiter=<delimiter>  Delimiter to use. If empty, will try to automatically determine this [default: ,].
-  {project_id}  the project ID number
-  {model_id} the model ID number
-  {dataset} the filename of the records you want to fetch predictions for
+Argument descriptions:
+The following table describes each of the arguments:
 
-Options::
-
-  -h --help
-  -v --verbose  Verbose output
-  -c --create_api_token  If set we will request a new api token.
-  -r --resume   Resume a checkpointed run.
-  -c --cancel   Cancel a checkpointed run.
+============================== ===========
+  Argument                     Description
+------------------------------ -----------
+ host=<host>                   Specifies the hostname of the prediction API endpoint (the location of the data from where to get predictions).
+ user=<user>                   Specifies the username used to acquire the api-token. Use quotes if the name contains spaces.
+ <project_id>                  Specifies the project identification string. You can find the ID: embedded in the URL that displays when you are in the Leaderboard (for example, ``https://<host>/projects/<project_id>/models``) or when the prediction API is enabled, from the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
+ <model_id>                    Specifies the model identification string. You can find the ID: embedded in the URL that displays when you are in the Leaderboard and have selected a model  (for example, ``https://<host>/projects/<project_id>/models/<model_id>``) or when the prediction API is enabled, from the example shown when you click Deploy Model for a specific model in the Leaderboard.
+ <dataset_filepath>            Specifies the .csv input file that the script scores. It does this by submitting prediction requests against <host> using project <project_id> and model <model_id>.
+ datarobot_key=<datarobot_key> An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
+ password=<pwd>                Specifies the password used to acquire the api-token. Use quotes if the password  contains spaces. You must specify either the password or the api_token argument. To avoid entering your password each time you run the script, use the api_token argument instead.
+ api_token=<api_token>         Specifies the api token for the requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
+ out=<filepath>                Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
+ verbose                       Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose) displays very little output.
+ keep_cols=<keep_cols>         Specifies the column names to append to the predictions. Enter as a comma-separated list.
+ n_samples=<n_samples>         Specifies the number of samples to use per batch. Default sample size is 1000. For best results, set ``<n_samples>`` so that the packet size is under 3 MB.
+ n_concurrent=<n_concurrent>   Specifies the number of concurrent requests to submit. By default, 4 concurrent requests are submitted. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
+ api_version=<api_version>     Specifies the API version, either V1 or V2. The default is V1.
+ create_api_token              Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
+ n_retry=<n_retry>             Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
+ delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. If not specified, the script tries to automatically determine the delimiter, and if it cannot, defaults to comma ( , ).
+ resume                        Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same all arguments plus this ``resume`` argument. In that case, the prediction will resume from the point at which it stopped. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
+ help                          Show help of usage.
+============================== ===========
 
 Example::
 
   batch_scoring --host=https://beta.datarobot.com/api --user="greg@datarobot.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
+
+
+Usage Notes
+------------
+  * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
+  * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
