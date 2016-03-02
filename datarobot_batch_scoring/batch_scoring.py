@@ -467,7 +467,6 @@ class RunContext(object):
 
     def checkpoint_batch(self, batch, pred):
         if self.keep_cols and self.first_write:
-            # import ipdb; ipdb.set_trace()
             mask = [c in batch.df.columns for c in self.keep_cols]
             if not all(mask):
                 error('keep_cols "{}" not in columns {}.'.format(
