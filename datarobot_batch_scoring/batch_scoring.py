@@ -343,8 +343,8 @@ def dataframe_from_predictions(result, pred_name):
                 sorted(predictions, key=lambda p: p['row_id'])]
         pred = pred[sorted_classes]
     elif result['task'] == TargetType.REGRESSION:
-        pred = {pred_name: [p["prediction"] for p in
-                            sorted(predictions, key=lambda p: p['row_id'])]}
+        pred = [{pred_name: [p["prediction"] for p in
+                             sorted(predictions, key=lambda p: p['row_id'])]}]
     else:
         ValueError('task {} not supported'.format(result['task']))
 
