@@ -338,13 +338,13 @@ def dataframe_from_predictions(result, pred_name):
     """
     predictions = result['predictions']
     if result['task'] == TargetType.BINARY:
-        sorted_classes = unique_everseen()pd.np.unique(pred.columns.tolist())
-        pred = pd.DataFrame([p['class_probabilities'] for p in
-                             sorted(predictions, key=lambda p: p['row_id'])])
+        sorted_classes = unique_everseen(result)
+        pred = [p['class_probabilities'] for p in
+                sorted(predictions, key=lambda p: p['row_id'])]
         pred = pred[sorted_classes]
     elif result['task'] == TargetType.REGRESSION:
-        pred = pd.DataFrame({pred_name: [p["prediction"] for p in
-                             sorted(predictions, key=lambda p: p['row_id'])]})
+        pred = {pred_name: [p["prediction"] for p in
+                            sorted(predictions, key=lambda p: p['row_id'])]}
     else:
         ValueError('task {} not supported'.format(result['task']))
 
