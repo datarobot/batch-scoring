@@ -827,7 +827,7 @@ def main(argv=sys.argv[1:]):
                         nargs='?',
                         help='An additional datarobot_key for dedicated prediction instances.')
     parser.add_argument('--out', type=str,
-                        nargs='?',
+                        nargs='?', default='out.csv',
                         help='Specifies the file name, and optionally path, '
                              'to which the results are written. '
                              'If not specified, the default file name is out.csv,'
@@ -943,7 +943,6 @@ def main(argv=sys.argv[1:]):
         base_headers['datarobot-key'] = datarobot_key
 
     logger.info('connecting to {}'.format(base_url))
-
     if api_version == 'v1':
         run_batch_predictions_v1(base_url, base_headers, user, pwd,
                                  api_token, create_api_token,
