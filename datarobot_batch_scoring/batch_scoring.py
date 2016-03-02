@@ -68,6 +68,7 @@ elif six.PY3:
     from dbm import dumb  # noqa
 
 
+VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
 
 
 class ShelveError(Exception):
@@ -872,8 +873,7 @@ def main(argv=sys.argv[1:]):
                              ' If the prediction stopped, for example due to error or network '
                              'connection issue, you can run the same command with all the same '
                              'all arguments plus this resume argument.')
-    parser.add_argument('--version', action='store_true',
-                        default=False,
+    parser.add_argument('--version', action='version', version=VERSION_TEMPLATE,
                         help='Show version')
     parser.add_argument('--timeout', type=int,
                         default=30, help='The timeout for each post request')
@@ -887,10 +887,6 @@ def main(argv=sys.argv[1:]):
     printed_args.pop('password')
     root_logger.debug(printed_args)
     root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
-
-    if parsed_args.version:
-        print('batch_scoring {}'.format(__version__))
-        sys.exit(0)
 
     # parse args
     host = parsed_args.host
