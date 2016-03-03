@@ -174,8 +174,8 @@ def verify_objectid(id_):
 
 def iter_chunks(csvfile, chunk_size):
     chunk = []
-    for line in csvfile:
-        chunk.append(line)
+    for row in csvfile:
+        chunk.append(row)
         if len(chunk) >= chunk_size:
             yield chunk
             chunk = []
@@ -245,7 +245,7 @@ class BatchGenerator(object):
         header = reader.next()  # read header line
         fieldnames = [c.strip() for c in header]
 
-        for batch_num, chunk in enumerate(iter_chunks(csvfile,
+        for batch_num, chunk in enumerate(iter_chunks(reader,
                                                       self.chunksize)):
             if batch_num == 0:
                 root_logger.debug('input head: %r', pformat(chunk[:2]))
@@ -656,6 +656,7 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
             out = io.BytesIO()
             writer = csv.writer(out)
             writer.writerow(batch.fieldnames)
+            writer.writerow(batch.data[0])
             data = out.getvalue()
             r = requests.post(endpoint, headers=base_headers,
                               data=data,
