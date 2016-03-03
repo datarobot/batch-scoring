@@ -70,6 +70,7 @@ elif six.PY3:
     from dbm import dumb  # noqa
 
 
+VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
 
 
 class ShelveError(Exception):
@@ -486,7 +487,6 @@ class RunContext(object):
 
     def checkpoint_batch(self, batch, pred):
         if self.keep_cols and self.first_write:
-            # import ipdb; ipdb.set_trace()
             mask = [c in batch.df.columns for c in self.keep_cols]
             if not all(mask):
                 error('keep_cols "{}" not in columns {}.'.format(
@@ -851,7 +851,7 @@ def main(argv=sys.argv[1:]):
                         nargs='?',
                         help='An additional datarobot_key for dedicated prediction instances.')
     parser.add_argument('--out', type=str,
-                        nargs='?',
+                        nargs='?', default='out.csv',
                         help='Specifies the file name, and optionally path, '
                              'to which the results are written. '
                              'If not specified, the default file name is out.csv,'
@@ -896,8 +896,7 @@ def main(argv=sys.argv[1:]):
                              ' If the prediction stopped, for example due to error or network '
                              'connection issue, you can run the same command with all the same '
                              'all arguments plus this resume argument.')
-    parser.add_argument('--version', action='store_true',
-                        default=False,
+    parser.add_argument('--version', action='version', version=VERSION_TEMPLATE,
                         help='Show version')
     parser.add_argument('--timeout', type=int,
                         default=30, help='The timeout for each post request')
@@ -911,10 +910,6 @@ def main(argv=sys.argv[1:]):
     printed_args.pop('password')
     root_logger.debug(printed_args)
     root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
-
-    if parsed_args.version:
-        print('batch_scoring {}'.format(__version__))
-        sys.exit(0)
 
     # parse args
     host = parsed_args.host
@@ -967,7 +962,6 @@ def main(argv=sys.argv[1:]):
         base_headers['datarobot-key'] = datarobot_key
 
     logger.info('connecting to {}'.format(base_url))
-
     if api_version == 'v1':
         run_batch_predictions_v1(base_url, base_headers, user, pwd,
                                  api_token, create_api_token,
