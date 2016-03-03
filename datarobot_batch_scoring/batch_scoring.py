@@ -39,6 +39,7 @@ import csv
 import getpass
 import glob
 import gzip
+import io
 import json
 import logging
 import os
@@ -48,7 +49,6 @@ import tempfile
 import threading
 import warnings
 from functools import partial
-from itertools import filterfalse
 from pprint import pformat
 from time import time
 
@@ -206,7 +206,7 @@ class BatchGenerator(object):
             if six.PY2:
                 return open(self.dataset, 'rb')
             else:
-                return open(self.dataset, newline='')
+                return open(self.dataset, 'rb', newline='')
 
     def __iter__(self):
         rows_read = 0
@@ -242,14 +242,15 @@ class BatchGenerator(object):
 
         csvfile = self.open()
         reader = csv.reader(csvfile, dialect, delimiter=sep)
-        reader.fieldnames = [c.strip() for c in reader.fieldnames]
+        header = reader.next()  # read header line
+        fieldnames = [c.strip() for c in header]
 
         for batch_num, chunk in enumerate(iter_chunks(csvfile,
                                                       self.chunksize)):
             if batch_num == 0:
                 root_logger.debug('input head: %r', pformat(chunk[:2]))
 
-            yield Batch(rows_read, reader.fieldnames, chunk, self.rty_cnt)
+            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
             rows_read += len(chunk)
         else:
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
@@ -259,10 +260,10 @@ def peek_row(dataset, delimiter):
     """Peeks at the first row in `dataset`. """
     batches = BatchGenerator(dataset, 1, 1, delimiter)
     try:
-        row = next(iter(batches))
+        batch = next(iter(batches))
     except StopIteration:
         raise ValueError('Cannot peek first row from {}'.format(dataset))
-    return row.df
+    return batch
 
 
 class GeneratorBackedQueue(object):
@@ -315,9 +316,10 @@ def unique_everseen(iterable, key=None):
     seen = set()
     seen_add = seen.add
     if key is None:
-        for element in filterfalse(seen.__contains__, iterable):
-            seen_add(element)
-            yield element
+        for element in iterable:
+            if element not in seen:
+                seen_add(element)
+                yield element
     else:
         for element in iterable:
             k = key(element)
@@ -348,13 +350,14 @@ def dataframe_from_predictions(result, pred_name):
     else:
         ValueError('task {} not supported'.format(result['task']))
 
+    import ipdb;ipdb.set_trace()
     return pred
 
 
 def process_successful_request(result, batch, ctx, pred_name):
     """Process a successful request. """
     pred = dataframe_from_predictions(result, pred_name)
-    if pred.fieldnames != batch.fieldnames:
+    if len(pred) != len(batch.data):
         raise ValueError('Shape mismatch {}!={}'.format(
             pred.fieldnames, batch.fieldnames))
     # offset index by batch.id
@@ -640,7 +643,7 @@ def context_factory(resume, n_samples, out_file, pid, lid,
                              delimiter, dataset, pred_name)
 
 
-def authorized(user, api_token, n_retry, endpoint, base_headers, row):
+def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
     """Check if user is authorized for the given model and that schema is correct.
 
     This function will make a sync request to the api endpoint with a single
@@ -650,7 +653,10 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, row):
     while n_retry:
         logger.debug('request authorization')
         try:
-            data = row.to_csv(encoding='utf8', index=False)
+            out = io.BytesIO()
+            writer = csv.writer(out)
+            writer.writerow(batch.fieldnames)
+            data = out.getvalue()
             r = requests.post(endpoint, headers=base_headers,
                               data=data,
                               auth=(user, api_token))
@@ -714,12 +720,12 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
-    first_row = peek_row(dataset, delimiter)
-    root_logger.debug('First row for auth request: %s', first_row)
+    batch = peek_row(dataset, delimiter)
+    root_logger.debug('First row for auth request: %s', batch)
 
     # Make a sync request to check authentication and fail early
     if not authorized(user, api_token, n_retry, endpoint,
-                      base_headers, first_row):
+                      base_headers, batch):
         sys.exit(1)
 
     try:
