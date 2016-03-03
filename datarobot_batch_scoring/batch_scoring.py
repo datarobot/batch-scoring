@@ -351,7 +351,6 @@ def dataframe_from_predictions(result, pred_name):
     else:
         ValueError('task {} not supported'.format(result['task']))
 
-    import ipdb;ipdb.set_trace()
     return pred
 
 
@@ -431,7 +430,7 @@ class WorkUnitGenerator(object):
             if batch.rty_cnt == 0:
                 logger.error('batch {} exceeded retry limit; '
                              'we lost {} records'.format(
-                                 batch.id, batch.df.shape[0]))
+                                 batch.id, len(batch.data)))
                 continue
             # otherwise we make an async request
             data = batch.df.to_csv(encoding='utf8', index=False)
