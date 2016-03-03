@@ -56,7 +56,7 @@ import argparse
 
 from . import __version__
 from .network import Network
-from .utils import prompt_yesno
+from .utils import UI
 
 
 if six.PY2:
@@ -69,6 +69,8 @@ elif six.PY3:
 
 
 VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
+
+ui = None  # override in main()
 
 
 class ShelveError(Exception):
@@ -525,7 +527,8 @@ class NewRunContext(RunContext):
             self.clean()
         if os.path.exists(self.out_file):
             logger.warn('File {} exists.'.format(self.out_file))
-            rm = prompt_yesno('Do you want to remove {}'.format(self.out_file))
+            rm = ui.prompt_yesno('Do you want to remove {}'.format(
+                self.out_file))
             if rm:
                 os.remove(self.out_file)
             else:
@@ -613,7 +616,7 @@ def context_factory(resume, n_samples, out_file, pid, lid,
         if resume:
             is_resume = True
         if is_resume is None:
-            is_resume = prompt_yesno('Existing run found. Resume')
+            is_resume = ui.prompt_yesno('Existing run found. Resume')
     else:
         is_resume = False
     if is_resume:
@@ -804,6 +807,7 @@ def run_batch_predictions_v2(base_url, base_headers, user, pwd,
 
 
 def main(argv=sys.argv[1:]):
+    global ui  # global variable hack, will get rid of a bit later
     warnings.simplefilter('ignore')
     parser = argparse.ArgumentParser(usage=__doc__)
     parser.add_argument('--host', type=str,
@@ -873,12 +877,17 @@ def main(argv=sys.argv[1:]):
                              ' If the prediction stopped, for example due to error or network '
                              'connection issue, you can run the same command with all the same '
                              'all arguments plus this resume argument.')
-    parser.add_argument('--version', action='version', version=VERSION_TEMPLATE,
-                        help='Show version')
+    parser.add_argument('--version', action='version',
+                        version=VERSION_TEMPLATE, help='Show version')
     parser.add_argument('--timeout', type=int,
                         default=30, help='The timeout for each post request')
     parser.add_argument('--pred_name', type=str,
                         nargs='?')
+    parser.set_defaults(prompt=None)
+    parser.add_argument('-y', '--yes', dest='prompt', action='store_true',
+                        help="Always answer 'yes' for user prompts")
+    parser.add_argument('-n', '--no', dest='prompt', action='store_false',
+                        help="Always answer 'no' for user prompts")
 
     parsed_args = parser.parse_args()
     level = logging.DEBUG if parsed_args.verbose else logging.INFO
@@ -907,8 +916,10 @@ def main(argv=sys.argv[1:]):
     pwd = parsed_args.password
     timeout = int(parsed_args.timeout)
 
+    ui = UI(parsed_args.prompt)
+
     if not hasattr(parsed_args, 'user'):
-        user = input('user name> ').strip()
+        user = ui.prompt_user()
     else:
         user = parsed_args.user.strip()
 
