@@ -890,7 +890,7 @@ def main(argv=sys.argv[1:]):
     conf_file = get_config_file()
     if conf_file:
         file_args = parse_config_file(conf_file)
-    parsed_args.update(file_args)
+        parsed_args.update(file_args)
     pre_parsed_args = {k: v for k, v in parser.parse_args()._get_kwargs() if v is not None}
     parsed_args.update(pre_parsed_args)
     level = logging.DEBUG if parsed_args['verbose'] else logging.INFO
