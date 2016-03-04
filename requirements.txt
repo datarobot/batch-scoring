@@ -4,4 +4,5 @@ pytest-cov==2.2.1
 pytest-flake8==0.1
 pymongo==2.8
 Flask==0.10.1
+-e git+git@github.com:datarobot/public_api_client.git@v2.1.28#egg=datarobot_sdk-v2.1.28
 -e .

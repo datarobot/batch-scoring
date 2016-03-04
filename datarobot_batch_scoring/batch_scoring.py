@@ -56,7 +56,10 @@ import argparse
 
 from . import __version__
 from .network import Network
-from .utils import UI
+from .utils import (UI,
+                    get_config_file,
+                    parse_config_file,
+                    verify_objectid)
 
 
 if six.PY2:
@@ -164,12 +167,6 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token):
     logger.debug('api-token: {}'.format(api_token))
 
     return api_token
-
-
-def verify_objectid(id_):
-    """Verify if id_ is a proper ObjectId. """
-    if not len(id_) == 24:
-        raise ValueError('id {} not a valid project/model id'.format(id_))
 
 
 class BatchGenerator(object):
@@ -889,46 +886,50 @@ def main(argv=sys.argv[1:]):
     parser.add_argument('-n', '--no', dest='prompt', action='store_false',
                         help="Always answer 'no' for user prompts")
 
-    parsed_args = parser.parse_args()
-    level = logging.DEBUG if parsed_args.verbose else logging.INFO
+    parsed_args = {}
+    conf_file = get_config_file()
+    if conf_file:
+        file_args = parse_config_file(conf_file)
+    parsed_args.update(file_args)
+    pre_parsed_args = {k: v for k, v in parser.parse_args()._get_kwargs() if v is not None}
+    parsed_args.update(pre_parsed_args)
+    level = logging.DEBUG if parsed_args['verbose'] else logging.INFO
     configure_logging(level)
-    printed_args = copy.copy(vars(parsed_args))
+    printed_args = copy.copy(parsed_args)
     printed_args.pop('password')
     root_logger.debug(printed_args)
     root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
 
     # parse args
-    host = parsed_args.host
-    pid = parsed_args.project_id
-    lid = parsed_args.model_id
-    n_retry = int(parsed_args.n_retry)
-    if parsed_args.keep_cols:
-        keep_cols = [s.strip() for s in parsed_args.keep_cols.split(',')]
+    host = parsed_args['host']
+    pid = parsed_args['project_id']
+    lid = parsed_args['model_id']
+    n_retry = int(parsed_args['n_retry'])
+    if parsed_args.get('keep_cols'):
+        keep_cols = [s.strip() for s in parsed_args['keep_cols'].split(',')]
     else:
         keep_cols = None
-    concurrent = int(parsed_args.n_concurrent)
-    dataset = parsed_args.dataset
-    n_samples = int(parsed_args.n_samples)
-    delimiter = parsed_args.delimiter
-    resume = parsed_args.resume
-    out_file = parsed_args.out
-    datarobot_key = parsed_args.datarobot_key
-    pwd = parsed_args.password
-    timeout = int(parsed_args.timeout)
 
-    ui = UI(parsed_args.prompt)
+    concurrent = int(parsed_args['n_concurrent'])
+    dataset = parsed_args['dataset']
+    n_samples = int(parsed_args['n_samples'])
+    delimiter = parsed_args.get('delimiter')
+    resume = parsed_args['resume']
+    out_file = parsed_args['out']
+    datarobot_key = parsed_args.get('datarobot_key')
+    pwd = parsed_args['password']
+    timeout = int(parsed_args['timeout'])
 
-    if not hasattr(parsed_args, 'user'):
+    ui = UI(parsed_args.get('prompt'))
+
+    if 'user' not in parsed_args:
         user = ui.prompt_user()
     else:
-        user = parsed_args.user.strip()
+        user = parsed_args['user'].strip()
 
-    if not os.path.exists(parsed_args.dataset):
-        error('file {} does not exist.'.format(parsed_args.dataset))
+    if not os.path.exists(parsed_args.get('dataset')):
+        error('file {} does not exist.'.format(parsed_args['dataset']))
         sys.exit(1)
-
-    pid = parsed_args.project_id
-    lid = parsed_args.model_id
 
     try:
         verify_objectid(pid)
@@ -937,12 +938,12 @@ def main(argv=sys.argv[1:]):
         error('{}'.format(e))
         sys.exit(1)
 
-    api_token = parsed_args.api_token
-    create_api_token = parsed_args.create_api_token
-    pwd = parsed_args.password
-    pred_name = parsed_args.pred_name
+    api_token = parsed_args.get('api_token')
+    create_api_token = parsed_args.get('create_api_token')
+    pwd = parsed_args['password']
+    pred_name = parsed_args.get('pred_name')
 
-    api_version = parsed_args.api_version
+    api_version = parsed_args['api_version']
 
     base_url = '{}/{}/'.format(host, api_version)
     base_headers = {}
