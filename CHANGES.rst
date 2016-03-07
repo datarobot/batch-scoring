@@ -5,7 +5,7 @@
 
 * Show path to logs on every unexpected error
 
-* Convert cmdline argument parser
+* Convert cmdline argument parser from docopt to argparse
 
 1.5.0
 =====
