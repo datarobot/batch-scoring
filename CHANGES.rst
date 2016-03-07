@@ -1,3 +1,12 @@
+1.6.0 (XXXX-XX-XX)
+==================
+
+* Get rid of gevent/asyncio, use thread-based networking
+
+* Show path to logs on every unexpected error
+
+* Convert cmdline argument parser from docopt to argparse
+
 1.5.0
 =====
 
