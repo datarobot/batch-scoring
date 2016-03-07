@@ -82,5 +82,5 @@ def parse_config_file(file_path):
         # We are return empty dict, because there is nothing in this file
         # that related to arguments to batch scoring.
         return {}
-    parsed_dict = dict(config['batch_scoring'].items())
+    parsed_dict = dict(config.items('batch_scoring'))
     return config_validator(parsed_dict)

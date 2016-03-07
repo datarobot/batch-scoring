@@ -1,6 +1,7 @@
 import os
 import mock
 from tempfile import NamedTemporaryFile
+import textwrap
 from datarobot_batch_scoring.utils import (get_config_file,
                                            CONFIG_FILENAME,
                                            parse_config_file)
@@ -40,12 +41,13 @@ def test_empty_file_doesnt_error():
 
 
 def test_section_basic_with_username():
-    raw_data = """[batch_scoring]\n
-    host=file_host\n
-    project_id=file_project_id\n
-    model_id=file_model_id\n
-    user=file_username\n
-    password=file_password"""
+    raw_data = textwrap.dedent("""\
+        [batch_scoring]
+        host=file_host
+        project_id=file_project_id
+        model_id=file_model_id
+        user=file_username
+        password=file_password""")
     with NamedTemporaryFile(suffix='*.ini') as test_file:
         test_file.write(str(raw_data).encode('utf-8'))
         test_file.seek(0)
@@ -67,12 +69,13 @@ def test_run_main_with_conf_file(monkeypatch):
                  '--n_samples',
                  '10',
                  '--n_concurrent', '1', '--no']
-    raw_data = """[batch_scoring]\n
-    host=file_host\n
-    project_id=file_project_id\n
-    model_id=file_model_id\n
-    user=file_username\n
-    password=file_password"""
+    raw_data = textwrap.dedent("""\
+        [batch_scoring]
+        host=file_host
+        project_id=file_project_id
+        model_id=file_model_id
+        user=file_username
+        password=file_password""")
     with NamedTemporaryFile(suffix='*.ini') as test_file:
         test_file.write(str(raw_data).encode('utf-8'))
         test_file.seek(0)

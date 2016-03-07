@@ -1,7 +1,6 @@
 from __future__ import print_function
 import subprocess
 import sys
-import requests
 from bson import ObjectId
 
 
