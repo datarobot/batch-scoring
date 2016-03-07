@@ -56,7 +56,7 @@ import argparse
 
 from . import __version__
 from .network import Network
-from .utils import UI, logger
+from .utils import UI
 
 
 if six.PY2:
@@ -135,16 +135,17 @@ class BatchGenerator(object):
         The next batch
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
         self.sep = delimiter
+        self._ui = ui
 
     def __iter__(self):
         compression = None
         if self.dataset.endswith('.gz'):
-            logger.debug('using gzip compression')
+            self._ui.debug('using gzip compression')
             compression = 'gzip'
         rows_read = 0
         sep = self.sep
@@ -157,7 +158,8 @@ class BatchGenerator(object):
             sep = None
             engine = 'python'
             engine_params = {}
-            logger.warning('Guessing delimiter will result in slower parsing.')
+            self._ui.warning('Guessing delimiter will result '
+                             'in slower parsing.')
 
         # handle unix tabs
         # NOTE: on bash you have to use Ctrl-V + TAB
@@ -165,7 +167,7 @@ class BatchGenerator(object):
             sep = '\t'
 
         def _file_handle(fname):
-            logger.debug('Opening file name {}.'.format(fname))
+            self._ui.debug('Opening file name {}.'.format(fname))
             return gzip.open(fname) if compression == 'gzip' else open(fname)
 
         if sep is not None:
@@ -200,9 +202,12 @@ class BatchGenerator(object):
                 raise ValueError(
                     "Input file '{}' is empty.".format(self.dataset))
             if i == 0:
-                logger.debug('input columns: %r', chunk.columns.tolist())
-                logger.debug('input dtypes: %r', chunk.dtypes)
-                logger.debug('input head: %r', chunk.head(2))
+                self._ui.debug('input columns: {!r}'
+                               .format(chunk.columns.tolist()))
+                self._ui.debug('input dtypes: {!r}'
+                               .format(chunk.dtypes))
+                self._ui.debug('input head: {!r}'
+                               .format(chunk.head(2)))
 
             # strip white spaces
             chunk.columns = [c.strip() for c in chunk.columns]
@@ -213,9 +218,9 @@ class BatchGenerator(object):
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
 
 
-def peek_row(dataset, delimiter):
+def peek_row(dataset, delimiter, ui):
     """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter)
+    batches = BatchGenerator(dataset, 1, 1, delimiter, ui)
     try:
         row = next(iter(batches))
     except StopIteration:
@@ -313,7 +318,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, batches, endpoint, headers, user, api_token,
-                 ctx, pred_name):
+                 ctx, pred_name, ui):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -321,6 +326,7 @@ class WorkUnitGenerator(object):
         self.ctx = ctx
         self.queue = GeneratorBackedQueue(batches)
         self.pred_name = pred_name
+        self._ui = ui
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
@@ -328,35 +334,36 @@ class WorkUnitGenerator(object):
                 try:
                     result = r.json()
                     exec_time = result['execution_time']
-                    logger.debug(('successful response: exec time {:.0f}msec |'
-                                  ' round-trip: {:.0f}msec').format(
-                                      exec_time,
-                                      r.elapsed.total_seconds() * 1000))
+                    self._ui.debug(('successful response: exec time '
+                                    '{:.0f}msec |'
+                                    ' round-trip: {:.0f}msec').format(
+                                        exec_time,
+                                        r.elapsed.total_seconds() * 1000))
 
                     process_successful_request(result, batch,
                                                self.ctx, self.pred_name)
                 except Exception as e:
-                    logger.warn('{} response error: {} -- retry'
-                                .format(batch.id, e))
+                    self._ui.warning('{} response error: {} -- retry'
+                                     .format(batch.id, e))
                     self.queue.push(batch)
             else:
                 try:
-                    logger.warn('batch {} failed with status: {}'
-                                .format(batch.id,
-                                        json.loads(r.text)['status']))
+                    self._ui.warning('batch {} failed with status: {}'
+                                     .format(batch.id,
+                                             json.loads(r.text)['status']))
                 except ValueError:
-                    logger.warn('batch {} failed with status code: {}'
-                                .format(batch.id, r.status_code))
+                    self._ui.warning('batch {} failed with status code: {}'
+                                     .format(batch.id, r.status_code))
 
                 text = r.text
-                logger.error('batch {} failed status_code:{} text:{}'
-                             .format(batch.id,
-                                     r.status_code,
-                                     text))
+                self._ui.error('batch {} failed status_code:{} text:{}'
+                               .format(batch.id,
+                                       r.status_code,
+                                       text))
                 self.queue.push(batch)
         except Exception as e:
-            logger.fatal('batch {} - dropping due to: {}'
-                         .format(batch.id, e), exc_info=True)
+            self._ui.error('batch {} - dropping due to: {}'
+                           .format(batch.id, e))
 
     def has_next(self):
         return self.queue.has_next()
@@ -365,14 +372,14 @@ class WorkUnitGenerator(object):
         for batch in self.queue:
             # if we exhaused our retries we drop the batch
             if batch.rty_cnt == 0:
-                logger.error('batch {} exceeded retry limit; '
-                             'we lost {} records'.format(
-                                 batch.id, batch.df.shape[0]))
+                self._ui.error('batch {} exceeded retry limit; '
+                               'we lost {} records'.format(
+                                   batch.id, batch.df.shape[0]))
                 continue
             # otherwise we make an async request
             data = batch.df.to_csv(encoding='utf8', index=False)
-            logger.debug('batch {} transmitting {} bytes'
-                         .format(batch.id, len(data)))
+            self._ui.debug('batch {} transmitting {} bytes'
+                           .format(batch.id, len(data)))
             yield requests.Request(
                 method='POST',
                 url=self.endpoint,
@@ -455,7 +462,7 @@ class RunContext(object):
 
     def batch_generator(self):
         return iter(BatchGenerator(self.dataset, self.n_samples,
-                                   self.n_retry, self.delimiter))
+                                   self.n_retry, self.delimiter, self._ui))
 
     @classmethod
     def exists(cls):
@@ -554,7 +561,8 @@ class OldRunContext(RunContext):
         return (b for b in BatchGenerator(self.dataset,
                                           self.n_samples,
                                           self.n_retry,
-                                          self.delimiter)
+                                          self.delimiter,
+                                          self._ui)
                 if b.id not in already_processed_batches)
 
 
@@ -651,7 +659,7 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
-    first_row = peek_row(dataset, delimiter)
+    first_row = peek_row(dataset, delimiter, ui)
     ui.debug('First row for auth request: {}'.format(first_row))
 
     # Make a sync request to check authentication and fail early
@@ -673,7 +681,8 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
                                           user=user,
                                           api_token=api_token,
                                           ctx=ctx,
-                                          pred_name=pred_name)
+                                          pred_name=pred_name,
+                                          ui=ui)
         t0 = time()
         i = 0
         while work_unit_gen.has_next():
@@ -826,8 +835,8 @@ def main(argv=sys.argv[1:]):
     ui = UI(parsed_args.prompt, loglevel)
     printed_args = copy.copy(vars(parsed_args))
     printed_args.pop('password')
-    logger.debug(printed_args)
-    logger.info('platform: {} {}'.format(sys.platform, sys.version))
+    ui.debug(printed_args)
+    ui.info('platform: {} {}'.format(sys.platform, sys.version))
 
     # parse args
     host = parsed_args.host
