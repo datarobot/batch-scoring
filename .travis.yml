@@ -1,0 +1,39 @@
+sudo: false
+language: python
+
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+
+install:
+  - pip install -U pip wheel
+  - pip install -Ur requirements.txt
+  - pip install coveralls
+
+
+script:
+  - make cov
+  - python setup.py check -rms
+
+cache:
+  directories:
+  - $HOME/.cache/pip
+
+before_cache:
+  - rm -f $HOME/.cache/pip/log/debug.log
+
+after_success:
+  - coveralls
+
+deploy:
+  provider: pypi
+  user: andrew.svetlov
+  password:
+    secure: "RDqrg/WzHF84GWejs0l7yo0C+vGt0LWkqxW1YgGayQOOBkflii3AzdBimVDoWmYGp7GR7bbWDarj5hmEYfs9CBRaH34OWPr8D811bUDyChI9HGJoeeaY0fhOO9sawfpP1U/ovwOz/gqCdq+X9m5Fk2H91RBy8JpH/hA6q/XtqJAQ1WXY0AYPsAIFhva19VPr5Tgg5Vg7H0MzEA65Bnk3t6MPYVR+dg3rRS33e+BtqFbQuetPOubfdceVZRjOLgDHh9ztEhES7XXH5ORpD1zBgcZTlTVyZs03XthgCv82bGjtBgvVK5vqJ1cGmYT2hySczBZRI9gCjQJ3R8ug0sjXpqoTw8dfkzfZAzbn7v2jdJUV7pOLdce8YJi4gbyJk5Vipsdux6D8zCeSmPGzZ7+E0DoLsgXBCpqlB1JqCda1KT+3BrB/xJLIj10lWwqbnN+PwyVKKjp4R0mERKctKw4uGC5aVGg3jPXIs+B4bUvTieBUe4ZZBWBRRXbzE9+ewuobhxSK4AfBybyVRmOJvY75+60vsbSsta7/xDrCf3glR2dSfk1YfMUzoDq6De8Iw8f66bSnvdqGXcgWiT4izvk/hPhVIlRUzyeosX4EsNlKubJHkmHIBqeoYho+mGpPycynr1fAqSHW/xUUeoV+MjfMPdfRIHWVsclNR4aNSlgQQi0="
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+    all_branches: true
+    python: 3.5
