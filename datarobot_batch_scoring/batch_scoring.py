@@ -891,7 +891,7 @@ def main(argv=sys.argv[1:]):
     if conf_file:
         file_args = parse_config_file(conf_file)
         parsed_args.update(file_args)
-    pre_parsed_args = {k: v for k, v in parser.parse_args()._get_kwargs() if v is not None}
+    pre_parsed_args = {k: v for k, v in vars(parser.parse_args(argv)).items() if v is not None}
     parsed_args.update(pre_parsed_args)
     level = logging.DEBUG if parsed_args['verbose'] else logging.INFO
     configure_logging(level)
@@ -952,12 +952,12 @@ def main(argv=sys.argv[1:]):
 
     logger.info('connecting to {}'.format(base_url))
     if api_version == 'v1':
-        run_batch_predictions_v1(base_url, base_headers, user, pwd,
-                                 api_token, create_api_token,
-                                 pid, lid, n_retry, concurrent,
-                                 resume, n_samples,
-                                 out_file, keep_cols, delimiter,
-                                 dataset, pred_name, timeout)
+        run_batch_predictions_v1(base_url=base_url, base_headers=base_headers, user=user, pwd=pwd,
+                                 api_token=api_token, create_api_token=create_api_token,
+                                 pid=pid, lid=lid, n_retry=n_retry, concurrent=concurrent,
+                                 resume=resume, n_samples=n_samples,
+                                 out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
+                                 dataset=dataset, pred_name=pred_name, timeout=timeout)
     elif api_version == 'v2':
         run_batch_predictions_v2(base_url, base_headers, user, pwd,
                                  api_token, create_api_token,
