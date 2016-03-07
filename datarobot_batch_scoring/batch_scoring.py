@@ -581,8 +581,8 @@ def context_factory(resume, n_samples, out_file, pid, lid,
                              delimiter, dataset, pred_name, ui)
 
 
-def authorized(user, api_token, n_retry, endpoint, base_headers, row, ui):
-    """Check if user is authorized for the given model and that schema is correct.
+def authorize(user, api_token, n_retry, endpoint, base_headers, row, ui):
+    """Check if user is authorized for and that schema is correct.
 
     This function will make a sync request to the api endpoint with a single
     row just to make sure that the schema is correct and the user
@@ -624,16 +624,12 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, row, ui):
             status = r.json()['status']
         except:
             pass  # fall back to r.text
-        ui.error(('authorization failed -- '
+        ui.debug("Failed authorization response \n{!r}".format(r.content))
+        ui.fatal(('authorization failed -- '
                   'please check project id and model id permissions: {}')
                  .format(status))
-        ui.debug(r.content)
-        rval = False
     else:
         ui.debug('authorization has succeeded')
-        rval = True
-
-    return rval
 
 
 def run_batch_predictions_v1(base_url, base_headers, user, pwd,
@@ -659,65 +655,55 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
     ui.debug('First row for auth request: {}'.format(first_row))
 
     # Make a sync request to check authentication and fail early
-    if not authorized(user, api_token, n_retry, endpoint,
-                      base_headers, first_row, ui):
-        sys.exit(1)
+    authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
 
-    try:
-        with ExitStack() as stack:
-            ctx = stack.enter_context(
-                context_factory(resume, n_samples, out_file, pid,
-                                lid, keep_cols, n_retry, delimiter,
-                                dataset, pred_name, ui))
-            network = stack.enter_context(Network(concurrent, timeout))
-            n_batches_checkpointed_init = len(ctx.db['checkpoints'])
-            ui.debug('number of batches checkpointed initially: {}'
-                     .format(n_batches_checkpointed_init))
-            batches = ctx.batch_generator()
-            work_unit_gen = WorkUnitGenerator(batches,
-                                              endpoint,
-                                              headers=base_headers,
-                                              user=user,
-                                              api_token=api_token,
-                                              ctx=ctx,
-                                              pred_name=pred_name)
-            t0 = time()
-            i = 0
-            while work_unit_gen.has_next():
-                responses = network.perform_requests(
-                    work_unit_gen)
-                for r in responses:
-                    i += 1
-                    ui.info('{} responses sent | time elapsed {}s'
-                            .format(i, time() - t0))
+    with ExitStack() as stack:
+        ctx = stack.enter_context(
+            context_factory(resume, n_samples, out_file, pid,
+                            lid, keep_cols, n_retry, delimiter,
+                            dataset, pred_name, ui))
+        network = stack.enter_context(Network(concurrent, timeout))
+        n_batches_checkpointed_init = len(ctx.db['checkpoints'])
+        ui.debug('number of batches checkpointed initially: {}'
+                 .format(n_batches_checkpointed_init))
+        batches = ctx.batch_generator()
+        work_unit_gen = WorkUnitGenerator(batches,
+                                          endpoint,
+                                          headers=base_headers,
+                                          user=user,
+                                          api_token=api_token,
+                                          ctx=ctx,
+                                          pred_name=pred_name)
+        t0 = time()
+        i = 0
+        while work_unit_gen.has_next():
+            responses = network.perform_requests(
+                work_unit_gen)
+            for r in responses:
+                i += 1
+                ui.info('{} responses sent | time elapsed {}s'
+                        .format(i, time() - t0))
 
-                ui.debug('{} items still in the queue'
-                         .format(len(work_unit_gen.queue.deque)))
+            ui.debug('{} items still in the queue'
+                     .format(len(work_unit_gen.queue.deque)))
 
-            ui.debug('list of checkpointed batches: {}'
-                     .format(sorted(ctx.db['checkpoints'])))
-            n_batches_checkpointed = (len(ctx.db['checkpoints']) -
-                                      n_batches_checkpointed_init)
-            ui.debug('number of batches checkpointed: {}'
-                     .format(n_batches_checkpointed))
-            n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
-                                          n_batches_checkpointed)
-            batches_missing = n_batches_not_checkpointed > 0
-            if batches_missing:
-                ui.fatal(('scoring incomplete, {} batches were dropped | '
-                          'time elapsed {}s')
-                         .format(n_batches_not_checkpointed, time() - t0))
-            else:
-                ui.info('scoring complete | time elapsed {}s'
-                        .format(time() - t0))
-                ui.close()
-
-    except ShelveError as e:
-        ui.fatal('{}'.format(e))
-    except KeyboardInterrupt:
-        ui.info('Keyboard interrupt')
-    except Exception as oe:
-        ui.fatal('{}'.format(oe))
+        ui.debug('list of checkpointed batches: {}'
+                 .format(sorted(ctx.db['checkpoints'])))
+        n_batches_checkpointed = (len(ctx.db['checkpoints']) -
+                                  n_batches_checkpointed_init)
+        ui.debug('number of batches checkpointed: {}'
+                 .format(n_batches_checkpointed))
+        n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
+                                      n_batches_checkpointed)
+        batches_missing = n_batches_not_checkpointed > 0
+        if batches_missing:
+            ui.fatal(('scoring incomplete, {} batches were dropped | '
+                      'time elapsed {}s')
+                     .format(n_batches_not_checkpointed, time() - t0))
+        else:
+            ui.info('scoring complete | time elapsed {}s'
+                    .format(time() - t0))
+            ui.close()
 
 
 # FIXME: broken alpha version
@@ -736,28 +722,20 @@ def run_batch_predictions_v2(base_url, base_headers, user, pwd,
 
     from datarobot_sdk import Model
     model = Model.get(pid, lid)
-    try:
-        model.predict_batch(dataset, out_file + ".tmp",
-                            n_jobs=concurrent, batch_size=n_samples)
+    model.predict_batch(dataset, out_file + ".tmp",
+                        n_jobs=concurrent, batch_size=n_samples)
 
-        import csv
-        # swap order of prediction CSV schema to match api/v1
-        with open(out_file + ".tmp", "rb") as input_file:
-            with open(out_file, "wb") as output_file:
-                rdr = csv.DictReader(input_file)
-                wrtr = csv.DictWriter(output_file, ["row_id", "prediction"],
-                                      extrasaction='ignore')
-                wrtr.writeheader()
-                for a in rdr:
-                    wrtr.writerow(a)
-        ui.close()
-
-    except ShelveError as e:
-        ui.fatal('{}'.format(e))
-    except KeyboardInterrupt:
-        ui.info('Keyboard interrupt')
-    except Exception as oe:
-        ui.fatal('{}'.format(oe))
+    import csv
+    # swap order of prediction CSV schema to match api/v1
+    with open(out_file + ".tmp", "rb") as input_file:
+        with open(out_file, "wb") as output_file:
+            rdr = csv.DictReader(input_file)
+            wrtr = csv.DictWriter(output_file, ["row_id", "prediction"],
+                                  extrasaction='ignore')
+            wrtr.writeheader()
+            for a in rdr:
+                wrtr.writerow(a)
+    ui.close()
 
 
 def main(argv=sys.argv[1:]):
@@ -900,20 +878,29 @@ def main(argv=sys.argv[1:]):
         base_headers['datarobot-key'] = datarobot_key
 
     ui.info('connecting to {}'.format(base_url))
-    if api_version == 'v1':
-        run_batch_predictions_v1(base_url, base_headers, user, pwd,
-                                 api_token, create_api_token,
-                                 pid, lid, n_retry, concurrent,
-                                 resume, n_samples,
-                                 out_file, keep_cols, delimiter,
-                                 dataset, pred_name, timeout, ui)
-    elif api_version == 'v2':
-        run_batch_predictions_v2(base_url, base_headers, user, pwd,
-                                 api_token, create_api_token,
-                                 pid, lid, concurrent, n_samples,
-                                 out_file, dataset, timeout, ui)
-    else:
-        ui.fatal('API Version {} is not supported'.format(api_version))
+    try:
+        if api_version == 'v1':
+            run_batch_predictions_v1(base_url, base_headers, user, pwd,
+                                     api_token, create_api_token,
+                                     pid, lid, n_retry, concurrent,
+                                     resume, n_samples,
+                                     out_file, keep_cols, delimiter,
+                                     dataset, pred_name, timeout, ui)
+        elif api_version == 'v2':
+            run_batch_predictions_v2(base_url, base_headers, user, pwd,
+                                     api_token, create_api_token,
+                                     pid, lid, concurrent, n_samples,
+                                     out_file, dataset, timeout, ui)
+        else:
+            ui.fatal('API Version {} is not supported'.format(api_version))
+    except SystemError:
+        pass
+    except ShelveError as e:
+        ui.error(str(e))
+    except KeyboardInterrupt:
+        ui.info('Keyboard interrupt')
+    except Exception as e:
+        ui.fatal(str(e))
 
 
 if __name__ == '__main__':
