@@ -435,7 +435,11 @@ class WorkUnitGenerator(object):
                                  batch.id, len(batch.data)))
                 continue
             # otherwise we make an async request
-            data = batch.df.to_csv(encoding='utf8', index=False)
+            out = io.BytesIO()
+            writer = csv.writer(out)
+            writer.writerow(batch.fieldnames)
+            writer.writerows(batch.data)
+            data = out.getvalue()
             logger.debug('batch {} transmitting {} bytes'
                          .format(batch.id, len(data)))
             yield requests.Request(
