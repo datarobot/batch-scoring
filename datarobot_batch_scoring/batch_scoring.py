@@ -763,7 +763,7 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
     except KeyboardInterrupt:
         logger.info('Keyboard interrupt')
     except Exception as oe:
-        error('{}'.format(oe), exit=False)
+        error('{}'.format(oe))
 
 
 # FIXME: broken alpha version
@@ -803,7 +803,7 @@ def run_batch_predictions_v2(base_url, base_headers, user, pwd,
     except KeyboardInterrupt:
         logger.info('Keyboard interrupt')
     except Exception as oe:
-        error('{}'.format(oe), exit=False)
+        error('{}'.format(oe))
 
 
 def main(argv=sys.argv[1:]):
