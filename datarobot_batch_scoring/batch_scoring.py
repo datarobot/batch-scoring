@@ -56,7 +56,7 @@ import argparse
 
 from . import __version__
 from .network import Network
-from .utils import UI, logger, root_logger
+from .utils import UI, logger
 
 
 if six.PY2:
@@ -165,7 +165,7 @@ class BatchGenerator(object):
             sep = '\t'
 
         def _file_handle(fname):
-            root_logger.debug('Opening file name {}.'.format(fname))
+            logger.debug('Opening file name {}.'.format(fname))
             return gzip.open(fname) if compression == 'gzip' else open(fname)
 
         if sep is not None:
@@ -200,9 +200,9 @@ class BatchGenerator(object):
                 raise ValueError(
                     "Input file '{}' is empty.".format(self.dataset))
             if i == 0:
-                root_logger.debug('input columns: %r', chunk.columns.tolist())
-                root_logger.debug('input dtypes: %r', chunk.dtypes)
-                root_logger.debug('input head: %r', chunk.head(2))
+                logger.debug('input columns: %r', chunk.columns.tolist())
+                logger.debug('input dtypes: %r', chunk.dtypes)
+                logger.debug('input head: %r', chunk.head(2))
 
             # strip white spaces
             chunk.columns = [c.strip() for c in chunk.columns]
@@ -349,10 +349,10 @@ class WorkUnitGenerator(object):
                                 .format(batch.id, r.status_code))
 
                 text = r.text
-                root_logger.error('batch {} failed status_code:{} text:{}'
-                                  .format(batch.id,
-                                          r.status_code,
-                                          text))
+                logger.error('batch {} failed status_code:{} text:{}'
+                             .format(batch.id,
+                                     r.status_code,
+                                     text))
                 self.queue.push(batch)
         except Exception as e:
             logger.fatal('batch {} - dropping due to: {}'
@@ -826,8 +826,8 @@ def main(argv=sys.argv[1:]):
     ui = UI(parsed_args.prompt, loglevel)
     printed_args = copy.copy(vars(parsed_args))
     printed_args.pop('password')
-    root_logger.debug(printed_args)
-    root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
+    logger.debug(printed_args)
+    logger.info('platform: {} {}'.format(sys.platform, sys.version))
 
     # parse args
     host = parsed_args.host
