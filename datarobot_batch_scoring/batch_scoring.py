@@ -377,14 +377,14 @@ class WorkUnitGenerator(object):
             data = batch.df.to_csv(encoding='utf8', index=False)
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
+            hook = partial(self._response_callback, batch=batch)
             yield requests.Request(
                 method='POST',
                 url=self.endpoint,
                 headers=self.headers,
                 data=data,
                 auth=(self.user, self.api_token),
-                hooks = {'response': partial(self._response_callback,
-                                             batch=batch)})
+                hooks={'response': hook})
 
 
 class RunContext(object):
@@ -750,71 +750,88 @@ def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(usage=__doc__)
     parser.add_argument('--host', type=str,
                         help='Specifies the hostname of the prediction '
-                        'API endpoint (the location of the data from where to get predictions)')
+                        'API endpoint (the location of the data from where '
+                        'to get predictions)')
     parser.add_argument('--user', type=str,
-                        help='Specifies the username used to acquire the api-token.'
-                        ' Use quotes if the name contains spaces.')
+                        help='Specifies the username used to acquire '
+                        'the api-token. '
+                        'Use quotes if the name contains spaces.')
     parser.add_argument('--password', type=str, nargs='?',
-                        help='Specifies the password used to acquire the api-token.'
+                        help='Specifies the password used to acquire '
+                        'the api-token.'
                         ' Use quotes if the name contains spaces.')
     parser.add_argument('--api_token', type=str, nargs='?',
-                        help='Specifies the api token for the requests; if you do not have a token,'
-                        ' you must specify the password argument.')
+                        help='Specifies the api token for the requests; '
+                        'if you do not have a token, '
+                        'you must specify the password argument.')
     parser.add_argument('project_id', type=str,
                         help='Specifies the project identification string.')
     parser.add_argument('model_id', type=str,
                         help='Specifies the model identification string.')
     parser.add_argument('dataset', type=str,
-                        help='Specifies the .csv input file that the script scores.')
+                        help='Specifies the .csv input file that '
+                        'the script scores.')
     parser.add_argument('--datarobot_key', type=str,
                         nargs='?',
-                        help='An additional datarobot_key for dedicated prediction instances.')
+                        help='An additional datarobot_key '
+                        'for dedicated prediction instances.')
     parser.add_argument('--out', type=str,
                         nargs='?', default='out.csv',
                         help='Specifies the file name, and optionally path, '
-                             'to which the results are written. '
-                             'If not specified, the default file name is out.csv,'
-                             ' written to the directory containing the script.')
+                        'to which the results are written. '
+                        'If not specified, the default file name is out.csv, '
+                        'written to the directory containing the script.')
     parser.add_argument('--verbose', '-v', action="store_true",
-                        help='Provides status updates while the script is running.')
+                        help='Provides status updates while '
+                        'the script is running.')
     parser.add_argument('--n_samples', type=int,
                         nargs='?',
                         default=1000,
-                        help='Specifies the number of samples to use per batch.'
-                             ' Default sample size is 1000.')
+                        help='Specifies the number of samples to use '
+                        'per batch. Default sample size is 1000.')
     parser.add_argument('--n_concurrent', type=int,
                         nargs='?',
                         default=4,
-                        help='Specifies the number of concurrent requests to submit.'
-                             ' By default, 4 concurrent requests are submitted.')
+                        help='Specifies the number of concurrent requests '
+                        'to submit. '
+                        'By default, 4 concurrent requests are submitted.')
     parser.add_argument('--api_version', type=str,
                         nargs='?',
                         default='v1',
-                        help='Specifies the API version, either v1 or v2. The default is v1.')
+                        help='Specifies the API version, either v1 or v2. '
+                        'The default is v1.')
     parser.add_argument('--create_api_token', action="store_true",
                         default=False,
-                        help='Requests a new API token. To use this option, you must specify the '
-                             ' password argument for this request (not the api_token argument).')
+                        help='Requests a new API token. To use this option, '
+                        'you must specify the '
+                        'password argument for this request '
+                        '(not the api_token argument).')
     parser.add_argument('--n_retry', type=int,
                         default=3,
-                        help='Specifies the number of times DataRobot will retry '
-                             'if a request fails. '
-                             'A value of -1, the default, specifies an infinite number of retries.')
+                        help='Specifies the number of times DataRobot '
+                        'will retry if a request fails. '
+                        'A value of -1, the default, specifies '
+                        'an infinite number of retries.')
     parser.add_argument('--keep_cols', type=str,
                         nargs='?',
-                        help='Specifies the column names to append to the predictions. '
-                             'Enter as a comma-separated list.')
+                        help='Specifies the column names to append '
+                        'to the predictions. '
+                        'Enter as a comma-separated list.')
     parser.add_argument('--delimiter', type=str,
                         nargs='?',
-                        help='Specifies the delimiter to recognize in the input .csv file. '
-                             'If not specified, the script tries to automatically determine the '
-                             'delimiter, and if it cannot, defaults to comma ( , ).')
+                        help='Specifies the delimiter to recognize in '
+                        'the input .csv file. '
+                        'If not specified, the script tries to automatically '
+                        'determine the delimiter, and if it cannot, '
+                        'defaults to comma ( , ).')
     parser.add_argument('--resume', action='store_true',
                         default=False,
-                        help='Starts the prediction from the point at which it was halted.'
-                             ' If the prediction stopped, for example due to error or network '
-                             'connection issue, you can run the same command with all the same '
-                             'all arguments plus this resume argument.')
+                        help='Starts the prediction from the point at which '
+                        'it was halted. '
+                        'If the prediction stopped, for example due '
+                        'to error or network connection issue, you can run '
+                        'the same command with all the same '
+                        'all arguments plus this resume argument.')
     parser.add_argument('--version', action='version',
                         version=VERSION_TEMPLATE, help='Show version')
     parser.add_argument('--timeout', type=int,
