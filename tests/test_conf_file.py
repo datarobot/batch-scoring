@@ -104,5 +104,6 @@ def test_run_main_with_conf_file(monkeypatch):
                 delimiter=None,
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
-                timeout=30
+                timeout=30,
+                ui=mock.ANY
             )
