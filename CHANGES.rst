@@ -7,6 +7,8 @@
 
 * Convert cmdline argument parser from docopt to argparse
 
+* Add configuration file support
+
 1.5.0
 =====
 

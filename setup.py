@@ -21,6 +21,7 @@ else:
         "numpy>=1.8.0",
         "pandas>=0.15.1",
         "requests>=2.7.0",
+        "trafaret>=0.6.2"
         ]
     if sys.version_info < (3, 0):
         install_requires.extend([
