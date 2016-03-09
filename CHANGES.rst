@@ -9,6 +9,8 @@
 
 * Add configuration file support
 
+* Refactor logging/ui
+
 1.5.0
 =====
 
