@@ -384,7 +384,7 @@ class WorkUnitGenerator(object):
                 headers=self.headers,
                 data=data,
                 auth=(self.user, self.api_token),
-                hooks = {'response': hook})
+                hooks={'response': hook})
 
 
 class RunContext(object):
