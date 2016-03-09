@@ -377,14 +377,14 @@ class WorkUnitGenerator(object):
             data = batch.df.to_csv(encoding='utf8', index=False)
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
+            hook = partial(self._response_callback, batch=batch)
             yield requests.Request(
                 method='POST',
                 url=self.endpoint,
                 headers=self.headers,
                 data=data,
                 auth=(self.user, self.api_token),
-                hooks = {'response': partial(self._response_callback,
-                                             batch=batch)})
+                hooks = {'response': hook})
 
 
 class RunContext(object):
