@@ -1,37 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-  batch_scoring --host=<host>  --user=<user>
-                {--password=<pwd> | --api_token=<api_token>}
-                <project_id>  <model_id>  <dataset_filepath>
-                [--verbose]  [--keep_cols=<keep_cols>]
-                [--n_samples=<n_samples>]
-                [--n_concurrent=<n_concurrent>]
-                [--out=<filepath>] [--api_version=<api_version>]
-                [—create_api_token] [--n_retry=<n_retry>]
-                [--delimiter=<delimiter>] [--resume]
-  batch_scoring -h | --help
-  batch_scoring --version
-
-Batch score ``dataset`` by submitting prediction requests against ``host``
-using model ``model_id``. It will send batches of size ``n_samples``.
-Set ``n_samples`` such that the round-trip is roughly 10sec
-(see verbose output).
-Set ``n_concurrent`` to match the number of cores in the prediction
-API endpoint.
-
-The dataset has to be a single CSV file that can be gzipped (extension '.gz').
-The output ``out`` will be a single CSV files but remember that records
-might be unordered.
-
-
-Example:
-
-  $ batch_scoring --host https://beta.datarobot.com/api --user="<username>" \
---password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
-~/Downloads/diabetes_test.csv
-
-"""
-
 from __future__ import print_function
 
 import collections
