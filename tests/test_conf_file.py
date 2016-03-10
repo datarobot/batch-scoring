@@ -5,7 +5,7 @@ import textwrap
 from datarobot_batch_scoring.utils import (get_config_file,
                                            CONFIG_FILENAME,
                                            parse_config_file)
-from datarobot_batch_scoring.batch_scoring import main as batch_scoring_main
+from datarobot_batch_scoring.main import main as batch_scoring_main
 
 
 def test_no_file_is_ok():
@@ -80,10 +80,10 @@ def test_run_main_with_conf_file(monkeypatch):
         test_file.write(str(raw_data).encode('utf-8'))
         test_file.seek(0)
         monkeypatch.setattr(
-            'datarobot_batch_scoring.batch_scoring.get_config_file',
+            'datarobot_batch_scoring.main.get_config_file',
             lambda: test_file.name)
         with mock.patch(
-                'datarobot_batch_scoring.batch_scoring'
+                'datarobot_batch_scoring.main'
                 '.run_batch_predictions_v1') as mock_method:
             batch_scoring_main(argv=main_args)
             mock_method.assert_called_once_with(
