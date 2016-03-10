@@ -1,0 +1,7 @@
+[run]
+branch = True
+source = datarobot_batch_scoring, tests
+omit = site-packages
+
+[html]
+directory = htmlcov
