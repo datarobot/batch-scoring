@@ -28,8 +28,9 @@ Features
 Running batch_scoring
 ---------------------
 
-The syntax for running the script is as follows.
-The following table describes the syntax conventions.
+You can execute the batch_scoring command from the command line or you can pass parameters to a batch_scoring script from .ini file. Place the file in your home directory or the directory from which you are running the batch_scoring command. Use the syntax and arguments below to define the parameters. Note that if you run the script and also execute via the command line, the command line parameters take priority.
+
+The following table describes the syntax conventions; the syntax for running the script follows the table.
 
 ============  =======
  Convention   Meaning
@@ -79,6 +80,20 @@ The following table describes each of the arguments:
 Example::
 
   batch_scoring --host=https://beta.datarobot.com/api --user="greg@datarobot.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
+
+
+Using configuration file
+------------------------
+The `batch_scoring` command check for the existence of a .batch_scoring.ini file at the location `$HOME/.batch_scoring.ini` (your home directory) and directory where you running the script (working directory). If this file exists, the command uses the same arguments that described above.
+
+The format of a `.batch_scoring.ini` file is as follows::
+
+[batch_scoring]
+host=file_host
+project_id=file_project_id
+model_id=file_model_id
+user=file_username
+password=file_password
 
 
 Usage Notes
