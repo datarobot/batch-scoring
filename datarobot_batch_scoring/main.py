@@ -44,6 +44,7 @@ def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.set_defaults(prompt=None)
     parser.add_argument('--verbose', '-v', action="store_true",
                         help='Provides status updates while '
                         'the script is running.')
@@ -147,7 +148,6 @@ def main(argv=sys.argv[1:]):
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?')
     misc_gr = parser.add_argument_group('Miscellaneous')
-    misc_gr.set_defaults(prompt=None)
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
     misc_gr.add_argument('-n', '--no', dest='prompt', action='store_false',
@@ -163,9 +163,9 @@ def main(argv=sys.argv[1:]):
                        if v is not None}
     parsed_args.update(pre_parsed_args)
     loglevel = logging.DEBUG if parsed_args['verbose'] else logging.INFO
-    ui = UI(parsed_args['prompt'], loglevel)
+    ui = UI(parsed_args.get('prompt'), loglevel)
     printed_args = copy.copy(parsed_args)
-    printed_args.pop('password')
+    printed_args.pop('password', None)
     ui.debug(printed_args)
     ui.info('platform: {} {}'.format(sys.platform, sys.version))
 
@@ -185,7 +185,6 @@ def main(argv=sys.argv[1:]):
     resume = parsed_args['resume']
     out_file = parsed_args['out']
     datarobot_key = parsed_args.get('datarobot_key')
-    pwd = parsed_args['password']
     timeout = int(parsed_args['timeout'])
 
     if 'user' not in parsed_args:
@@ -200,11 +199,11 @@ def main(argv=sys.argv[1:]):
         verify_objectid(pid)
         verify_objectid(lid)
     except ValueError as e:
-        ui.fatal('{}'.format(e))
+        ui.fatal(str(e))
 
     api_token = parsed_args.get('api_token')
     create_api_token = parsed_args.get('create_api_token')
-    pwd = parsed_args['password']
+    pwd = parsed_args.get('password')
     pred_name = parsed_args.get('pred_name')
 
     api_version = parsed_args['api_version']
@@ -244,4 +243,4 @@ def main(argv=sys.argv[1:]):
 
 
 if __name__ == '__main__':
-    main()
+    main()  # pragma: no cover
