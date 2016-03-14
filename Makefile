@@ -18,3 +18,11 @@ cov cover coverage: .install flake8
 	py.test -v --cov=datarobot_batch_scoring \
             --cov-report=term --cov-report=html tests/
 	@echo "open file://`pwd`/htmlcov/index.html"
+
+clean:
+	@rm -rf .install
+	@rm -rf .install-deps
+	@rm -rf datarobot_batch_scoring.egg-info
+	@rm -rf htmlcov
+	@rm -rf .coverage
+	@find . -name __pycache__ | xargs rm -rf

@@ -20,10 +20,10 @@ import six
 from .network import Network
 
 
-if six.PY2:
+if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
     import dumbdbm  # noqa
-elif six.PY3:
+elif six.PY3:  # pragma: no cover
     from contextlib import ExitStack
     # for successful py2exe dist package
     from dbm import dumb  # noqa
