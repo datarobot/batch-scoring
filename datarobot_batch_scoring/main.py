@@ -30,12 +30,16 @@ The OUT will be a single CSV file but remember that records
 might be unordered.
 """
 
+
 EPILOG = """
 Example:
   $ batch_scoring --host https://beta.datarobot.com/api --user="<username>" \
 --password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
 ~/Downloads/diabetes_test.csv
 """
+
+
+VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
 
 
 def main(argv=sys.argv[1:]):
@@ -200,6 +204,10 @@ def main(argv=sys.argv[1:]):
         verify_objectid(lid)
     except ValueError as e:
         ui.fatal(str(e))
+
+    if delimiter and delimiter not in VALID_DELIMITERS:
+        ui.fatal('Delimiter "{}" is not a valid delimiter.'
+                 .format(delimiter))
 
     api_token = parsed_args.get('api_token')
     create_api_token = parsed_args.get('create_api_token')
