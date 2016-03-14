@@ -130,10 +130,14 @@ class BatchGenerator(object):
             # if fixed sep check if we have at least one occurrence.
             with _file_handle(self.dataset) as fd:
                 header = fd.readline()
+                if isinstance(header, bytes):
+                    bsep = sep.encode('utf-8')
+                else:
+                    bsep = sep
                 if not header.strip():
                     raise ValueError("Input file '{}' is empty."
                                      .format(self.dataset))
-                if len(header.split(sep)) == 1:
+                if len(header.split(bsep)) == 1:
                     raise ValueError(
                         ("Delimiter '{}' not found. "
                          "Please check your input file "
