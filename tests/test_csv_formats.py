@@ -138,10 +138,69 @@ def test_empty_file(live_server):
             n_samples=10,
             out_file='out.csv',
             keep_cols=None,
-            delimiter='\\t',
+            delimiter=',',
             dataset='tests/fixtures/empty.csv',
             pred_name=None,
             timeout=30,
             ui=ui
         )
     assert str(ctx.value) == "Input file 'tests/fixtures/empty.csv' is empty."
+
+
+def test_no_delimiter(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with pytest.raises(ValueError) as ctx:
+        run_batch_predictions_v1(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file='out.csv',
+            keep_cols=None,
+            delimiter=';',
+            dataset='tests/fixtures/temperatura_predict.csv',
+            pred_name=None,
+            timeout=30,
+            ui=ui
+        )
+    assert str(ctx.value) == ("Delimiter ';' not found. "
+                              "Please check your input file "
+                              "or consider the flag `--delimiter=''`.")
+
+
+def test_header_only(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with pytest.raises(ValueError) as ctx:
+        run_batch_predictions_v1(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file='out.csv',
+            keep_cols=None,
+            delimiter=',',
+            dataset='tests/fixtures/header_only.csv',
+            pred_name=None,
+            timeout=30,
+            ui=ui
+        )
+    assert str(ctx.value) == ("Input file 'tests/fixtures/header_only.csv' "
+                              "is empty.")
