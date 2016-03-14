@@ -158,3 +158,26 @@ def test_datarobot_key(monkeypatch):
             timeout=30,
             ui=mock.ANY
         )
+
+
+def test_invalid_delimiter(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '56dd9570018e213242dfa93c',
+                 '56dd9570018e213242dfa93d',
+                 '--delimiter', 'INVALID',
+                 'tests/fixtures/temperatura_predict.csv']
+
+    ui_class = mock.Mock(spec=UI)
+    ui = ui_class.return_value
+    ui.fatal.side_effect = SystemExit
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', ui_class)
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions_v1') as mock_method:
+        with pytest.raises(SystemExit):
+            main(argv=main_args)
+        assert not mock_method.called
+    ui.fatal.assert_called_with(
+        'Delimiter "INVALID" is not a valid delimiter.')

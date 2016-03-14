@@ -41,9 +41,6 @@ class TargetType(object):
     BINARY = 'Binary'
 
 
-VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
-
-
 def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     """Get the api token.
 
@@ -123,10 +120,6 @@ class BatchGenerator(object):
             return gzip.open(fname) if compression == 'gzip' else open(fname)
 
         if sep is not None:
-            if sep not in VALID_DELIMITERS:
-                raise ValueError('Delimiter "{}" is not a valid delimiter.'
-                                 .format(sep))
-
             # if fixed sep check if we have at least one occurrence.
             with _file_handle(self.dataset) as fd:
                 header = fd.readline()
