@@ -1,78 +1,34 @@
 # -*- coding: utf-8 -*-
-"""
-  batch_scoring --host=<host>  --user=<user>
-                {--password=<pwd> | --api_token=<api_token>}
-                <project_id>  <model_id>  <dataset_filepath>
-                [--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples>]
-                [--n_concurrent=<n_concurrent>]
-                [--out=<filepath>] [--api_version=<api_version>]
-                [—create_api_token] [--n_retry=<n_retry>]
-                [--delimiter=<delimiter>] [--resume]
-  batch_scoring -h | --help
-  batch_scoring --version
-
-Batch score ``dataset`` by submitting prediction requests against ``host``
-using model ``model_id``. It will send batches of size ``n_samples``.
-Set ``n_samples`` such that the round-trip is roughly 10sec
-(see verbose output).
-Set ``n_concurrent`` to match the number of cores in the prediction
-API endpoint.
-
-The dataset has to be a single CSV file that can be gzipped (extension '.gz').
-The output ``out`` will be a single CSV files but remember that records
-might be unordered.
-
-
-Example:
-
-  $ batch_scoring --host https://beta.datarobot.com/api --user="<username>" \
---password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
-~/Downloads/diabetes_test.csv
-
-"""
-
 from __future__ import print_function
 
 import collections
-import copy
 import csv
 import getpass
 import glob
 import gzip
 import io
 import json
-import logging
 import os
 import shelve
 import sys
-import tempfile
 import threading
-import warnings
 from functools import partial
 from pprint import pformat
 from time import time
 
 import requests
 import six
-import argparse
 
-from . import __version__
 from .network import Network
-from .utils import UI
 
 
-if six.PY2:
+if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
     import dumbdbm  # noqa
-elif six.PY3:
+elif six.PY3:  # pragma: no cover
     from contextlib import ExitStack
     # for successful py2exe dist package
     from dbm import dumb  # noqa
-
-
-VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
-
-ui = None  # override in main()
 
 
 class ShelveError(Exception):
@@ -88,55 +44,7 @@ class TargetType(object):
     BINARY = 'Binary'
 
 
-VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
-
-
-logger = logging.getLogger('main')
-root_logger = logging.getLogger()
-
-with tempfile.NamedTemporaryFile(prefix='datarobot_batch_scoring_',
-                                 suffix='.log', delete=False) as fd:
-    pass
-root_logger_filename = fd.name
-
-
-def configure_logging(level):
-    """Configures logging for user and debug logging. """
-    # user logger
-    fs = '[%(levelname)s] %(message)s'
-    hdlr = logging.StreamHandler()
-    dfs = None
-    fmt = logging.Formatter(fs, dfs)
-    hdlr.setFormatter(fmt)
-    logger.setLevel(level)
-    logger.addHandler(hdlr)
-
-    # root logger
-    fs = '%(asctime)-15s [%(levelname)s] %(message)s'
-    hdlr = logging.FileHandler(root_logger_filename, 'w+')
-    dfs = None
-    fmt = logging.Formatter(fs, dfs)
-    hdlr.setFormatter(fmt)
-    root_logger.setLevel(logging.DEBUG)
-    root_logger.addHandler(hdlr)
-
-
-def error(msg, exit=True):
-    if exit:
-        msg = ('{}\nIf you need assistance please send the log \n'
-               'file {} to support@datarobot.com .').format(
-                   msg, root_logger_filename)
-    logger.error(msg)
-    if sys.exc_info()[0]:
-        exc_info = True
-    else:
-        exc_info = False
-    root_logger.error(msg, exc_info=exc_info)
-    if exit:
-        sys.exit(1)
-
-
-def acquire_api_token(base_url, base_headers, user, pwd, create_api_token):
+def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     """Get the api token.
 
     Either supplied by user or requested from the API with username and pwd.
@@ -156,7 +64,7 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token):
         raise ValueError('api_token request returned status code {}'
                          .format(r.status_code))
     else:
-        logger.info('api-token acquired')
+        ui.info('api-token acquired')
 
     api_token = r.json()['api_token']
 
@@ -164,15 +72,9 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token):
         raise ValueError('no api-token registered; '
                          'please run with --create_api_token flag.')
 
-    logger.debug('api-token: {}'.format(api_token))
+    ui.debug('api-token: {}'.format(api_token))
 
     return api_token
-
-
-def verify_objectid(id_):
-    """Verify if id_ is a proper ObjectId. """
-    if not len(id_) == 24:
-        raise ValueError('id {} not a valid project/model id'.format(id_))
 
 
 def iter_chunks(csvfile, chunk_size):
@@ -196,20 +98,21 @@ class BatchGenerator(object):
         The next batch
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
         self.sep = delimiter
+        self._ui = ui
 
     def open(self):
         if self.dataset.endswith('.gz'):
             return gzip.open(self.dataset)
         else:
             if six.PY2:
-                return open(self.dataset, 'rb')
+                return open(self.dataset, 'r')
             else:
-                return open(self.dataset, 'rb', newline='')
+                return open(self.dataset, 'r', newline='')
 
     def __iter__(self):
         rows_read = 0
@@ -222,17 +125,17 @@ class BatchGenerator(object):
             dialect = sniffer.sniff(csvfile.read(1024))
 
         if sep is not None:
-            if sep not in VALID_DELIMITERS:
-                raise ValueError('Delimiter "{}" is not a valid delimiter.'
-                                 .format(sep))
-
             # if fixed sep check if we have at least one occurrence.
             with self.open() as fd:
                 header = fd.readline()
+                if isinstance(header, bytes):
+                    bsep = sep.encode('utf-8')
+                else:
+                    bsep = sep
                 if not header.strip():
                     raise ValueError("Input file '{}' is empty."
                                      .format(self.dataset))
-                if len(header.split(sep)) == 1:
+                if len(header.split(bsep)) == 1:
                     raise ValueError(
                         ("Delimiter '{}' not found. "
                          "Please check your input file "
@@ -245,13 +148,13 @@ class BatchGenerator(object):
 
         csvfile = self.open()
         reader = csv.reader(csvfile, dialect, delimiter=sep)
-        header = reader.next()  # read header line
+        header = next(reader)
         fieldnames = [c.strip() for c in header]
 
         for batch_num, chunk in enumerate(iter_chunks(reader,
                                                       self.chunksize)):
             if batch_num == 0:
-                root_logger.debug('input head: %r', pformat(chunk[:2]))
+                self._ui.debug('input head: %r', pformat(chunk[:2]))
 
             yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
             rows_read += len(chunk)
@@ -259,9 +162,9 @@ class BatchGenerator(object):
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
 
 
-def peek_row(dataset, delimiter):
+def peek_row(dataset, delimiter, ui):
     """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter)
+    batches = BatchGenerator(dataset, 1, 1, delimiter, ui)
     try:
         batch = next(iter(batches))
     except StopIteration:
@@ -378,7 +281,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, batches, endpoint, headers, user, api_token,
-                 ctx, pred_name):
+                 ctx, pred_name, ui):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -386,6 +289,7 @@ class WorkUnitGenerator(object):
         self.ctx = ctx
         self.queue = GeneratorBackedQueue(batches)
         self.pred_name = pred_name
+        self._ui = ui
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
@@ -393,35 +297,36 @@ class WorkUnitGenerator(object):
                 try:
                     result = r.json()
                     exec_time = result['execution_time']
-                    logger.debug(('successful response: exec time {:.0f}msec |'
-                                  ' round-trip: {:.0f}msec').format(
-                                      exec_time,
-                                      r.elapsed.total_seconds() * 1000))
+                    self._ui.debug(('successful response: exec time '
+                                    '{:.0f}msec |'
+                                    ' round-trip: {:.0f}msec').format(
+                                        exec_time,
+                                        r.elapsed.total_seconds() * 1000))
 
                     process_successful_request(result, batch,
                                                self.ctx, self.pred_name)
                 except Exception as e:
-                    logger.warn('{} response error: {} -- retry'
-                                .format(batch.id, e))
+                    self._ui.warning('{} response error: {} -- retry'
+                                     .format(batch.id, e))
                     self.queue.push(batch)
             else:
                 try:
-                    logger.warn('batch {} failed with status: {}'
-                                .format(batch.id,
-                                        json.loads(r.text)['status']))
+                    self._ui.warning('batch {} failed with status: {}'
+                                     .format(batch.id,
+                                             json.loads(r.text)['status']))
                 except ValueError:
-                    logger.warn('batch {} failed with status code: {}'
-                                .format(batch.id, r.status_code))
+                    self._ui.warning('batch {} failed with status code: {}'
+                                     .format(batch.id, r.status_code))
 
                 text = r.text
-                root_logger.error('batch {} failed status_code:{} text:{}'
-                                  .format(batch.id,
-                                          r.status_code,
-                                          text))
+                self._ui.error('batch {} failed status_code:{} text:{}'
+                               .format(batch.id,
+                                       r.status_code,
+                                       text))
                 self.queue.push(batch)
         except Exception as e:
-            logger.fatal('batch {} - dropping due to: {}'
-                         .format(batch.id, e), exc_info=True)
+            self._ui.error('batch {} - dropping due to: {}'
+                           .format(batch.id, e))
 
     def has_next(self):
         return self.queue.has_next()
@@ -430,9 +335,9 @@ class WorkUnitGenerator(object):
         for batch in self.queue:
             # if we exhaused our retries we drop the batch
             if batch.rty_cnt == 0:
-                logger.error('batch {} exceeded retry limit; '
-                             'we lost {} records'.format(
-                                 batch.id, len(batch.data)))
+                self._ui.error('batch {} exceeded retry limit; '
+                               'we lost {} records'.format(
+                                   batch.id, len(batch.data)))
                 continue
             # otherwise we make an async request
             out = io.BytesIO()
@@ -440,16 +345,16 @@ class WorkUnitGenerator(object):
             writer.writerow(batch.fieldnames)
             writer.writerows(batch.data)
             data = out.getvalue()
-            logger.debug('batch {} transmitting {} bytes'
-                         .format(batch.id, len(data)))
+            self._ui.debug('batch {} transmitting {} bytes'
+                           .format(batch.id, len(data)))
+            hook = partial(self._response_callback, batch=batch)
             yield requests.Request(
                 method='POST',
                 url=self.endpoint,
                 headers=self.headers,
                 data=data,
                 auth=(self.user, self.api_token),
-                hooks = {'response': partial(self._response_callback,
-                                             batch=batch)})
+                hooks={'response': hook})
 
 
 class RunContext(object):
@@ -464,7 +369,7 @@ class RunContext(object):
     FILENAME = '.shelve'
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
-                 n_retry, delimiter, dataset, pred_name):
+                 n_retry, delimiter, dataset, pred_name, ui):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -476,6 +381,7 @@ class RunContext(object):
         self.pred_name = pred_name
         self.out_stream = None
         self.lock = threading.Lock()
+        self._ui = ui
 
     def __enter__(self):
         self.db = shelve.open(self.FILENAME, writeback=True)
@@ -494,7 +400,7 @@ class RunContext(object):
         if self.keep_cols and self.first_write:
             mask = [c in batch.df.columns for c in self.keep_cols]
             if not all(mask):
-                error('keep_cols "{}" not in columns {}.'.format(
+                self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
                     self.keep_cols[mask.index(False)], batch.df.columns))
 
         if self.keep_cols:
@@ -518,12 +424,12 @@ class RunContext(object):
             if self.first_write:
                 self.db['first_write'] = False
             self.first_write = False
-            logger.info('batch {} checkpointed'.format(batch.id))
+            self._ui.info('batch {} checkpointed'.format(batch.id))
             self.db.sync()
 
     def batch_generator(self):
         return iter(BatchGenerator(self.dataset, self.n_samples,
-                                   self.n_retry, self.delimiter))
+                                   self.n_retry, self.delimiter, self._ui))
 
     @classmethod
     def exists(cls):
@@ -545,11 +451,11 @@ class NewRunContext(RunContext):
 
     def __enter__(self):
         if self.exists():
-            logger.info('Removing old run shelve')
+            self._ui.info('Removing old run shelve')
             self.clean()
         if os.path.exists(self.out_file):
-            logger.warn('File {} exists.'.format(self.out_file))
-            rm = ui.prompt_yesno('Do you want to remove {}'.format(
+            self._ui.warning('File {} exists.'.format(self.out_file))
+            rm = self._ui.prompt_yesno('Do you want to remove {}'.format(
                 self.out_file))
             if rm:
                 os.remove(self.out_file)
@@ -608,8 +514,8 @@ class OldRunContext(RunContext):
         self.first_write = self.db['first_write']
         self.out_stream = open(self.out_file, 'a')
 
-        logger.info('resuming a shelved run with {} checkpointed batches'
-                    .format(len(self.db['checkpoints'])))
+        self._ui.info('resuming a shelved run with {} checkpointed batches'
+                      .format(len(self.db['checkpoints'])))
         return self
 
     def __exit__(self, type, value, traceback):
@@ -617,18 +523,19 @@ class OldRunContext(RunContext):
 
     def batch_generator(self):
         """We filter everything that has not been checkpointed yet. """
-        logger.info('playing checkpoint log forward.')
+        self._ui.info('playing checkpoint log forward.')
         already_processed_batches = set(self.db['checkpoints'])
         return (b for b in BatchGenerator(self.dataset,
                                           self.n_samples,
                                           self.n_retry,
-                                          self.delimiter)
+                                          self.delimiter,
+                                          self._ui)
                 if b.id not in already_processed_batches)
 
 
 def context_factory(resume, n_samples, out_file, pid, lid,
                     keep_cols, n_retry,
-                    delimiter, dataset, pred_name):
+                    delimiter, dataset, pred_name, ui):
     """Factory method for run contexts.
 
     Either resume or start a new one.
@@ -643,13 +550,13 @@ def context_factory(resume, n_samples, out_file, pid, lid,
         is_resume = False
     if is_resume:
         return OldRunContext(n_samples, out_file, pid, lid, keep_cols, n_retry,
-                             delimiter, dataset, pred_name)
+                             delimiter, dataset, pred_name, ui)
     else:
         return NewRunContext(n_samples, out_file, pid, lid, keep_cols, n_retry,
-                             delimiter, dataset, pred_name)
+                             delimiter, dataset, pred_name, ui)
 
 
-def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
+def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     """Check if user is authorized for the given model and that schema is correct.
 
     This function will make a sync request to the api endpoint with a single
@@ -657,7 +564,7 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
     is authorized.
     """
     while n_retry:
-        logger.debug('request authorization')
+        ui.debug('request authorization')
         try:
             out = io.BytesIO()
             writer = csv.writer(out)
@@ -667,10 +574,10 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
             r = requests.post(endpoint, headers=base_headers,
                               data=data,
                               auth=(user, api_token))
-            root_logger.debug('authorization request response: {}|{}'
-                              .format(r.status_code, r.text))
+            ui.debug('authorization request response: {}|{}'
+                     .format(r.status_code, r.text))
         except requests.exceptions.ConnectionError:
-            error('cannot connect to {}'.format(endpoint))
+            ui.error('cannot connect to {}'.format(endpoint))
         if r.status_code == 200:
             # all good
             break
@@ -681,13 +588,13 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
             except:
                 msg = r.text
 
-            error('failed with client error: {}'.format(msg))
+            ui.fatal('failed with client error: {}'.format(msg))
         elif r.status_code == 401:
-            error('failed to authenticate -- '
-                  'please check your username and/or api token.')
+            ui.fatal('failed to authenticate -- '
+                     'please check your username and/or api token.')
         elif r.status_code == 405:
-            error('failed to request endpoint -- '
-                  'please check your --host argument.')
+            ui.fatal('failed to request endpoint -- '
+                     'please check your --host argument.')
         else:
             n_retry -= 1
     if n_retry == 0:
@@ -696,16 +603,12 @@ def authorized(user, api_token, n_retry, endpoint, base_headers, batch):
             status = r.json()['status']
         except:
             pass  # fall back to r.text
-        logger.error(('authorization failed -- '
-                      'please check project id and model id permissions: {}')
-                     .format(status))
-        logger.debug(r.content)
-        rval = False
+        ui.debug("Failed authorization response \n{!r}".format(r.content))
+        ui.fatal(('authorization failed -- '
+                  'please check project id and model id permissions: {}')
+                 .format(status))
     else:
-        logger.debug('authorization successfully')
-        rval = True
-
-    return rval
+        ui.debug('authorization has succeeded')
 
 
 def run_batch_predictions_v1(base_url, base_headers, user, pwd,
@@ -714,89 +617,87 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
                              resume, n_samples,
                              out_file, keep_cols, delimiter,
                              dataset, pred_name,
-                             timeout):
+                             timeout, ui):
     if not api_token:
         if not pwd:
             pwd = getpass.getpass('password> ')
         try:
             api_token = acquire_api_token(base_url, base_headers, user, pwd,
-                                          create_api_token)
+                                          create_api_token, ui)
         except Exception as e:
-            error('{}'.format(e))
+            ui.fatal(str(e))
 
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
-    batch = peek_row(dataset, delimiter)
-    root_logger.debug('First row for auth request: %s', batch)
+    batch = peek_row(dataset, delimiter, ui)
+    ui.debug('First row for auth request: %s', batch)
 
     # Make a sync request to check authentication and fail early
-    if not authorized(user, api_token, n_retry, endpoint,
-                      base_headers, batch):
-        sys.exit(1)
+    authorize(user, api_token, n_retry, endpoint,
+              base_headers, batch, ui)
 
-    try:
-        with ExitStack() as stack:
-            ctx = stack.enter_context(
-                context_factory(resume, n_samples, out_file, pid,
-                                lid, keep_cols, n_retry, delimiter,
-                                dataset, pred_name))
-            network = stack.enter_context(Network(concurrent, timeout))
-            n_batches_checkpointed_init = len(ctx.db['checkpoints'])
-            root_logger.debug('number of batches checkpointed initially: {}'
-                              .format(n_batches_checkpointed_init))
-            batches = ctx.batch_generator()
-            work_unit_gen = WorkUnitGenerator(batches,
-                                              endpoint,
-                                              headers=base_headers,
-                                              user=user,
-                                              api_token=api_token,
-                                              ctx=ctx,
-                                              pred_name=pred_name)
-            t0 = time()
-            i = 0
-            while work_unit_gen.has_next():
-                responses = network.perform_requests(
-                    work_unit_gen)
-                for r in responses:
-                    i += 1
-                    logger.info('{} responses sent | time elapsed {}s'
-                                .format(i, time() - t0))
+    first_row = peek_row(dataset, delimiter, ui)
+    ui.debug('First row for auth request: {}'.format(first_row))
 
-                logger.debug('{} items still in the queue'
-                             .format(len(work_unit_gen.queue.deque)))
+    # Make a sync request to check authentication and fail early
+    authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
 
-            root_logger.debug('list of checkpointed batches: {}'
-                              .format(sorted(ctx.db['checkpoints'])))
-            n_batches_checkpointed = (len(ctx.db['checkpoints']) -
-                                      n_batches_checkpointed_init)
-            root_logger.debug('number of batches checkpointed: {}'
-                              .format(n_batches_checkpointed))
-            n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
-                                          n_batches_checkpointed)
-            batches_missing = n_batches_not_checkpointed > 0
-            if batches_missing:
-                logger.fatal(('scoring incomplete, {} batches were dropped | '
-                             'time elapsed {}s')
-                             .format(n_batches_not_checkpointed, time() - t0))
-            else:
-                logger.info('scoring complete | time elapsed {}s'
-                            .format(time() - t0))
-                os.remove(root_logger_filename)
+    with ExitStack() as stack:
+        ctx = stack.enter_context(
+            context_factory(resume, n_samples, out_file, pid,
+                            lid, keep_cols, n_retry, delimiter,
+                            dataset, pred_name, ui))
+        network = stack.enter_context(Network(concurrent, timeout))
+        n_batches_checkpointed_init = len(ctx.db['checkpoints'])
+        ui.debug('number of batches checkpointed initially: {}'
+                 .format(n_batches_checkpointed_init))
+        batches = ctx.batch_generator()
+        work_unit_gen = WorkUnitGenerator(batches,
+                                          endpoint,
+                                          headers=base_headers,
+                                          user=user,
+                                          api_token=api_token,
+                                          ctx=ctx,
+                                          pred_name=pred_name,
+                                          ui=ui)
+        t0 = time()
+        i = 0
+        while work_unit_gen.has_next():
+            responses = network.perform_requests(
+                work_unit_gen)
+            for r in responses:
+                i += 1
+                ui.info('{} responses sent | time elapsed {}s'
+                        .format(i, time() - t0))
 
-    except ShelveError as e:
-        error('{}'.format(e), exit=False)
-    except KeyboardInterrupt:
-        logger.info('Keyboard interrupt')
-    except Exception as oe:
-        error('{}'.format(oe))
+            ui.debug('{} items still in the queue'
+                     .format(len(work_unit_gen.queue.deque)))
+
+        ui.debug('list of checkpointed batches: {}'
+                 .format(sorted(ctx.db['checkpoints'])))
+        n_batches_checkpointed = (len(ctx.db['checkpoints']) -
+                                  n_batches_checkpointed_init)
+        ui.debug('number of batches checkpointed: {}'
+                 .format(n_batches_checkpointed))
+        n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
+                                      n_batches_checkpointed)
+        batches_missing = n_batches_not_checkpointed > 0
+        if batches_missing:
+            ui.fatal(('scoring incomplete, {} batches were dropped | '
+                      'time elapsed {}s')
+                     .format(n_batches_not_checkpointed, time() - t0))
+        else:
+            ui.info('scoring complete | time elapsed {}s'
+                    .format(time() - t0))
+            ui.close()
 
 
 # FIXME: broken alpha version
 def run_batch_predictions_v2(base_url, base_headers, user, pwd,
                              api_token, create_api_token,
                              pid, lid, concurrent, n_samples,
-                             out_file, dataset, timeout):
+                             out_file, dataset, timeout, ui):
 
     from datarobot_sdk.client import Client
     if api_token:
@@ -804,194 +705,21 @@ def run_batch_predictions_v2(base_url, base_headers, user, pwd,
     elif pwd:
         Client(username=user, password=pwd, endpoint=base_url)
     else:
-        error('Please provide a password or api token')
-        sys.exit(1)
+        ui.fatal('Please provide a password or api token')
 
     from datarobot_sdk import Model
     model = Model.get(pid, lid)
-    try:
-        model.predict_batch(dataset, out_file + ".tmp",
-                            n_jobs=concurrent, batch_size=n_samples)
+    model.predict_batch(dataset, out_file + ".tmp",
+                        n_jobs=concurrent, batch_size=n_samples)
 
-        import csv
-        # swap order of prediction CSV schema to match api/v1
-        with open(out_file + ".tmp", "rb") as input_file:
-            with open(out_file, "wb") as output_file:
-                rdr = csv.DictReader(input_file)
-                wrtr = csv.DictWriter(output_file, ["row_id", "prediction"],
-                                      extrasaction='ignore')
-                wrtr.writeheader()
-                for a in rdr:
-                    wrtr.writerow(a)
-
-    except ShelveError as e:
-        error('{}'.format(e), exit=False)
-    except KeyboardInterrupt:
-        logger.info('Keyboard interrupt')
-    except Exception as oe:
-        error('{}'.format(oe))
-
-
-def main(argv=sys.argv[1:]):
-    global ui  # global variable hack, will get rid of a bit later
-    warnings.simplefilter('ignore')
-    parser = argparse.ArgumentParser(usage=__doc__)
-    parser.add_argument('--host', type=str,
-                        help='Specifies the hostname of the prediction '
-                        'API endpoint (the location of the data from where to get predictions)')
-    parser.add_argument('--user', type=str,
-                        help='Specifies the username used to acquire the api-token.'
-                        ' Use quotes if the name contains spaces.')
-    parser.add_argument('--password', type=str, nargs='?',
-                        help='Specifies the password used to acquire the api-token.'
-                        ' Use quotes if the name contains spaces.')
-    parser.add_argument('--api_token', type=str, nargs='?',
-                        help='Specifies the api token for the requests; if you do not have a token,'
-                        ' you must specify the password argument.')
-    parser.add_argument('project_id', type=str,
-                        help='Specifies the project identification string.')
-    parser.add_argument('model_id', type=str,
-                        help='Specifies the model identification string.')
-    parser.add_argument('dataset', type=str,
-                        help='Specifies the .csv input file that the script scores.')
-    parser.add_argument('--datarobot_key', type=str,
-                        nargs='?',
-                        help='An additional datarobot_key for dedicated prediction instances.')
-    parser.add_argument('--out', type=str,
-                        nargs='?', default='out.csv',
-                        help='Specifies the file name, and optionally path, '
-                             'to which the results are written. '
-                             'If not specified, the default file name is out.csv,'
-                             ' written to the directory containing the script.')
-    parser.add_argument('--verbose', '-v', action="store_true",
-                        help='Provides status updates while the script is running.')
-    parser.add_argument('--n_samples', type=int,
-                        nargs='?',
-                        default=1000,
-                        help='Specifies the number of samples to use per batch.'
-                             ' Default sample size is 1000.')
-    parser.add_argument('--n_concurrent', type=int,
-                        nargs='?',
-                        default=4,
-                        help='Specifies the number of concurrent requests to submit.'
-                             ' By default, 4 concurrent requests are submitted.')
-    parser.add_argument('--api_version', type=str,
-                        nargs='?',
-                        default='v1',
-                        help='Specifies the API version, either v1 or v2. The default is v1.')
-    parser.add_argument('--create_api_token', action="store_true",
-                        default=False,
-                        help='Requests a new API token. To use this option, you must specify the '
-                             ' password argument for this request (not the api_token argument).')
-    parser.add_argument('--n_retry', type=int,
-                        default=3,
-                        help='Specifies the number of times DataRobot will retry '
-                             'if a request fails. '
-                             'A value of -1, the default, specifies an infinite number of retries.')
-    parser.add_argument('--keep_cols', type=str,
-                        nargs='?',
-                        help='Specifies the column names to append to the predictions. '
-                             'Enter as a comma-separated list.')
-    parser.add_argument('--delimiter', type=str,
-                        nargs='?',
-                        help='Specifies the delimiter to recognize in the input .csv file. '
-                             'If not specified, the script tries to automatically determine the '
-                             'delimiter, and if it cannot, defaults to comma ( , ).')
-    parser.add_argument('--resume', action='store_true',
-                        default=False,
-                        help='Starts the prediction from the point at which it was halted.'
-                             ' If the prediction stopped, for example due to error or network '
-                             'connection issue, you can run the same command with all the same '
-                             'all arguments plus this resume argument.')
-    parser.add_argument('--version', action='version',
-                        version=VERSION_TEMPLATE, help='Show version')
-    parser.add_argument('--timeout', type=int,
-                        default=30, help='The timeout for each post request')
-    parser.add_argument('--pred_name', type=str,
-                        nargs='?')
-    parser.set_defaults(prompt=None)
-    parser.add_argument('-y', '--yes', dest='prompt', action='store_true',
-                        help="Always answer 'yes' for user prompts")
-    parser.add_argument('-n', '--no', dest='prompt', action='store_false',
-                        help="Always answer 'no' for user prompts")
-
-    parsed_args = parser.parse_args()
-    level = logging.DEBUG if parsed_args.verbose else logging.INFO
-    configure_logging(level)
-    printed_args = copy.copy(vars(parsed_args))
-    printed_args.pop('password')
-    root_logger.debug(printed_args)
-    root_logger.info('platform: {} {}'.format(sys.platform, sys.version))
-
-    # parse args
-    host = parsed_args.host
-    pid = parsed_args.project_id
-    lid = parsed_args.model_id
-    n_retry = int(parsed_args.n_retry)
-    if parsed_args.keep_cols:
-        keep_cols = [s.strip() for s in parsed_args.keep_cols.split(',')]
-    else:
-        keep_cols = None
-    concurrent = int(parsed_args.n_concurrent)
-    dataset = parsed_args.dataset
-    n_samples = int(parsed_args.n_samples)
-    delimiter = parsed_args.delimiter
-    resume = parsed_args.resume
-    out_file = parsed_args.out
-    datarobot_key = parsed_args.datarobot_key
-    pwd = parsed_args.password
-    timeout = int(parsed_args.timeout)
-
-    ui = UI(parsed_args.prompt)
-
-    if not hasattr(parsed_args, 'user'):
-        user = ui.prompt_user()
-    else:
-        user = parsed_args.user.strip()
-
-    if not os.path.exists(parsed_args.dataset):
-        error('file {} does not exist.'.format(parsed_args.dataset))
-        sys.exit(1)
-
-    pid = parsed_args.project_id
-    lid = parsed_args.model_id
-
-    try:
-        verify_objectid(pid)
-        verify_objectid(lid)
-    except ValueError as e:
-        error('{}'.format(e))
-        sys.exit(1)
-
-    api_token = parsed_args.api_token
-    create_api_token = parsed_args.create_api_token
-    pwd = parsed_args.password
-    pred_name = parsed_args.pred_name
-
-    api_version = parsed_args.api_version
-
-    base_url = '{}/{}/'.format(host, api_version)
-    base_headers = {}
-    if datarobot_key:
-        base_headers['datarobot-key'] = datarobot_key
-
-    logger.info('connecting to {}'.format(base_url))
-    if api_version == 'v1':
-        run_batch_predictions_v1(base_url, base_headers, user, pwd,
-                                 api_token, create_api_token,
-                                 pid, lid, n_retry, concurrent,
-                                 resume, n_samples,
-                                 out_file, keep_cols, delimiter,
-                                 dataset, pred_name, timeout)
-    elif api_version == 'v2':
-        run_batch_predictions_v2(base_url, base_headers, user, pwd,
-                                 api_token, create_api_token,
-                                 pid, lid, concurrent, n_samples,
-                                 out_file, dataset, timeout)
-    else:
-        error('API Version {} is not supported'.format(api_version))
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
+    import csv
+    # swap order of prediction CSV schema to match api/v1
+    with open(out_file + ".tmp", "rb") as input_file:
+        with open(out_file, "wb") as output_file:
+            rdr = csv.DictReader(input_file)
+            wrtr = csv.DictWriter(output_file, ["row_id", "prediction"],
+                                  extrasaction='ignore')
+            wrtr.writeheader()
+            for a in rdr:
+                wrtr.writerow(a)
+    ui.close()

@@ -21,6 +21,7 @@ else:
         "numpy>=1.8.0",
         "pandas>=0.15.1",
         "requests>=2.7.0",
+        "trafaret>=0.6.2"
         ]
     if sys.version_info < (3, 0):
         install_requires.extend([
@@ -29,7 +30,7 @@ else:
             ])
     extra['entry_points'] = {
         'console_scripts': [
-            'batch_scoring = datarobot_batch_scoring.batch_scoring:main']}
+            'batch_scoring = datarobot_batch_scoring.main:main']}
     extra['install_requires'] = install_requires
 
 

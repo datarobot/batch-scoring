@@ -22,21 +22,15 @@ You can also create virtualenvs with different python versions::
 Deployment
 ----------
 
-1. Cut a release candidate
+Cut a release candidate
 
-  - update setup.py & datarobot_scoring/batch_scoring.py
-  - acceptance testing
-  - tag release (& push tag)
+  - update ``__version__`` in ``datarobot_batch_scoring/__init__.py``
+  - perform acceptance tests
+  - tag release
+  - push a tag to GitHub
 
-2. Create a source and wheel distributions::
-
-    $ python setup.py sdist bdist_wheel
-
-3. Distribute artifacts using `twine <https://pypi.python.org/pypi/twine>`_::
-
-    $ twine upload dist/datarobot_batch_scoring-X.X.X.tar.gz
-
-  Contact `@bratchenko <https://github.com/bratchenko>`_ for access to pypi.
+Travis bot runs authomated tests and publish new version on PyPI when
+tests are passed.
 
 Packaging for windows
 ---------------------
