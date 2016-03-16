@@ -247,12 +247,14 @@ def dataframe_from_predictions(result, pred_name):
          Class labels are ordered in lexical order (asc).
     """
     predictions = result['predictions']
+    import ipdb;ipdb.set_trace()
     if result['task'] == TargetType.BINARY:
-        sorted_classes = unique_everseen(result)
+        sorted_classes = list(unique_everseen(result['predictions']))
         pred = [p['class_probabilities'] for p in
                 sorted(predictions, key=lambda p: p['row_id'])]
         pred = pred[sorted_classes]
     elif result['task'] == TargetType.REGRESSION:
+        assert 0, "Fix me"
         pred = [{pred_name: [p["prediction"] for p in
                              sorted(predictions, key=lambda p: p['row_id'])]}]
     else:
