@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import codecs
 import collections
 import csv
 import getpass
@@ -110,9 +111,9 @@ class BatchGenerator(object):
             return gzip.open(self.dataset)
         else:
             if six.PY2:
-                return open(self.dataset, 'r')
+                return open(self.dataset, 'rb')
             else:
-                return open(self.dataset, 'r', newline='')
+                return open(self.dataset, 'rb')
 
     def __iter__(self):
         rows_read = 0
@@ -122,7 +123,7 @@ class BatchGenerator(object):
 
         with self.open() as csvfile:
             sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(csvfile.read(1024))
+            dialect = sniffer.sniff(csvfile.read(1024).decode('latin-1'))
 
         if sep is not None:
             # if fixed sep check if we have at least one occurrence.
@@ -146,11 +147,12 @@ class BatchGenerator(object):
             # NOTE: on bash you have to use Ctrl-V + TAB
             sep = '\t'
 
-        csvfile = self.open()
+        csvfile = codecs.getreader('latin-1')(self.open())
         reader = csv.reader(csvfile, dialect, delimiter=sep)
         header = next(reader)
         fieldnames = [c.strip() for c in header]
 
+        batch_num = None
         for batch_num, chunk in enumerate(iter_chunks(reader,
                                                       self.chunksize)):
             if batch_num == 0:
@@ -158,7 +160,7 @@ class BatchGenerator(object):
 
             yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
             rows_read += len(chunk)
-        else:
+        if batch_num is None:
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
 
 
@@ -340,11 +342,11 @@ class WorkUnitGenerator(object):
                                    batch.id, len(batch.data)))
                 continue
             # otherwise we make an async request
-            out = io.BytesIO()
+            out = io.StringIO()
             writer = csv.writer(out)
             writer.writerow(batch.fieldnames)
             writer.writerows(batch.data)
-            data = out.getvalue()
+            data = out.getvalue().encode('latin-1')
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
             hook = partial(self._response_callback, batch=batch)
@@ -566,13 +568,13 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     while n_retry:
         ui.debug('request authorization')
         try:
-            out = io.BytesIO()
+            out = io.StringIO()
             writer = csv.writer(out)
             writer.writerow(batch.fieldnames)
             writer.writerow(batch.data[0])
             data = out.getvalue()
             r = requests.post(endpoint, headers=base_headers,
-                              data=data,
+                              data=data.encode('latin-1'),
                               auth=(user, api_token))
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
