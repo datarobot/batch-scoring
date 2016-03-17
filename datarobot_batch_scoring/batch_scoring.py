@@ -9,6 +9,7 @@ import glob
 import gzip
 import io
 import json
+import operator
 import os
 import shelve
 import sys
@@ -217,25 +218,6 @@ class GeneratorBackedQueue(object):
                 return False
 
 
-def unique_everseen(iterable, key=None):
-    "List unique elements, preserving order. Remember all elements ever seen."
-    # unique_everseen('AAAABBBCCDAABBB') --> A B C D
-    # unique_everseen('ABBCcAD', str.lower) --> A B C D
-    seen = set()
-    seen_add = seen.add
-    if key is None:
-        for element in iterable:
-            if element not in seen:
-                seen_add(element)
-                yield element
-    else:
-        for element in iterable:
-            k = key(element)
-            if k not in seen:
-                seen_add(k)
-                yield element
-
-
 def dataframe_from_predictions(result, pred_name):
     """Convert DR prediction api v1 into dataframe.
 
@@ -249,10 +231,8 @@ def dataframe_from_predictions(result, pred_name):
     predictions = result['predictions']
     import ipdb;ipdb.set_trace()
     if result['task'] == TargetType.BINARY:
-        sorted_classes = list(unique_everseen(result['predictions']))
-        pred = [p['class_probabilities'] for p in
-                sorted(predictions, key=lambda p: p['row_id'])]
-        pred = pred[sorted_classes]
+        pred = [[p['row_id'], *p['class_probabilities']] for p in
+                sorted(predictions, key=operator.itemgetter('row_id'))]
     elif result['task'] == TargetType.REGRESSION:
         assert 0, "Fix me"
         pred = [{pred_name: [p["prediction"] for p in
