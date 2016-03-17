@@ -545,6 +545,7 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, row, ui):
     row just to make sure that the schema is correct and the user
     is authorized.
     """
+    r = None
     while n_retry:
         ui.debug('request authorization')
         try:
@@ -554,34 +555,35 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, row, ui):
                               auth=(user, api_token))
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
+            if r.status_code == 200:
+                # all good
+                break
+            if r.status_code == 400:
+                # client error -- maybe schema is wrong
+                try:
+                    msg = r.json()['status']
+                except:
+                    msg = r.text
+
+                ui.fatal('failed with client error: {}'.format(msg))
+            elif r.status_code == 401:
+                ui.fatal('failed to authenticate -- '
+                         'please check your username and/or api token.')
+            elif r.status_code == 405:
+                ui.fatal('failed to request endpoint -- '
+                         'please check your --host argument.')
         except requests.exceptions.ConnectionError:
             ui.error('cannot connect to {}'.format(endpoint))
-        if r.status_code == 200:
-            # all good
-            break
-        if r.status_code == 400:
-            # client error -- maybe schema is wrong
-            try:
-                msg = r.json()['status']
-            except:
-                msg = r.text
+        n_retry -= 1
 
-            ui.fatal('failed with client error: {}'.format(msg))
-        elif r.status_code == 401:
-            ui.fatal('failed to authenticate -- '
-                     'please check your username and/or api token.')
-        elif r.status_code == 405:
-            ui.fatal('failed to request endpoint -- '
-                     'please check your --host argument.')
-        else:
-            n_retry -= 1
     if n_retry == 0:
-        status = r.text
+        status = r.text if r is not None else 'UNKNOWN'
         try:
             status = r.json()['status']
         except:
             pass  # fall back to r.text
-        ui.debug("Failed authorization response \n{!r}".format(r.content))
+        content = r.content if r is not None else 'NO CONTENT'
+        ui.debug("Failed authorization response \n{!r}".format(content))
         ui.fatal(('authorization failed -- '
                   'please check project id and model id permissions: {}')
                  .format(status))
