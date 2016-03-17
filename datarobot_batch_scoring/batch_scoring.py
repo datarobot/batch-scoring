@@ -229,7 +229,6 @@ def dataframe_from_predictions(result, pred_name):
          Class labels are ordered in lexical order (asc).
     """
     predictions = result['predictions']
-    import ipdb;ipdb.set_trace()
     if result['task'] == TargetType.BINARY:
         pred = [[p['row_id'], *p['class_probabilities']] for p in
                 sorted(predictions, key=operator.itemgetter('row_id'))]
@@ -250,6 +249,7 @@ def process_successful_request(result, batch, ctx, pred_name):
         raise ValueError('Shape mismatch {}!={}'.format(
             pred.fieldnames, batch.fieldnames))
     # offset index by batch.id
+    import ipdb;ipdb.set_trace()
     pred.index = batch.df.index + batch.id
     pred.index.name = 'row_id'
     ctx.checkpoint_batch(batch, pred)
