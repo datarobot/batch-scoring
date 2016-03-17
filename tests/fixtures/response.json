@@ -42,8 +42,8 @@
             "row_id": 4,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 0.999743,
+                "1.0": 0.000257
             }
         },
         {
@@ -58,32 +58,32 @@
             "row_id": 6,
             "prediction": 1,
             "class_probabilities": {
-                "0.0": 0,
-                "1.0": 1
+                "0.0": 0.000159,
+                "1.0": 0.999841
             }
         },
         {
             "row_id": 7,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 0.999995,
+                "1.0": 5e-06
             }
         },
         {
             "row_id": 8,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 0.999999,
+                "1.0": 1e-06
             }
         },
         {
             "row_id": 9,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 0.999889,
+                "1.0": 0.000111
             }
         }
     ]
