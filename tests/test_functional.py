@@ -25,6 +25,6 @@ def test_args_from_subprocess(live_server, tmpdir):
 
     assert 0 == subprocess.call(arguments.split(' '), stdout=sys.stdout,
                                 stderr=subprocess.STDOUT)
-    expected = out.read_binary()
-    with open('tests/fixtures/temperatura_output.csv', 'rb') as f:
+    expected = out.read_text('utf-8')
+    with open('tests/fixtures/temperatura_output.csv', 'r') as f:
         assert expected == f.read()
