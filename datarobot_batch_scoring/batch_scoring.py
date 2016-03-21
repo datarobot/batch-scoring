@@ -37,7 +37,7 @@ class ShelveError(Exception):
     pass
 
 
-Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt output')
+Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt')
 Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 
@@ -154,9 +154,9 @@ class BatchGenerator(object):
         for batch_num, chunk in enumerate(iter_chunks(reader,
                                                       self.chunksize)):
             if batch_num == 0:
-                self._ui.debug('input head: %r', pformat(chunk[:2]))
+                self._ui.debug('input head: {}'.format(pformat(chunk[:2])))
 
-            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt, [])
+            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
             rows_read += len(chunk)
         if batch_num is None:
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
@@ -215,19 +215,16 @@ class GeneratorBackedQueue(object):
                 return False
 
 
-def dataframe_from_predictions(result, pred_name):
-    """Convert DR prediction api v1 into dataframe.
-
-    Returns
-    -------
-    pred : DataFrame
-         A dataframe that holds one prediction per row;
-         as many columns as class labels.
-         Class labels are ordered in lexical order (asc).
-    """
+def process_successful_request(result, batch, ctx, pred_name):
+    """Process a successful request. """
     predictions = result['predictions']
     if result['task'] == TargetType.BINARY:
-        pred = [[p['row_id'], *p['class_probabilities']] for p in
+        sorted_classes = list(
+            sorted(predictions[0]['class_probabilities'].keys()))
+        out_fields = ['row_id'] + sorted_classes
+        pred = [[p['row_id']+batch.id] +
+                [p['class_probabilities'][c] for c in sorted_classes]
+                for p in
                 sorted(predictions, key=operator.itemgetter('row_id'))]
     elif result['task'] == TargetType.REGRESSION:
         assert 0, "Fix me"
@@ -236,16 +233,11 @@ def dataframe_from_predictions(result, pred_name):
     else:
         ValueError('task {} not supported'.format(result['task']))
 
-    return pred
-
-
-def process_successful_request(result, batch, ctx, pred_name):
-    """Process a successful request. """
-    pred = dataframe_from_predictions(result, pred_name)
     if len(pred) != len(batch.data):
         raise ValueError('Shape mismatch {}!={}'.format(
             len(pred), len(batch.data)))
-    ctx.checkpoint_batch(batch, pred)
+
+    ctx.checkpoint_batch(batch, out_fields, pred)
 
 
 class WorkUnitGenerator(object):
@@ -397,9 +389,9 @@ class RunContext(object):
             # success - remove shelve
             self.clean()
 
-    def checkpoint_batch(self, batch, pred):
+    def checkpoint_batch(self, batch, out_fields, pred):
         if self.keep_cols and self.db['first_write']:
-            if not all(c in batch.df.columns for c in self.keep_cols):
+            if not all(c in batch.fieldnames for c in self.keep_cols):
                 self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
                     [c for c in self.keep_cols if c not in batch.fieldnames],
                     batch.fieldnames))
@@ -423,7 +415,7 @@ class RunContext(object):
             #  store checksum of each partition and back-check
             writer = csv.writer(self.out_stream)
             if self.db['first_write']:
-                writer.writerow(batch.fieldnames)
+                writer.writerow(out_fields)
             writer.writerows(comb)
             self.out_stream.flush()
 
@@ -614,7 +606,7 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
     batch = peek_row(dataset, delimiter, ui)
-    ui.debug('First row for auth request: %s', batch)
+    ui.debug('First row for auth request: {}'.format(batch))
 
     # Make a sync request to check authentication and fail early
     authorize(user, api_token, n_retry, endpoint,
