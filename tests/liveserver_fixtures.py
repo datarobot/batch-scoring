@@ -36,7 +36,7 @@ class LiveServer(object):
         # timeout of 5 seconds.
         timeout = 5
         while timeout > 0:
-            time.sleep(1)
+            time.sleep(0.01)
             try:
                 urlopen(self.url())
                 timeout = 0
