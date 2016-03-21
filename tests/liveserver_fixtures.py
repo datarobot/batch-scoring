@@ -36,7 +36,7 @@ class LiveServer(object):
         # timeout of 5 seconds.
         timeout = 5
         while timeout > 0:
-            time.sleep(1)
+            time.sleep(0.01)
             try:
                 urlopen(self.url())
                 timeout = 0
@@ -109,7 +109,7 @@ def app():
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict(pid, lid):
-        with open('tests/fixtures/response.json', 'r') as f:
+        with open('tests/fixtures/temperatura.json', 'r') as f:
             return f.read()
 
     return app
