@@ -412,7 +412,7 @@ class RunContext(object):
             assert False, 'keep_cols is not supported yet'
             # comb = []
             # for origin, predicted in zip(batch.data, pred):
-            #     keeps = 
+            #     keeps =
             # ddf = batch.df[self.keep_cols]
             # ddf.index = pred.index
             # comb = pd.concat((ddf, pred), axis=1)
