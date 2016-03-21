@@ -409,10 +409,14 @@ class RunContext(object):
 
         if self.keep_cols:
             # stack columns
-            ddf = batch.df[self.keep_cols]
-            ddf.index = pred.index
-            comb = pd.concat((ddf, pred), axis=1)
-            assert comb.shape[0] == ddf.shape[0]
+            assert False, 'keep_cols is not supported yet'
+            # comb = []
+            # for origin, predicted in zip(batch.data, pred):
+            #     keeps = 
+            # ddf = batch.df[self.keep_cols]
+            # ddf.index = pred.index
+            # comb = pd.concat((ddf, pred), axis=1)
+            # assert comb.shape[0] == ddf.shape[0]
         else:
             comb = pred
         with self.lock:
