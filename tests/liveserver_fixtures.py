@@ -32,16 +32,16 @@ class LiveServer(object):
         )
         self._process.start()
 
-        # We must wait for the server to start listening with a maximum
-        # timeout of 5 seconds.
-        timeout = 5
-        while timeout > 0:
-            time.sleep(0.01)
+        delay = 0.01
+        for i in range(100):
             try:
-                urlopen(self.url())
-                timeout = 0
+                urlopen(self.url('/ping'))
+                break
             except:
-                timeout -= 1
+                time.sleep(delay)
+                delay *= 2
+        else:
+            raise RuntimeError("Cannot start flask server")
 
     def url(self, url=''):
         """Returns the complete url based on server options."""
