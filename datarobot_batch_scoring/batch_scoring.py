@@ -363,6 +363,30 @@ class RunContext(object):
         self.lock = threading.Lock()
         self._ui = ui
 
+    @classmethod
+    def create(cls, resume, n_samples, out_file, pid, lid,
+               keep_cols, n_retry,
+               delimiter, dataset, pred_name, ui):
+        """Factory method for run contexts.
+
+        Either resume or start a new one.
+        """
+        if RunContext.exists():
+            is_resume = None
+            if resume:
+                is_resume = True
+            if is_resume is None:
+                is_resume = ui.prompt_yesno('Existing run found. Resume')
+        else:
+            is_resume = False
+        if is_resume:
+            ctx_class = OldRunContext
+        else:
+            ctx_class = NewRunContext
+
+        return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
+                         delimiter, dataset, pred_name, ui)
+
     def __enter__(self):
         self.db = shelve.open(self.FILENAME, writeback=True)
         self.partitions = []
@@ -513,29 +537,6 @@ class OldRunContext(RunContext):
                 if b.id not in already_processed_batches)
 
 
-def context_factory(resume, n_samples, out_file, pid, lid,
-                    keep_cols, n_retry,
-                    delimiter, dataset, pred_name, ui):
-    """Factory method for run contexts.
-
-    Either resume or start a new one.
-    """
-    if RunContext.exists():
-        is_resume = None
-        if resume:
-            is_resume = True
-        if is_resume is None:
-            is_resume = ui.prompt_yesno('Existing run found. Resume')
-    else:
-        is_resume = False
-    if is_resume:
-        return OldRunContext(n_samples, out_file, pid, lid, keep_cols, n_retry,
-                             delimiter, dataset, pred_name, ui)
-    else:
-        return NewRunContext(n_samples, out_file, pid, lid, keep_cols, n_retry,
-                             delimiter, dataset, pred_name, ui)
-
-
 def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     """Check if user is authorized for the given model and that schema is correct.
 
@@ -543,6 +544,7 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     row just to make sure that the schema is correct and the user
     is authorized.
     """
+    r = None
     while n_retry:
         ui.debug('request authorization')
         try:
@@ -556,34 +558,35 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
                               auth=(user, api_token))
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
+            if r.status_code == 200:
+                # all good
+                break
+            if r.status_code == 400:
+                # client error -- maybe schema is wrong
+                try:
+                    msg = r.json()['status']
+                except:
+                    msg = r.text
+
+                ui.fatal('failed with client error: {}'.format(msg))
+            elif r.status_code == 401:
+                ui.fatal('failed to authenticate -- '
+                         'please check your username and/or api token.')
+            elif r.status_code == 405:
+                ui.fatal('failed to request endpoint -- '
+                         'please check your --host argument.')
         except requests.exceptions.ConnectionError:
             ui.error('cannot connect to {}'.format(endpoint))
-        if r.status_code == 200:
-            # all good
-            break
-        if r.status_code == 400:
-            # client error -- maybe schema is wrong
-            try:
-                msg = r.json()['status']
-            except:
-                msg = r.text
+        n_retry -= 1
 
-            ui.fatal('failed with client error: {}'.format(msg))
-        elif r.status_code == 401:
-            ui.fatal('failed to authenticate -- '
-                     'please check your username and/or api token.')
-        elif r.status_code == 405:
-            ui.fatal('failed to request endpoint -- '
-                     'please check your --host argument.')
-        else:
-            n_retry -= 1
     if n_retry == 0:
-        status = r.text
+        status = r.text if r is not None else 'UNKNOWN'
         try:
             status = r.json()['status']
         except:
             pass  # fall back to r.text
-        ui.debug("Failed authorization response \n{!r}".format(r.content))
+        content = r.content if r is not None else 'NO CONTENT'
+        ui.debug("Failed authorization response \n{!r}".format(content))
         ui.fatal(('authorization failed -- '
                   'please check project id and model id permissions: {}')
                  .format(status))
@@ -625,9 +628,9 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
 
     with ExitStack() as stack:
         ctx = stack.enter_context(
-            context_factory(resume, n_samples, out_file, pid,
-                            lid, keep_cols, n_retry, delimiter,
-                            dataset, pred_name, ui))
+            RunContext.create(resume, n_samples, out_file, pid,
+                              lid, keep_cols, n_retry, delimiter,
+                              dataset, pred_name, ui))
         network = stack.enter_context(Network(concurrent, timeout))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'
