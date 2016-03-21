@@ -144,9 +144,6 @@ class BatchGenerator(object):
                          "or consider the flag `--delimiter=''`.").format(sep))
         if sep is None:
             sep = dialect.delimiter
-        elif sep == '\\t':
-            # NOTE: on bash you have to use Ctrl-V + TAB
-            sep = '\t'
 
         csvfile = codecs.getreader('latin-1')(self.open())
         reader = csv.reader(csvfile, dialect, delimiter=sep)
@@ -401,7 +398,7 @@ class RunContext(object):
             self.clean()
 
     def checkpoint_batch(self, batch, pred):
-        if self.keep_cols and self.first_write:
+        if self.keep_cols and self.db['first_write']:
             if not all(c in batch.df.columns for c in self.keep_cols):
                 self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
                     [c for c in self.keep_cols if c not in batch.fieldnames],
@@ -424,14 +421,15 @@ class RunContext(object):
             # might end up with inconsistent state
             # TODO write partition files instead of appending
             #  store checksum of each partition and back-check
-            comb.to_csv(self.out_stream, mode='aU', header=self.first_write)
+            writer = csv.writer(self.out_stream)
+            if self.db['first_write']:
+                writer.writerow(batch.fieldnames)
+            writer.writerows(comb)
             self.out_stream.flush()
 
             self.db['checkpoints'].append(batch.id)
 
-            if self.first_write:
-                self.db['first_write'] = False
-            self.first_write = False
+            self.db['first_write'] = False
             self._ui.info('batch {} checkpointed'.format(batch.id))
             self.db.sync()
 
@@ -480,7 +478,6 @@ class NewRunContext(RunContext):
         self.db['checkpoints'] = []
         # used to check if output file is dirty (ie first write op)
         self.db['first_write'] = True
-        self.first_write = True
         self.db.sync()
 
         self.out_stream = open(self.out_file, 'w+')
@@ -519,7 +516,6 @@ class OldRunContext(RunContext):
             raise ShelveError('keep_cols mismatch: should be {} but was {}'
                               .format(self.db['keep_cols'], self.keep_cols))
 
-        self.first_write = self.db['first_write']
         self.out_stream = open(self.out_file, 'a')
 
         self._ui.info('resuming a shelved run with {} checkpointed batches'

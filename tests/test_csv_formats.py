@@ -109,7 +109,7 @@ def test_tab_delimiter(live_server):
         n_samples=10,
         out_file='out.csv',
         keep_cols=None,
-        delimiter='\\t',
+        delimiter='\t',
         dataset='tests/fixtures/temperatura_predict_tab.csv',
         pred_name=None,
         timeout=30,
