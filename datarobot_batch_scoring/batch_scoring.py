@@ -390,24 +390,26 @@ class RunContext(object):
             self.clean()
 
     def checkpoint_batch(self, batch, out_fields, pred):
-        if self.keep_cols and self.db['first_write']:
-            if not all(c in batch.fieldnames for c in self.keep_cols):
-                self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
-                    [c for c in self.keep_cols if c not in batch.fieldnames],
-                    batch.fieldnames))
-
         if self.keep_cols:
             # stack columns
-            assert False, 'keep_cols is not supported yet'
-            # comb = []
-            # for origin, predicted in zip(batch.data, pred):
-            #     keeps =
-            # ddf = batch.df[self.keep_cols]
-            # ddf.index = pred.index
-            # comb = pd.concat((ddf, pred), axis=1)
-            # assert comb.shape[0] == ddf.shape[0]
+            if self.db['first_write']:
+                if not all(c in batch.fieldnames for c in self.keep_cols):
+                    self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
+                        [c for c in self.keep_cols
+                         if c not in batch.fieldnames],
+                        batch.fieldnames))
+
+            indices = [i for i, col in enumerate(batch.fieldnames)
+                       if col in self.keep_cols]
+            # first column is row_id
+            comb = []
+            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
+            for origin, predicted in zip(batch.data, pred):
+                keeps = [origin[i] for i in indices]
+                comb.append([predicted[0]] + keeps + predicted[1:])
         else:
             comb = pred
+            written_fields = out_fields
         with self.lock:
             # if an error happends during/after the append we
             # might end up with inconsistent state
@@ -415,7 +417,7 @@ class RunContext(object):
             #  store checksum of each partition and back-check
             writer = csv.writer(self.out_stream)
             if self.db['first_write']:
-                writer.writerow(out_fields)
+                writer.writerow(written_fields)
             writer.writerows(comb)
             self.out_stream.flush()
 

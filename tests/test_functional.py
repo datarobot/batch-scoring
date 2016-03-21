@@ -68,7 +68,7 @@ def test_simple(live_server, tmpdir):
         assert expected == f.read()
 
 
-def xtest_keep_cols(live_server, tmpdir):
+def test_keep_cols(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')
 
