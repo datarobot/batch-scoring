@@ -402,10 +402,10 @@ class RunContext(object):
 
     def checkpoint_batch(self, batch, pred):
         if self.keep_cols and self.first_write:
-            mask = [c in batch.df.columns for c in self.keep_cols]
-            if not all(mask):
+            if not all(c in batch.df.columns for c in self.keep_cols):
                 self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
-                    self.keep_cols[mask.index(False)], batch.df.columns))
+                    [c for c in self.keep_cols if c not in batch.fieldnames],
+                    batch.fieldnames))
 
         if self.keep_cols:
             # stack columns
