@@ -37,7 +37,7 @@ class ShelveError(Exception):
     pass
 
 
-Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt')
+Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt output')
 Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 
@@ -159,7 +159,7 @@ class BatchGenerator(object):
             if batch_num == 0:
                 self._ui.debug('input head: %r', pformat(chunk[:2]))
 
-            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
+            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt, [])
             rows_read += len(chunk)
         if batch_num is None:
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
@@ -247,11 +247,7 @@ def process_successful_request(result, batch, ctx, pred_name):
     pred = dataframe_from_predictions(result, pred_name)
     if len(pred) != len(batch.data):
         raise ValueError('Shape mismatch {}!={}'.format(
-            pred.fieldnames, batch.fieldnames))
-    # offset index by batch.id
-    import ipdb;ipdb.set_trace()
-    pred.index = batch.df.index + batch.id
-    pred.index.name = 'row_id'
+            len(pred), len(batch.data)))
     ctx.checkpoint_batch(batch, pred)
 
 
