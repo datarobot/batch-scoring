@@ -109,7 +109,7 @@ def app():
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict(pid, lid):
-        with open('tests/fixtures/response.json', 'r') as f:
+        with open('tests/fixtures/temperatura.json', 'r') as f:
             return f.read()
 
     return app
