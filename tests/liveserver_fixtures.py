@@ -1,5 +1,7 @@
 import time
 import multiprocessing
+import os
+import os.path
 import socket
 import pytest
 
@@ -75,6 +77,8 @@ def live_server(app, monkeypatch):
             res = urllib2.urlopen(index_url)
             assert res.code == 200
     """
+    if os.path.exists('.shelve'):
+        os.unlink('.shelve')
     # Bind to an open port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 0))
