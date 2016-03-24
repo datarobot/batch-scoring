@@ -107,6 +107,7 @@ def live_server(app, monkeypatch):
 @pytest.fixture(scope='function')
 def app():
     MAPPING = {'56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
+               '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
                None: 'tests/fixtures/temperatura.json'}
 
     app = flask.Flask(__name__)
