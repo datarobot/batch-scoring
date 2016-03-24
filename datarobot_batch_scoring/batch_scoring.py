@@ -230,9 +230,10 @@ def process_successful_request(result, batch, ctx, pred_name):
                 for p in
                 sorted(predictions, key=operator.itemgetter('row_id'))]
     elif result['task'] == TargetType.REGRESSION:
-        assert 0, "Fix me"
-        pred = [{pred_name: [p["prediction"] for p in
-                             sorted(predictions, key=lambda p: p['row_id'])]}]
+        pred = [[p['row_id']+batch.id, p['prediction']]
+                for p in
+                sorted(predictions, key=operator.itemgetter('row_id'))]
+        out_fields = ['row_id', '']
     else:
         ValueError('task {} not supported'.format(result['task']))
 
