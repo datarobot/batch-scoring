@@ -2,7 +2,6 @@ from __future__ import print_function
 import mock
 import subprocess
 import sys
-from bson import ObjectId
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions_v1
 
@@ -22,8 +21,8 @@ def test_args_from_subprocess(live_server, tmpdir):
                  ' --no').format(webhost=live_server.url(),
                                  username='username',
                                  password='password',
-                                 project_id=ObjectId(),
-                                 model_id=ObjectId(),
+                                 project_id='56dd9570018e213242dfa93c',
+                                 model_id='56dd9570018e213242dfa93d',
                                  out=str(out))
 
     assert 0 == subprocess.call(arguments.split(' '), stdout=sys.stdout,

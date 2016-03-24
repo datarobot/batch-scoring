@@ -267,7 +267,13 @@ class WorkUnitGenerator(object):
         try:
             if r.status_code == 200:
                 try:
-                    result = r.json()
+                    try:
+                        result = r.json()
+                    except Exception as e:
+                        self._ui.warning('{} response error: {} -- retry'
+                                         .format(batch.id, e))
+                        self.queue.push(batch)
+                        return
                     exec_time = result['execution_time']
                     self._ui.debug(('successful response: exec time '
                                     '{:.0f}msec |'
@@ -278,9 +284,7 @@ class WorkUnitGenerator(object):
                     process_successful_request(result, batch,
                                                self.ctx, self.pred_name)
                 except Exception as e:
-                    self._ui.warning('{} response error: {} -- retry'
-                                     .format(batch.id, e))
-                    self.queue.push(batch)
+                    self._ui.fatal('{} response error: {}'.format(batch.id, e))
             else:
                 try:
                     self._ui.warning('batch {} failed with status: {}'

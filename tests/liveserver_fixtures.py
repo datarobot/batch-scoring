@@ -1,13 +1,16 @@
+import threading
 import time
-import multiprocessing
+import os
+import os.path
 import socket
 import pytest
 
 try:
-    from urllib2 import urlopen
+    from urllib2 import urlopen, HTTPError
 except ImportError:
-    from urllib.request import urlopen
+    from urllib.request import urlopen, HTTPError
 import flask
+from flask import request
 
 
 class LiveServer(object):
@@ -20,17 +23,17 @@ class LiveServer(object):
     def __init__(self, app, port):
         self.app = app
         self.port = port
-        self._process = None
+        self._thread = None
 
     def start(self):
         """Start application in a separate process."""
         def worker(app, port):
             return app.run(port=port, use_reloader=False)
-        self._process = multiprocessing.Process(
+        self._thread = threading.Thread(
             target=worker,
             args=(self.app, self.port)
         )
-        self._process.start()
+        self._thread.start()
 
         delay = 0.01
         for i in range(100):
@@ -49,8 +52,13 @@ class LiveServer(object):
 
     def stop(self):
         """Stop application process."""
-        if self._process:
-            self._process.terminate()
+        if self._thread:
+            try:
+                urlopen(self.url('/shutdown'))
+            except HTTPError:
+                pass  # 500 server closed
+            self._thread.join()
+        self._thread = None
 
     def __repr__(self):
         return '<LiveServer listening at %s>' % self.url()
@@ -75,6 +83,8 @@ def live_server(app, monkeypatch):
             res = urllib2.urlopen(index_url)
             assert res.code == 200
     """
+    if os.path.exists('.shelve'):
+        os.unlink('.shelve')
     # Bind to an open port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 0))
@@ -96,6 +106,10 @@ def live_server(app, monkeypatch):
 
 @pytest.fixture(scope='function')
 def app():
+    MAPPING = {'56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
+               '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
+               None: 'tests/fixtures/temperatura.json'}
+
     app = flask.Flask(__name__)
     app.config['SECRET_KEY'] = '42'
 
@@ -103,13 +117,20 @@ def app():
     def ping():
         return '{"ping": "pong"}'
 
+    @app.route('/shutdown')
+    def shutdown():
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func is None:
+            raise RuntimeError('Not running with the Werkzeug Server')
+        func()
+
     @app.route('/api/v1/api_token')
     def auth():
         return '{"api_token": "Som3tok3n"}'
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
-    def predict(pid, lid):
-        with open('tests/fixtures/temperatura.json', 'r') as f:
+    def predict_sinc(pid, lid):
+        with open(MAPPING.get(lid), 'r') as f:
             return f.read()
 
     return app
