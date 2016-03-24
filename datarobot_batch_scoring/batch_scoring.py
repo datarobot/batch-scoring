@@ -121,7 +121,6 @@ class BatchGenerator(object):
         sep = self.sep
 
         # handle unix tabs
-
         with self.open() as csvfile:
             sniffer = csv.Sniffer()
             dialect = sniffer.sniff(csvfile.read(1024).decode('latin-1'))
@@ -317,7 +316,10 @@ class WorkUnitGenerator(object):
                                    batch.id, len(batch.data)))
                 continue
             # otherwise we make an async request
-            out = io.StringIO()
+            if six.PY3:
+                out = io.StringIO()
+            else:
+                out = io.BytesIO()
             writer = csv.writer(out)
             writer.writerow(batch.fieldnames)
             writer.writerows(batch.data)
@@ -547,10 +549,14 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     is authorized.
     """
     r = None
+
     while n_retry:
         ui.debug('request authorization')
         try:
-            out = io.StringIO()
+            if six.PY3:
+                out = io.StringIO()
+            else:
+                out = io.BytesIO()
             writer = csv.writer(out)
             writer.writerow(batch.fieldnames)
             writer.writerow(batch.data[0])

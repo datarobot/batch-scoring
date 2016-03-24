@@ -1,12 +1,8 @@
 import mock
 import pytest
-import sys
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions_v1
 
 
-@pytest.mark.xfail(sys.version_info < (3, 0),
-                   reason="Python 2 doesn't support both encoding and "
-                   "compression, gzipped files are disabled")
 def test_gzipped_csv(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
