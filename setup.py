@@ -18,8 +18,6 @@ else:
     install_requires = [
         "six>=1.9.0",
         "docopt>=0.6.1",
-        "numpy>=1.8.0",
-        "pandas>=0.15.1",
         "requests>=2.7.0",
         "trafaret>=0.6.2"
         ]
