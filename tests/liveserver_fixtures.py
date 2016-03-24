@@ -106,6 +106,10 @@ def live_server(app, monkeypatch):
 
 @pytest.fixture(scope='function')
 def app():
+    MAPPING = {'56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
+               '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
+               None: 'tests/fixtures/temperatura.json'}
+
     app = flask.Flask(__name__)
     app.config['SECRET_KEY'] = '42'
 
@@ -125,8 +129,8 @@ def app():
         return '{"api_token": "Som3tok3n"}'
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
-    def predict(pid, lid):
-        with open('tests/fixtures/temperatura.json', 'r') as f:
+    def predict_sinc(pid, lid):
+        with open(MAPPING.get(lid), 'r') as f:
             return f.read()
 
     return app

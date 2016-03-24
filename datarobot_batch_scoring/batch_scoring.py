@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import codecs
 import collections
+import csv
 import getpass
 import glob
 import gzip
+import io
 import json
+import operator
 import os
 import shelve
 import sys
 import threading
 from functools import partial
+from pprint import pformat
 from time import time
 
-import pandas as pd
 import requests
 import six
 
@@ -33,7 +37,8 @@ class ShelveError(Exception):
     pass
 
 
-Batch = collections.namedtuple('Batch', 'id, df, rty_cnt')
+Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt')
+Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 
 class TargetType(object):
@@ -74,6 +79,17 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     return api_token
 
 
+def iter_chunks(csvfile, chunk_size):
+    chunk = []
+    for row in csvfile:
+        chunk.append(row)
+        if len(chunk) >= chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
 class BatchGenerator(object):
     """Class to chunk a large csv files into a stream
     of batches of size ``--n_samples``.
@@ -91,37 +107,27 @@ class BatchGenerator(object):
         self.sep = delimiter
         self._ui = ui
 
-    def __iter__(self):
-        compression = None
+    def open(self):
         if self.dataset.endswith('.gz'):
-            self._ui.debug('using gzip compression')
-            compression = 'gzip'
+            return gzip.open(self.dataset)
+        else:
+            if six.PY2:
+                return open(self.dataset, 'rb')
+            else:
+                return open(self.dataset, 'rb')
+
+    def __iter__(self):
         rows_read = 0
         sep = self.sep
 
-        engine = 'c'
-        engine_params = {'error_bad_lines': False,
-                         'warn_bad_lines': True}
-
-        if not sep:
-            sep = None
-            engine = 'python'
-            engine_params = {}
-            self._ui.warning('Guessing delimiter will result '
-                             'in slower parsing.')
-
         # handle unix tabs
-        # NOTE: on bash you have to use Ctrl-V + TAB
-        if sep == '\\t':
-            sep = '\t'
-
-        def _file_handle(fname):
-            self._ui.debug('Opening file name {}.'.format(fname))
-            return gzip.open(fname) if compression == 'gzip' else open(fname)
+        with self.open() as csvfile:
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(csvfile.read(1024).decode('latin-1'))
 
         if sep is not None:
             # if fixed sep check if we have at least one occurrence.
-            with _file_handle(self.dataset) as fd:
+            with self.open() as fd:
                 header = fd.readline()
                 if isinstance(header, bytes):
                     bsep = sep.encode('utf-8')
@@ -135,35 +141,23 @@ class BatchGenerator(object):
                         ("Delimiter '{}' not found. "
                          "Please check your input file "
                          "or consider the flag `--delimiter=''`.").format(sep))
+        if sep is None:
+            sep = dialect.delimiter
 
-        # TODO for some reason c parser bombs on python 3.4 wo latin1
-        batches = pd.read_csv(self.dataset, encoding='latin-1',
-                              sep=sep,
-                              iterator=True,
-                              chunksize=self.chunksize,
-                              compression=compression,
-                              engine=engine,
-                              **engine_params
-                              )
-        i = -1
-        for i, chunk in enumerate(batches):
-            if chunk.shape[0] == 0:
-                raise ValueError(
-                    "Input file '{}' is empty.".format(self.dataset))
-            if i == 0:
-                self._ui.debug('input columns: {!r}'
-                               .format(chunk.columns.tolist()))
-                self._ui.debug('input dtypes: {!r}'
-                               .format(chunk.dtypes))
-                self._ui.debug('input head: {!r}'
-                               .format(chunk.head(2)))
+        csvfile = codecs.getreader('latin-1')(self.open())
+        reader = csv.reader(csvfile, dialect, delimiter=sep)
+        header = next(reader)
+        fieldnames = [c.strip() for c in header]
 
-            # strip white spaces
-            chunk.columns = [c.strip() for c in chunk.columns]
-            yield Batch(rows_read, chunk, self.rty_cnt)
-            rows_read += self.chunksize
+        batch_num = None
+        for batch_num, chunk in enumerate(iter_chunks(reader,
+                                                      self.chunksize)):
+            if batch_num == 0:
+                self._ui.debug('input head: {}'.format(pformat(chunk[:2])))
 
-        if i == -1:
+            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
+            rows_read += len(chunk)
+        if batch_num is None:
             raise ValueError("Input file '{}' is empty.".format(self.dataset))
 
 
@@ -171,10 +165,10 @@ def peek_row(dataset, delimiter, ui):
     """Peeks at the first row in `dataset`. """
     batches = BatchGenerator(dataset, 1, 1, delimiter, ui)
     try:
-        row = next(iter(batches))
+        batch = next(iter(batches))
     except StopIteration:
         raise ValueError('Cannot peek first row from {}'.format(dataset))
-    return row.df
+    return batch
 
 
 class GeneratorBackedQueue(object):
@@ -220,41 +214,33 @@ class GeneratorBackedQueue(object):
                 return False
 
 
-def dataframe_from_predictions(result, pred_name):
-    """Convert DR prediction api v1 into dataframe.
-
-    Returns
-    -------
-    pred : DataFrame
-         A dataframe that holds one prediction per row;
-         as many columns as class labels.
-         Class labels are ordered in lexical order (asc).
-    """
+def process_successful_request(result, batch, ctx, pred_name):
+    """Process a successful request. """
     predictions = result['predictions']
     if result['task'] == TargetType.BINARY:
-        pred = pd.DataFrame([p['class_probabilities'] for p in
-                             sorted(predictions, key=lambda p: p['row_id'])])
-        sorted_classes = pd.np.unique(pred.columns.tolist())
-        pred = pred[sorted_classes]
+        sorted_classes = list(
+            sorted(predictions[0]['class_probabilities'].keys()))
+        out_fields = ['row_id'] + sorted_classes
+        if pred_name is not None and '1.0' in sorted_classes:
+            sorted_classes = ['1.0']
+            out_fields = ['row_id'] + [pred_name]
+        pred = [[p['row_id']+batch.id] +
+                [p['class_probabilities'][c] for c in sorted_classes]
+                for p in
+                sorted(predictions, key=operator.itemgetter('row_id'))]
     elif result['task'] == TargetType.REGRESSION:
-        pred = pd.DataFrame({pred_name: [p["prediction"] for p in
-                             sorted(predictions, key=lambda p: p['row_id'])]})
+        pred = [[p['row_id']+batch.id, p['prediction']]
+                for p in
+                sorted(predictions, key=operator.itemgetter('row_id'))]
+        out_fields = ['row_id', '']
     else:
         ValueError('task {} not supported'.format(result['task']))
 
-    return pred
-
-
-def process_successful_request(result, batch, ctx, pred_name):
-    """Process a successful request. """
-    pred = dataframe_from_predictions(result, pred_name)
-    if pred.shape[0] != batch.df.shape[0]:
+    if len(pred) != len(batch.data):
         raise ValueError('Shape mismatch {}!={}'.format(
-            pred.shape[0], batch.df.shape[0]))
-    # offset index by batch.id
-    pred.index = batch.df.index + batch.id
-    pred.index.name = 'row_id'
-    ctx.checkpoint_batch(batch, pred)
+            len(pred), len(batch.data)))
+
+    ctx.checkpoint_batch(batch, out_fields, pred)
 
 
 class WorkUnitGenerator(object):
@@ -327,10 +313,17 @@ class WorkUnitGenerator(object):
             if batch.rty_cnt == 0:
                 self._ui.error('batch {} exceeded retry limit; '
                                'we lost {} records'.format(
-                                   batch.id, batch.df.shape[0]))
+                                   batch.id, len(batch.data)))
                 continue
             # otherwise we make an async request
-            data = batch.df.to_csv(encoding='utf8', index=False)
+            if six.PY3:
+                out = io.StringIO()
+            else:
+                out = io.BytesIO()
+            writer = csv.writer(out)
+            writer.writerow(batch.fieldnames)
+            writer.writerows(batch.data)
+            data = out.getvalue().encode('latin-1')
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
             hook = partial(self._response_callback, batch=batch)
@@ -406,34 +399,41 @@ class RunContext(object):
             # success - remove shelve
             self.clean()
 
-    def checkpoint_batch(self, batch, pred):
-        if self.keep_cols and self.first_write:
-            mask = [c in batch.df.columns for c in self.keep_cols]
-            if not all(mask):
-                self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
-                    self.keep_cols[mask.index(False)], batch.df.columns))
-
+    def checkpoint_batch(self, batch, out_fields, pred):
         if self.keep_cols:
             # stack columns
-            ddf = batch.df[self.keep_cols]
-            ddf.index = pred.index
-            comb = pd.concat((ddf, pred), axis=1)
-            assert comb.shape[0] == ddf.shape[0]
+            if self.db['first_write']:
+                if not all(c in batch.fieldnames for c in self.keep_cols):
+                    self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
+                        [c for c in self.keep_cols
+                         if c not in batch.fieldnames],
+                        batch.fieldnames))
+
+            indices = [i for i, col in enumerate(batch.fieldnames)
+                       if col in self.keep_cols]
+            # first column is row_id
+            comb = []
+            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
+            for origin, predicted in zip(batch.data, pred):
+                keeps = [origin[i] for i in indices]
+                comb.append([predicted[0]] + keeps + predicted[1:])
         else:
             comb = pred
+            written_fields = out_fields
         with self.lock:
             # if an error happends during/after the append we
             # might end up with inconsistent state
             # TODO write partition files instead of appending
             #  store checksum of each partition and back-check
-            comb.to_csv(self.out_stream, mode='aU', header=self.first_write)
+            writer = csv.writer(self.out_stream)
+            if self.db['first_write']:
+                writer.writerow(written_fields)
+            writer.writerows(comb)
             self.out_stream.flush()
 
             self.db['checkpoints'].append(batch.id)
 
-            if self.first_write:
-                self.db['first_write'] = False
-            self.first_write = False
+            self.db['first_write'] = False
             self._ui.info('batch {} checkpointed'.format(batch.id))
             self.db.sync()
 
@@ -482,7 +482,6 @@ class NewRunContext(RunContext):
         self.db['checkpoints'] = []
         # used to check if output file is dirty (ie first write op)
         self.db['first_write'] = True
-        self.first_write = True
         self.db.sync()
 
         self.out_stream = open(self.out_file, 'w+')
@@ -521,7 +520,6 @@ class OldRunContext(RunContext):
             raise ShelveError('keep_cols mismatch: should be {} but was {}'
                               .format(self.db['keep_cols'], self.keep_cols))
 
-        self.first_write = self.db['first_write']
         self.out_stream = open(self.out_file, 'a')
 
         self._ui.info('resuming a shelved run with {} checkpointed batches'
@@ -543,20 +541,28 @@ class OldRunContext(RunContext):
                 if b.id not in already_processed_batches)
 
 
-def authorize(user, api_token, n_retry, endpoint, base_headers, row, ui):
-    """Check if user is authorized for and that schema is correct.
+def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
+    """Check if user is authorized for the given model and that schema is correct.
 
     This function will make a sync request to the api endpoint with a single
     row just to make sure that the schema is correct and the user
     is authorized.
     """
     r = None
+
     while n_retry:
         ui.debug('request authorization')
         try:
-            data = row.to_csv(encoding='utf8', index=False)
+            if six.PY3:
+                out = io.StringIO()
+            else:
+                out = io.BytesIO()
+            writer = csv.writer(out)
+            writer.writerow(batch.fieldnames)
+            writer.writerow(batch.data[0])
+            data = out.getvalue()
             r = requests.post(endpoint, headers=base_headers,
-                              data=data,
+                              data=data.encode('latin-1'),
                               auth=(user, api_token))
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
@@ -614,6 +620,13 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
 
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
+
+    batch = peek_row(dataset, delimiter, ui)
+    ui.debug('First row for auth request: {}'.format(batch))
+
+    # Make a sync request to check authentication and fail early
+    authorize(user, api_token, n_retry, endpoint,
+              base_headers, batch, ui)
 
     first_row = peek_row(dataset, delimiter, ui)
     ui.debug('First row for auth request: {}'.format(first_row))

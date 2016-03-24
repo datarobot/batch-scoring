@@ -205,6 +205,10 @@ def main(argv=sys.argv[1:]):
     except ValueError as e:
         ui.fatal(str(e))
 
+    if delimiter == '\\t':
+        # NOTE: on bash you have to use Ctrl-V + TAB
+        delimiter = '\t'
+
     if delimiter and delimiter not in VALID_DELIMITERS:
         ui.fatal('Delimiter "{}" is not a valid delimiter.'
                  .format(delimiter))

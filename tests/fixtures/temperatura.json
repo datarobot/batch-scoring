@@ -10,32 +10,32 @@
             "row_id": 0,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 1.0,
+                "1.0": 0.0
             }
         },
         {
             "row_id": 1,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 1.0,
+                "1.0": 0.0
             }
         },
         {
             "row_id": 2,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 1.0,
+                "1.0": 0.0
             }
         },
         {
             "row_id": 3,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 1.0,
+                "1.0": 0.0
             }
         },
         {
@@ -50,8 +50,8 @@
             "row_id": 5,
             "prediction": 0,
             "class_probabilities": {
-                "0.0": 1,
-                "1.0": 0
+                "0.0": 1.0,
+                "1.0": 0.0
             }
         },
         {

@@ -1,0 +1,50 @@
+{
+    "version": "v1",
+    "model_id": "56d6ec39786ce039ac2ec9b7",
+    "status": "",
+    "task": "Regression",
+    "execution_time": 101,
+    "code": 200,
+    "predictions": [
+        {
+            "prediction": 20.4401448517,
+            "row_id": 0
+        },
+        {
+            "prediction": 57.5035298131,
+            "row_id": 1
+        },
+        {
+            "prediction": 36.7561018297,
+            "row_id": 2
+        },
+        {
+            "prediction": 8.89364770725,
+            "row_id": 3
+        },
+        {
+            "prediction": 34.3605063176,
+            "row_id": 4
+        },
+        {
+            "prediction": 91.2866491293,
+            "row_id": 5
+        },
+        {
+            "prediction": 58.662232154,
+            "row_id": 6
+        },
+        {
+            "prediction": 24.8073207843,
+            "row_id": 7
+        },
+        {
+            "prediction": 108.552669517,
+            "row_id": 8
+        },
+        {
+            "prediction": 99.6969079239,
+            "row_id": 9
+        }
+    ]
+}
