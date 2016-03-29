@@ -232,7 +232,7 @@ def process_successful_request(result, batch, ctx, pred_name):
         pred = [[p['row_id']+batch.id, p['prediction']]
                 for p in
                 sorted(predictions, key=operator.itemgetter('row_id'))]
-        out_fields = ['row_id', '']
+        out_fields = ['row_id', pred_name if pred_name else '']
     else:
         ValueError('task {} not supported'.format(result['task']))
 
