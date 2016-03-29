@@ -64,3 +64,58 @@ class TestUi(object):
             m_input.return_value = 'Andrew'
             assert ui.prompt_user() == 'Andrew'
             m_input.assert_called_with('user name> ')
+
+    def test_debug(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+            ui.debug('text')
+            m_log.debug.assert_called_with('text')
+
+    def test_info(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+            ui.info('text')
+            m_log.info.assert_called_with('text')
+
+    def test_warning(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+            ui.warning('text')
+            m_log.warning.assert_called_with('text')
+
+    def test_error(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+            with mock.patch(
+                    'datarobot_batch_scoring.utils.root_logger') as m_root:
+                ui.error('text')
+                m_log.error.assert_called_with('text')
+                m_root.error.assert_called_with('text', exc_info=False)
+
+    def test_error_with_excinfo(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+            with mock.patch(
+                    'datarobot_batch_scoring.utils.root_logger') as m_root:
+                try:
+                    1 / 0
+                except:
+                    ui.error('text')
+                m_log.error.assert_called_with('text')
+                m_root.error.assert_called_with('text', exc_info=True)
+
+    def test_fatal(self):
+        ui = UI(None, logging.DEBUG)
+        msg = ('{}\nIf you need assistance please send the log \n'
+               'file {} to support@datarobot.com .').format(
+                   'text', ui.root_logger_filename)
+        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+            with mock.patch(
+                    'datarobot_batch_scoring.utils.root_logger') as m_root:
+                with mock.patch(
+                        'datarobot_batch_scoring.utils.sys.exit') as m_exit:
+                    ui.fatal('text')
+                m_log.error.assert_called_with(msg)
+                m_root.error.assert_called_with(msg,
+                                                exc_info=(None, None, None))
+                m_exit.assert_called_with(1)
