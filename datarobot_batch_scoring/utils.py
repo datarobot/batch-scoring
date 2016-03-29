@@ -84,10 +84,10 @@ class UI(object):
     def prompt_yesno(self, msg):
         if self._prompt is not None:
             return self._prompt
-        cmd = input('{} (yes/no)> '.format(msg)).strip().lower()
-        while cmd not in ('yes', 'no'):
-            cmd = input('Please type (yes/no)> ').strip().lower()
-        return cmd == 'yes'
+        cmd = input('{} (Yes/No)> '.format(msg)).strip().lower()
+        while cmd not in ('yes', 'no', 'y', 'n'):
+            cmd = input('Please type (Yes/No)> ').strip().lower()
+        return cmd in ('yes', 'y')
 
     def prompt_user(self):
         return input('user name> ').strip()
