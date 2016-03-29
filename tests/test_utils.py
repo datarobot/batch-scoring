@@ -57,3 +57,10 @@ class TestUi(object):
             m_input.return_value = 'n'
             assert not ui.prompt_yesno('msg')
             m_input.assert_called_with('msg (Yes/No)> ')
+
+    def test_prompt_user(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+            m_input.return_value = 'Andrew'
+            assert ui.prompt_user() == 'Andrew'
+            m_input.assert_called_with('user name> ')
