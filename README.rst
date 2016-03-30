@@ -3,14 +3,16 @@ DataRobot batch_scoring
 
 A script to score CSV files via DataRobot's prediction API.
 
-.. image:: https://coveralls.io/repos/github/datarobot/batch-scoring/badge.svg?branch=master :target: https://coveralls.io/github/datarobot/batch-scoring?branch=master
+.. image:: https://coveralls.io/repos/github/datarobot/batch-scoring/badge.svg?branch=master
+   :target: https://coveralls.io/github/datarobot/batch-scoring?branch=master
 
-.. image:: https://travis-ci.org/datarobot/batch-scoring.svg?branch=master :target: https://travis-ci.org/datarobot/batch-scoring#master
+.. image:: https://travis-ci.org/datarobot/batch-scoring.svg?branch=master
+   :target: https://travis-ci.org/datarobot/batch-scoring#master
 
 .. image:: https://caniusepython3.com/project/datarobot_batch_scoring.svg
 
 .. image:: https://badge.fury.io/py/datarobot_batch_scoring.svg
-    :target: https://badge.fury.io/py/datarobot_batch_scoring.svg
+   :target: https://badge.fury.io/py/datarobot_batch_scoring.svg
 
 
 How to install
