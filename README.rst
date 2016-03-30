@@ -7,6 +7,8 @@ A script to score CSV files via DataRobot's prediction API.
 
 .. image:: https://travis-ci.org/datarobot/batch-scoring.svg?branch=master :target: https://travis-ci.org/datarobot/batch-scoring#master
 
+.. image:: https://caniusepython3.com/project/datarobot_batch_scoring.svg
+
 How to install
 --------------
 
