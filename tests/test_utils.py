@@ -1,7 +1,8 @@
 import logging
 import mock
 import pytest
-from datarobot_batch_scoring.utils import verify_objectid, UI
+from datarobot_batch_scoring.utils import (verify_objectid, UI,
+                                           iter_chunks)
 
 
 def test_invalid_objectid():
@@ -136,3 +137,17 @@ class TestUi(object):
                 ui.getpass()
             assert str(exc.value) == "Non-interactive session"
             assert not m_getpass.called
+
+
+def test_iter_chunks():
+    csvfile = [[1, 'a'],
+               [2, 'b'],
+               [3, 'c']]
+
+    it = iter_chunks(csvfile, 2)
+    chunk1 = next(it)
+    assert [[1, 'a'], [2, 'b']] == chunk1
+    chunk2 = next(it)
+    assert [[3, 'c']] == chunk2
+    with pytest.raises(StopIteration):
+        next(it)

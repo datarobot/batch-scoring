@@ -21,6 +21,7 @@ import requests
 import six
 
 from .network import Network
+from .utils import iter_chunks
 
 
 if six.PY2:  # pragma: no cover
@@ -76,17 +77,6 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     ui.debug('api-token: {}'.format(api_token))
 
     return api_token
-
-
-def iter_chunks(csvfile, chunk_size):
-    chunk = []
-    for row in csvfile:
-        chunk.append(row)
-        if len(chunk) >= chunk_size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
 
 
 class BatchGenerator(object):

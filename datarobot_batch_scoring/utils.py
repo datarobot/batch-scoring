@@ -154,3 +154,14 @@ def parse_config_file(file_path):
         return {}
     parsed_dict = dict(config.items('batch_scoring'))
     return config_validator(parsed_dict)
+
+
+def iter_chunks(csvfile, chunk_size):
+    chunk = []
+    for row in csvfile:
+        chunk.append(row)
+        if len(chunk) >= chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
