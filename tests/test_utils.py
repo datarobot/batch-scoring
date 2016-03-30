@@ -119,3 +119,20 @@ class TestUi(object):
                 m_root.error.assert_called_with(msg,
                                                 exc_info=(None, None, None))
                 m_exit.assert_called_with(1)
+
+    def test_getpass(self):
+        ui = UI(None, logging.DEBUG)
+        with mock.patch(
+                'datarobot_batch_scoring.utils.getpass.getpass') as m_getpass:
+            m_getpass.return_value = 'passwd'
+            assert 'passwd' == ui.getpass()
+            m_getpass.assert_called_with('password> ')
+
+    def test_getpass_noninteractive(self):
+        ui = UI(True, logging.DEBUG)
+        with mock.patch(
+                'datarobot_batch_scoring.utils.getpass.getpass') as m_getpass:
+            with pytest.raises(RuntimeError) as exc:
+                ui.getpass()
+            assert str(exc.value) == "Non-interactive session"
+            assert not m_getpass.called

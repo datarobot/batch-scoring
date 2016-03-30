@@ -1,4 +1,5 @@
 from functools import partial
+import getpass
 from os.path import expanduser, isfile, join as path_join
 from os import getcwd
 
@@ -117,6 +118,11 @@ class UI(object):
         exc_info = sys.exc_info()
         root_logger.error(msg, exc_info=exc_info)
         sys.exit(1)
+
+    def getpass(self):
+        if self._prompt is not None:
+            raise RuntimeError("Non-interactive session")
+        return getpass.getpass('password> ')
 
     def close(self):
         os.unlink(self.root_logger_filename)

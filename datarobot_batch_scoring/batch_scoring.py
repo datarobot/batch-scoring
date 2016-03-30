@@ -4,7 +4,6 @@ from __future__ import print_function
 import codecs
 import collections
 import csv
-import getpass
 import glob
 import gzip
 import io
@@ -611,7 +610,7 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
                              timeout, ui):
     if not api_token:
         if not pwd:
-            pwd = getpass.getpass('password> ')
+            pwd = ui.getpass()
         try:
             api_token = acquire_api_token(base_url, base_headers, user, pwd,
                                           create_api_token, ui)
