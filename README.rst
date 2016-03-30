@@ -9,6 +9,10 @@ A script to score CSV files via DataRobot's prediction API.
 
 .. image:: https://caniusepython3.com/project/datarobot_batch_scoring.svg
 
+.. image:: https://badge.fury.io/py/datarobot_batch_scoring.svg
+    :target: https://badge.fury.io/py/datarobot_batch_scoring.svg
+
+
 How to install
 --------------
 
