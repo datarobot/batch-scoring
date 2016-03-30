@@ -5,6 +5,7 @@ from os import getcwd
 
 import logging
 import os
+import requests
 import six
 import sys
 import tempfile
@@ -165,3 +166,37 @@ def iter_chunks(csvfile, chunk_size):
             chunk = []
     if chunk:
         yield chunk
+
+
+def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
+    """Get the api token.
+
+    Either supplied by user or requested from the API with username and pwd.
+    Optionally, create a new one.
+    """
+
+    auth = (user, pwd)
+
+    if create_api_token:
+        request_meth = requests.post
+    else:
+        request_meth = requests.get
+
+    r = request_meth(base_url + 'api_token', auth=auth, headers=base_headers)
+    if r.status_code == 401:
+        raise ValueError('wrong credentials')
+    elif r.status_code != 200:
+        raise ValueError('api_token request returned status code {}'
+                         .format(r.status_code))
+    else:
+        ui.info('api-token acquired')
+
+    api_token = r.json().get('api_token')
+
+    if api_token is None:
+        raise ValueError('no api-token registered; '
+                         'please run with --create_api_token flag.')
+
+    ui.debug('api-token: {}'.format(api_token))
+
+    return api_token

@@ -2,7 +2,7 @@ import logging
 import mock
 import pytest
 from datarobot_batch_scoring.utils import (verify_objectid, UI,
-                                           iter_chunks)
+                                           iter_chunks, acquire_api_token)
 
 
 def test_invalid_objectid():
@@ -151,3 +151,63 @@ def test_iter_chunks():
     assert [[3, 'c']] == chunk2
     with pytest.raises(StopIteration):
         next(it)
+
+
+def test_acquire_api_token(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = acquire_api_token(base_url, {}, 'username', 'password', False, ui)
+    assert ret == 'Som3tok3n'
+    ui.info.assert_called_with('api-token acquired')
+    ui.debug.assert_called_with('api-token: Som3tok3n')
+
+
+def test_acquire_api_token_unauthorized(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with pytest.raises(ValueError) as ctx:
+        acquire_api_token(base_url, {}, 'unknown', 'passwd', False, ui)
+        assert not ui.info.called
+        assert not ui.debug.called
+    assert str(ctx.value) == 'wrong credentials'
+
+
+def test_acquire_api_token_bad_status(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with pytest.raises(ValueError) as ctx:
+        acquire_api_token(base_url, {}, 'bad_status', 'passwd', False, ui)
+        assert not ui.info.called
+        assert not ui.debug.called
+    assert str(ctx.value) == 'api_token request returned status code 500'
+
+
+def test_acquire_api_token_no_token1(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with pytest.raises(ValueError) as ctx:
+        acquire_api_token(base_url, {}, 'no_token1', 'passwd', False, ui)
+        assert not ui.info.called
+        assert not ui.debug.called
+    assert str(ctx.value) == ('no api-token registered; '
+                              'please run with --create_api_token flag.')
+
+
+def test_acquire_api_token_no_token2(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with pytest.raises(ValueError) as ctx:
+        acquire_api_token(base_url, {}, 'no_token2', 'passwd', False, ui)
+        assert not ui.info.called
+        assert not ui.debug.called
+    assert str(ctx.value) == ('no api-token registered; '
+                              'please run with --create_api_token flag.')
+
+
+def test_create_and_acquire_api_token(live_server):
+    ui = mock.Mock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = acquire_api_token(base_url, {}, 'username', 'password', True, ui)
+    assert ret == 'Som3tok3n'
+    ui.info.assert_called_with('api-token acquired')
+    ui.debug.assert_called_with('api-token: Som3tok3n')

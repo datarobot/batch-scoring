@@ -10,7 +10,6 @@ try:
 except ImportError:
     from urllib.request import urlopen, HTTPError
 import flask
-from flask import request
 
 
 class LiveServer(object):
@@ -119,14 +118,36 @@ def app():
 
     @app.route('/shutdown')
     def shutdown():
-        func = request.environ.get('werkzeug.server.shutdown')
+        func = flask.request.environ.get('werkzeug.server.shutdown')
         if func is None:
             raise RuntimeError('Not running with the Werkzeug Server')
         func()
 
     @app.route('/api/v1/api_token')
     def auth():
-        return '{"api_token": "Som3tok3n"}'
+        auth = flask.request.authorization
+        if not auth:
+            flask.abort(401)
+        if auth.username == 'bad_status':
+            flask.abort(500)
+        if auth.username == 'no_token1':
+            return '{"api_token": null}'
+        if auth.username == 'no_token2':
+            return '{}'
+        if auth.username != 'username' or auth.password != 'password':
+            flask.abort(401)
+        else:
+            return '{"api_token": "Som3tok3n"}'
+
+    @app.route('/api/v1/api_token', methods=['POST'])
+    def post_auth():
+        auth = flask.request.authorization
+        if not auth:
+            flask.abort(401)
+        if auth.username != 'username' or auth.password != 'password':
+            flask.abort(401)
+        else:
+            return '{"api_token": "Som3tok3n"}'
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):

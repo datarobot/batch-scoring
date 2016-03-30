@@ -21,7 +21,7 @@ import requests
 import six
 
 from .network import Network
-from .utils import iter_chunks
+from .utils import acquire_api_token, iter_chunks
 
 
 if six.PY2:  # pragma: no cover
@@ -44,39 +44,6 @@ Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 class TargetType(object):
     REGRESSION = 'Regression'
     BINARY = 'Binary'
-
-
-def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
-    """Get the api token.
-
-    Either supplied by user or requested from the API with username and pwd.
-    Optionally, create a new one.
-    """
-
-    auth = (user, pwd)
-
-    request_meth = requests.get
-    if create_api_token:
-        request_meth = requests.post
-
-    r = request_meth(base_url + 'api_token', auth=auth, headers=base_headers)
-    if r.status_code == 401:
-        raise ValueError('wrong credentials')
-    elif r.status_code != 200:
-        raise ValueError('api_token request returned status code {}'
-                         .format(r.status_code))
-    else:
-        ui.info('api-token acquired')
-
-    api_token = r.json()['api_token']
-
-    if api_token is None:
-        raise ValueError('no api-token registered; '
-                         'please run with --create_api_token flag.')
-
-    ui.debug('api-token: {}'.format(api_token))
-
-    return api_token
 
 
 class BatchGenerator(object):
