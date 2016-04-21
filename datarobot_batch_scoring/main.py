@@ -6,7 +6,7 @@ import sys
 import warnings
 
 from . import __version__
-from .batch_scoring import (run_batch_predictions_v1, run_batch_predictions_v2,
+from .batch_scoring import (run_batch_predictions,
                             ShelveError)
 from .utils import (UI,
                     get_config_file,
@@ -116,11 +116,6 @@ def main(argv=sys.argv[1:]):
                          default=4,
                          help='Specifies the number of concurrent requests '
                          'to submit. (default: %(default)r)')
-    conn_gr.add_argument('--api_version', type=str,
-                         nargs='?',
-                         default='v1',
-                         help='Specifies the API version, either v1 or v2. '
-                         '(default: %(default)r)')
     conn_gr.add_argument('--n_retry', type=int,
                          default=3,
                          help='Specifies the number of times DataRobot '
@@ -218,32 +213,22 @@ def main(argv=sys.argv[1:]):
     pwd = parsed_args.get('password')
     pred_name = parsed_args.get('pred_name')
 
-    api_version = parsed_args['api_version']
-
-    base_url = '{}/{}/'.format(host, api_version)
+    base_url = '{}/{}/'.format(host, 'v1')
     base_headers = {}
     if datarobot_key:
         base_headers['datarobot-key'] = datarobot_key
 
     ui.info('connecting to {}'.format(base_url))
     try:
-        if api_version == 'v1':
-            run_batch_predictions_v1(
-                base_url=base_url, base_headers=base_headers,
-                user=user, pwd=pwd,
-                api_token=api_token, create_api_token=create_api_token,
-                pid=pid, lid=lid, n_retry=n_retry, concurrent=concurrent,
-                resume=resume, n_samples=n_samples,
-                out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
-                dataset=dataset, pred_name=pred_name, timeout=timeout,
-                ui=ui)
-        elif api_version == 'v2':
-            run_batch_predictions_v2(base_url, base_headers, user, pwd,
-                                     api_token, create_api_token,
-                                     pid, lid, concurrent, n_samples,
-                                     out_file, dataset, timeout, ui)
-        else:
-            ui.fatal('API Version {} is not supported'.format(api_version))
+        run_batch_predictions(
+            base_url=base_url, base_headers=base_headers,
+            user=user, pwd=pwd,
+            api_token=api_token, create_api_token=create_api_token,
+            pid=pid, lid=lid, n_retry=n_retry, concurrent=concurrent,
+            resume=resume, n_samples=n_samples,
+            out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
+            dataset=dataset, pred_name=pred_name, timeout=timeout,
+            ui=ui)
     except SystemError:
         pass
     except ShelveError as e:

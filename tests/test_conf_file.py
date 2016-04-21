@@ -84,7 +84,7 @@ def test_run_main_with_conf_file(monkeypatch):
             lambda: test_file.name)
         with mock.patch(
                 'datarobot_batch_scoring.main'
-                '.run_batch_predictions_v1') as mock_method:
+                '.run_batch_predictions') as mock_method:
             batch_scoring_main(argv=main_args)
             mock_method.assert_called_once_with(
                 base_url='http://localhost:53646/api/v1/',

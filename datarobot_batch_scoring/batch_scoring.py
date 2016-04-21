@@ -558,13 +558,13 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
         ui.debug('authorization has succeeded')
 
 
-def run_batch_predictions_v1(base_url, base_headers, user, pwd,
-                             api_token, create_api_token,
-                             pid, lid, n_retry, concurrent,
-                             resume, n_samples,
-                             out_file, keep_cols, delimiter,
-                             dataset, pred_name,
-                             timeout, ui):
+def run_batch_predictions(base_url, base_headers, user, pwd,
+                          api_token, create_api_token,
+                          pid, lid, n_retry, concurrent,
+                          resume, n_samples,
+                          out_file, keep_cols, delimiter,
+                          dataset, pred_name,
+                          timeout, ui):
     if not api_token:
         if not pwd:
             pwd = ui.getpass()
@@ -638,35 +638,3 @@ def run_batch_predictions_v1(base_url, base_headers, user, pwd,
             ui.info('scoring complete | time elapsed {}s'
                     .format(time() - t0))
             ui.close()
-
-
-# FIXME: broken alpha version
-def run_batch_predictions_v2(base_url, base_headers, user, pwd,
-                             api_token, create_api_token,
-                             pid, lid, concurrent, n_samples,
-                             out_file, dataset, timeout, ui):
-
-    from datarobot_sdk.client import Client
-    if api_token:
-        Client(token=api_token, endpoint=base_url)
-    elif pwd:
-        Client(username=user, password=pwd, endpoint=base_url)
-    else:
-        ui.fatal('Please provide a password or api token')
-
-    from datarobot_sdk import Model
-    model = Model.get(pid, lid)
-    model.predict_batch(dataset, out_file + ".tmp",
-                        n_jobs=concurrent, batch_size=n_samples)
-
-    import csv
-    # swap order of prediction CSV schema to match api/v1
-    with open(out_file + ".tmp", "rb") as input_file:
-        with open(out_file, "wb") as output_file:
-            rdr = csv.DictReader(input_file)
-            wrtr = csv.DictWriter(output_file, ["row_id", "prediction"],
-                                  extrasaction='ignore')
-            wrtr.writeheader()
-            for a in rdr:
-                wrtr.writerow(a)
-    ui.close()
