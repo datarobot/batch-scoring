@@ -11,6 +11,8 @@
 
 * Refactor logging/ui
 
+* Drop support of making predictions using 'v2' Modeling API
+
 1.5.0
 =====
 
