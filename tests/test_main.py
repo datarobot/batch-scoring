@@ -17,7 +17,7 @@ def test_without_passed_user_and_passwd(monkeypatch):
 
     with mock.patch(
             'datarobot_batch_scoring.main'
-            '.run_batch_predictions_v1') as mock_method:
+            '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
             base_url='http://localhost:53646/api/v1/',
@@ -54,7 +54,7 @@ def test_keep_cols(monkeypatch):
 
     with mock.patch(
             'datarobot_batch_scoring.main'
-            '.run_batch_predictions_v1') as mock_method:
+            '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
             base_url='http://localhost:53646/api/v1/',
@@ -93,7 +93,7 @@ def test_input_dataset_doesnt_exist(monkeypatch):
 
     with mock.patch(
             'datarobot_batch_scoring.main'
-            '.run_batch_predictions_v1') as mock_method:
+            '.run_batch_predictions') as mock_method:
         with pytest.raises(SystemExit):
             main(argv=main_args)
         assert not mock_method.called
@@ -116,7 +116,7 @@ def test_bad_objectid(monkeypatch):
 
     with mock.patch(
             'datarobot_batch_scoring.main'
-            '.run_batch_predictions_v1') as mock_method:
+            '.run_batch_predictions') as mock_method:
         with pytest.raises(SystemExit):
             main(argv=main_args)
         assert not mock_method.called
@@ -135,7 +135,7 @@ def test_datarobot_key(monkeypatch):
 
     with mock.patch(
             'datarobot_batch_scoring.main'
-            '.run_batch_predictions_v1') as mock_method:
+            '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
             base_url='http://localhost:53646/api/v1/',
@@ -175,7 +175,7 @@ def test_invalid_delimiter(monkeypatch):
 
     with mock.patch(
             'datarobot_batch_scoring.main'
-            '.run_batch_predictions_v1') as mock_method:
+            '.run_batch_predictions') as mock_method:
         with pytest.raises(SystemExit):
             main(argv=main_args)
         assert not mock_method.called

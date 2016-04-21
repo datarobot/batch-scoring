@@ -1,12 +1,12 @@
 import mock
 import pytest
-from datarobot_batch_scoring.batch_scoring import run_batch_predictions_v1
+from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 
 
 def test_gzipped_csv(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    ret = run_batch_predictions_v1(
+    ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
         user='username',
@@ -34,7 +34,7 @@ def test_gzipped_csv(live_server):
 def test_explicit_delimiter(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    ret = run_batch_predictions_v1(
+    ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
         user='username',
@@ -62,7 +62,7 @@ def test_explicit_delimiter(live_server):
 def test_explicit_delimiter_gzip(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    ret = run_batch_predictions_v1(
+    ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
         user='username',
@@ -90,7 +90,7 @@ def test_explicit_delimiter_gzip(live_server):
 def test_tab_delimiter(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    ret = run_batch_predictions_v1(
+    ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
         user='username',
@@ -119,7 +119,7 @@ def test_empty_file(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        run_batch_predictions_v1(
+        run_batch_predictions(
             base_url=base_url,
             base_headers={},
             user='username',
@@ -147,7 +147,7 @@ def test_no_delimiter(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        run_batch_predictions_v1(
+        run_batch_predictions(
             base_url=base_url,
             base_headers={},
             user='username',
@@ -177,7 +177,7 @@ def test_header_only(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        run_batch_predictions_v1(
+        run_batch_predictions(
             base_url=base_url,
             base_headers={},
             user='username',

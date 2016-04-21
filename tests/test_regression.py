@@ -1,6 +1,6 @@
 import mock
 
-from datarobot_batch_scoring.batch_scoring import run_batch_predictions_v1
+from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 
 
 def test_regression(live_server, tmpdir):
@@ -9,7 +9,7 @@ def test_regression(live_server, tmpdir):
 
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    ret = run_batch_predictions_v1(
+    ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
         user='username',
@@ -44,7 +44,7 @@ def test_regression_rename(live_server, tmpdir):
 
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    ret = run_batch_predictions_v1(
+    ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
         user='username',
