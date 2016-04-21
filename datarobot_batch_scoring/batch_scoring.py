@@ -577,17 +577,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
-    batch = peek_row(dataset, delimiter, ui)
-    ui.debug('First row for auth request: {}'.format(batch))
-
     # Make a sync request to check authentication and fail early
-    authorize(user, api_token, n_retry, endpoint,
-              base_headers, batch, ui)
-
     first_row = peek_row(dataset, delimiter, ui)
     ui.debug('First row for auth request: {}'.format(first_row))
-
-    # Make a sync request to check authentication and fail early
     authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
 
     with ExitStack() as stack:
