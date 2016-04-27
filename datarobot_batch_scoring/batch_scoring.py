@@ -13,7 +13,8 @@ import os
 import shelve
 import sys
 import threading
-from functools import partial
+import hashlib
+from functools import partial, reduce
 from pprint import pformat
 from time import time
 
@@ -301,10 +302,9 @@ class RunContext(object):
     Note: we use globs for the shelve files because different
     versions of Python have different file layouts.
     """
-    FILENAME = '.shelve'
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
-                 n_retry, delimiter, dataset, pred_name, ui):
+                 n_retry, delimiter, dataset, pred_name, ui, file_context):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -317,6 +317,7 @@ class RunContext(object):
         self.out_stream = None
         self.lock = threading.Lock()
         self._ui = ui
+        self.file_context = file_context
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
@@ -326,7 +327,8 @@ class RunContext(object):
 
         Either resume or start a new one.
         """
-        if RunContext.exists():
+        file_context = ContextFile(pid, lid, n_samples, keep_cols)
+        if file_context.exists():
             is_resume = None
             if resume:
                 is_resume = True
@@ -340,10 +342,10 @@ class RunContext(object):
             ctx_class = NewRunContext
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
-                         delimiter, dataset, pred_name, ui)
+                         delimiter, dataset, pred_name, ui, file_context)
 
     def __enter__(self):
-        self.db = shelve.open(self.FILENAME, writeback=True)
+        self.db = shelve.open(self.file_context.file_name, writeback=True)
         self.partitions = []
         return self
 
@@ -353,7 +355,7 @@ class RunContext(object):
             self.out_stream.close()
         if type is None:
             # success - remove shelve
-            self.clean()
+            self.file_context.clean()
 
     def checkpoint_batch(self, batch, out_fields, pred):
         if self.keep_cols:
@@ -397,15 +399,24 @@ class RunContext(object):
         return iter(BatchGenerator(self.dataset, self.n_samples,
                                    self.n_retry, self.delimiter, self._ui))
 
-    @classmethod
-    def exists(cls):
-        """Does shelve exist. """
-        return any(glob.glob(cls.FILENAME + '*'))
 
-    @classmethod
-    def clean(cls):
+class ContextFile(object):
+    def __init__(self, project_id, model_id, n_samples, keep_cols):
+        hashable = reduce(operator.add, map(str,
+                                            [project_id,
+                                             model_id,
+                                             n_samples,
+                                             keep_cols]))
+        digest = hashlib.md5(hashable.encode('utf8')).hexdigest()
+        self.file_name = digest + '.shelve'
+
+    def exists(self):
+        """Does shelve exist. """
+        return any(glob.glob(self.file_name + '*'))
+
+    def clean(self):
         """Clean the shelve. """
-        for fname in glob.glob(cls.FILENAME + '*'):
+        for fname in glob.glob(self.file_name + '*'):
             os.remove(fname)
 
 
@@ -416,9 +427,9 @@ class NewRunContext(RunContext):
     """
 
     def __enter__(self):
-        if self.exists():
+        if self.file_context.exists():
             self._ui.info('Removing old run shelve')
-            self.clean()
+            self.file_context.clean()
         if os.path.exists(self.out_file):
             self._ui.warning('File {} exists.'.format(self.out_file))
             rm = self._ui.prompt_yesno('Do you want to remove {}'.format(
@@ -458,7 +469,7 @@ class OldRunContext(RunContext):
     """
 
     def __enter__(self):
-        if not self.exists():
+        if not self.file_context.exists():
             raise ValueError('Cannot resume a project without {}'
                              .format(self.FILENAME))
         super(OldRunContext, self).__enter__()
