@@ -81,7 +81,6 @@ The following table describes each of the arguments:
  keep_cols=<keep_cols>         Specifies the column names to append to the predictions. Enter as a comma-separated list.
  n_samples=<n_samples>         Specifies the number of samples to use per batch. Default sample size is 1000. For best results, set ``<n_samples>`` so that the packet size is under 3 MB.
  n_concurrent=<n_concurrent>   Specifies the number of concurrent requests to submit. By default, 4 concurrent requests are submitted. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
- api_version=<api_version>     Specifies the API version, either V1 or V2. The default is V1.
  create_api_token              Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
  n_retry=<n_retry>             Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
  delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. If not specified, the script tries to automatically determine the delimiter, and if it cannot, defaults to comma ( , ).

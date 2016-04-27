@@ -43,7 +43,6 @@ config_validator = t.Dict({
     OptKey('api_token'): t.String,
     OptKey('create_api_token'): t.String,
     OptKey('pred_name'): t.String,
-    OptKey('api_version'): t.Enum('v1', 'v2')
 }).allow_extra('*')
 
 
