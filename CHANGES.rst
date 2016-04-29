@@ -1,4 +1,4 @@
-1.6.0 (XXXX-XX-XX)
+1.6.0 alpha (2016 April 29)
 ==================
 
 * Get rid of gevent/asyncio, use thread-based networking
