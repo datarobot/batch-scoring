@@ -19,7 +19,7 @@ else:
         "six>=1.9.0",
         "docopt>=0.6.1",
         "requests>=2.7.0",
-        "trafaret>=0.6.2"
+        "trafaret[objectid]>=0.7.1"
         ]
     if sys.version_info < (3, 0):
         install_requires.extend([
