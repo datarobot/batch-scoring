@@ -19,13 +19,10 @@ else:
         "six>=1.9.0",
         "docopt>=0.6.1",
         "requests>=2.7.0",
-        "trafaret[objectid]>=0.7.1"
+        "trafaret[objectid]>=0.7.1",
+        "contextlib2>=0.5.1",
+        "futures>=3.0.4"
         ]
-    if sys.version_info < (3, 0):
-        install_requires.extend([
-            "contextlib2>=0.5.1",
-            "futures>=3.0.4",
-            ])
     extra['entry_points'] = {
         'console_scripts': [
             'batch_scoring = datarobot_batch_scoring.main:main']}
