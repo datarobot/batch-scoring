@@ -48,7 +48,6 @@ def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.set_defaults(prompt=None)
     parser.add_argument('--verbose', '-v', action="store_true",
                         help='Provides status updates while '
                         'the script is running.')
@@ -151,16 +150,29 @@ def main(argv=sys.argv[1:]):
                          help="Always answer 'yes' for user prompts")
     misc_gr.add_argument('-n', '--no', dest='prompt', action='store_false',
                          help="Always answer 'no' for user prompts")
-
-    parsed_args = {}
+    defaults = {
+        'prompt': None,
+        'out': 'out.csv',
+        'create_api_token': False,
+        'timeout': 30,
+        'n_samples': 1000,
+        'n_concurrent': 4,
+        'n_retry': 3,
+        'resume': False
+    }
     conf_file = get_config_file()
     if conf_file:
         file_args = parse_config_file(conf_file)
-        parsed_args.update(file_args)
-    pre_parsed_args = {k: v
-                       for k, v in vars(parser.parse_args(argv)).items()
-                       if v is not None}
-    parsed_args.update(pre_parsed_args)
+        defaults.update(file_args)
+    parser.set_defaults(**defaults)
+    for action in parser._actions:
+        if action.dest in defaults and action.required:
+            action.required = False
+            if '--' + action.dest not in argv:
+                action.nargs = '?'
+    parsed_args = {k: v
+                   for k, v in vars(parser.parse_args(argv)).items()
+                   if v is not None}
     loglevel = logging.DEBUG if parsed_args['verbose'] else logging.INFO
     ui = UI(parsed_args.get('prompt'), loglevel)
     printed_args = copy.copy(parsed_args)

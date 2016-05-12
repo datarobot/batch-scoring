@@ -17,7 +17,6 @@ else:
 
     install_requires = [
         "six>=1.9.0",
-        "docopt>=0.6.1",
         "requests>=2.7.0",
         "trafaret[objectid]>=0.7.1",
         "contextlib2>=0.5.1",

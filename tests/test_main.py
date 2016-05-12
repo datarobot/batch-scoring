@@ -181,3 +181,19 @@ def test_invalid_delimiter(monkeypatch):
         assert not mock_method.called
     ui.fatal.assert_called_with(
         'Delimiter "INVALID" is not a valid delimiter.')
+
+
+def test_no_required_params(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '--n_samples',
+                 '10',
+                 '--n_concurrent', '1', '--no']
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', mock.Mock(spec=UI))
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        with pytest.raises(SystemExit):
+            main(argv=main_args)
+    assert not mock_method.called

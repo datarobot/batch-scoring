@@ -107,3 +107,49 @@ def test_run_main_with_conf_file(monkeypatch):
                 timeout=30,
                 ui=mock.ANY
             )
+
+
+def test_run_empty_main_with_conf_file(monkeypatch):
+    main_args = []
+    raw_data = textwrap.dedent("""\
+        [batch_scoring]
+        host=http://localhost:53646/api
+        project_id=56dd9570018e213242dfa93c
+        model_id=56dd9570018e213242dfa93d
+        user=file_username
+        password=file_password
+        n_concurrent=1
+        n_retry=3
+        n_samples=10
+        dataset=tests/fixtures/temperatura_predict.csv""")
+    with NamedTemporaryFile(suffix='*.ini') as test_file:
+        test_file.write(str(raw_data).encode('utf-8'))
+        test_file.seek(0)
+        monkeypatch.setattr(
+            'datarobot_batch_scoring.main.get_config_file',
+            lambda: test_file.name)
+        with mock.patch(
+                'datarobot_batch_scoring.main'
+                '.run_batch_predictions') as mock_method:
+            batch_scoring_main(argv=main_args)
+            mock_method.assert_called_once_with(
+                base_url='http://localhost:53646/api/v1/',
+                base_headers={},
+                user='file_username',
+                pwd='file_password',
+                api_token=None,
+                create_api_token=False,
+                pid='56dd9570018e213242dfa93c',
+                lid='56dd9570018e213242dfa93d',
+                n_retry=3,
+                concurrent=1,
+                resume=False,
+                n_samples=10,
+                out_file='out.csv',
+                keep_cols=None,
+                delimiter=None,
+                dataset='tests/fixtures/temperatura_predict.csv',
+                pred_name=None,
+                timeout=30,
+                ui=mock.ANY
+            )
