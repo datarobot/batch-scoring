@@ -27,7 +27,10 @@ class Network(object):
             response = session.send(prepared, timeout=self._timeout)
         except Exception as exc:
             logger.warning('Exception {}: {}'.format(type(exc), exc))
-            callback = request.kwargs['hooks']['response']
+            try:
+                callback = request.kwargs['hooks']['response']
+            except AttributeError:
+                callback = request.hooks['response'][0]
             response = FakeResponse(400, 'No Response')
             callback(response)
 

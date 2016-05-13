@@ -58,6 +58,7 @@ def test_simple(live_server, tmpdir):
         pred_name=None,
         timeout=30,
         ui=ui,
+        multiline=True
     )
 
     assert ret is None
@@ -92,7 +93,8 @@ def test_keep_cols(live_server, tmpdir):
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name=None,
         timeout=30,
-        ui=ui
+        ui=ui,
+        multiline=True
     )
 
     assert ret is None
@@ -127,7 +129,8 @@ def test_pred_name_classification(live_server, tmpdir):
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name='healthy',
         timeout=30,
-        ui=ui
+        ui=ui,
+        multiline=True
     )
 
     assert ret is None

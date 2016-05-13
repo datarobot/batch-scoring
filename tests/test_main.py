@@ -38,7 +38,9 @@ def test_without_passed_user_and_passwd(monkeypatch):
             dataset='tests/fixtures/temperatura_predict.csv',
             pred_name=None,
             timeout=30,
-            ui=mock.ANY
+            ui=mock.ANY,
+            multiline=False,
+            dry_run=False
         )
 
 
@@ -75,7 +77,9 @@ def test_keep_cols(monkeypatch):
             dataset='tests/fixtures/temperatura_predict.csv',
             pred_name=None,
             timeout=30,
-            ui=mock.ANY
+            ui=mock.ANY,
+            multiline=False,
+            dry_run=False
         )
 
 
@@ -156,7 +160,9 @@ def test_datarobot_key(monkeypatch):
             dataset='tests/fixtures/temperatura_predict.csv',
             pred_name=None,
             timeout=30,
-            ui=mock.ANY
+            ui=mock.ANY,
+            multiline=False,
+            dry_run=False
         )
 
 

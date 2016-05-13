@@ -25,7 +25,8 @@ def test_gzipped_csv(live_server):
         dataset='tests/fixtures/temperatura_predict.csv.gz',
         pred_name=None,
         timeout=30,
-        ui=ui
+        ui=ui,
+        multiline=True
     )
 
     assert ret is None
@@ -53,7 +54,8 @@ def test_explicit_delimiter(live_server):
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name=None,
         timeout=30,
-        ui=ui
+        ui=ui,
+        multiline=True
     )
 
     assert ret is None
@@ -81,7 +83,8 @@ def test_explicit_delimiter_gzip(live_server):
         dataset='tests/fixtures/temperatura_predict.csv.gz',
         pred_name=None,
         timeout=30,
-        ui=ui
+        ui=ui,
+        multiline=True
     )
 
     assert ret is None
@@ -109,7 +112,8 @@ def test_tab_delimiter(live_server):
         dataset='tests/fixtures/temperatura_predict_tab.csv',
         pred_name=None,
         timeout=30,
-        ui=ui
+        ui=ui,
+        multiline=True
     )
 
     assert ret is None
@@ -138,7 +142,8 @@ def test_empty_file(live_server):
             dataset='tests/fixtures/empty.csv',
             pred_name=None,
             timeout=30,
-            ui=ui
+            ui=ui,
+            multiline=True
         )
     assert str(ctx.value) == "Input file 'tests/fixtures/empty.csv' is empty."
 
@@ -166,7 +171,8 @@ def test_no_delimiter(live_server):
             dataset='tests/fixtures/temperatura_predict.csv',
             pred_name=None,
             timeout=30,
-            ui=ui
+            ui=ui,
+            multiline=True
         )
     assert str(ctx.value) == ("Delimiter ';' not found. "
                               "Please check your input file "
@@ -196,7 +202,8 @@ def test_header_only(live_server):
             dataset='tests/fixtures/header_only.csv',
             pred_name=None,
             timeout=30,
-            ui=ui
+            ui=ui,
+            multiline=True
         )
     assert str(ctx.value) == ("Input file 'tests/fixtures/header_only.csv' "
                               "is empty.")
