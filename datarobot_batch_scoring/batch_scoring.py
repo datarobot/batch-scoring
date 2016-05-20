@@ -502,6 +502,13 @@ class RunContext(object):
             self.file_context.clean()
 
     def checkpoint_batch(self, batch, out_fields, pred):
+        """Mark a batch as being processed:
+           - write it to the output stream (if necessary pull out columns).
+           - put the batch_id into the journal.
+        """
+        fast_mode = not self.multiline
+        delimiter = self.delimiter or ','
+
         if self.keep_cols:
             # stack columns
             if self.db['first_write']:
@@ -512,11 +519,17 @@ class RunContext(object):
 
             indices = [i for i, col in enumerate(batch.fieldnames)
                        if col in self.keep_cols]
+            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
+
             # first column is row_id
             comb = []
-            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
-            for origin, predicted in zip(batch.data, pred):
-                keeps = [origin[i] for i in indices]
+            for row, predicted in zip(batch.data, pred):
+                pass
+                if fast_mode:
+                    # row is a full line, we need to cut it into fields
+                    #  we do this very crude -- this will fail on quoted fields!
+                    row = row.split(delimiter)
+                keeps = [row[i] for i in indices]
                 comb.append([predicted[0]] + keeps + predicted[1:])
         else:
             comb = pred
