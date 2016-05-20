@@ -423,7 +423,7 @@ class WorkUnitGenerator(object):
             if not isinstance(data, bytes):
                 data = data.encode('utf-8')
             self._ui.debug('batch {} transmitting {} bytes'
-                           .format(batch.id, len(batch.data)))
+                           .format(batch.id, len(data)))
             yield requests.Request(
                 method='POST',
                 url=self.endpoint,
