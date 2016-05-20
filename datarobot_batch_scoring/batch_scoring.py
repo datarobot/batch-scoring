@@ -127,13 +127,13 @@ class BatchGenerator(object):
         in the form that can be passed to the HTTP request.
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, multiline):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, fast_mode):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
         self.sep = delimiter
         self._ui = ui
-        self.force_multiline = multiline
+        self.fast_mode = fast_mode
         self.encoding = 'utf-8'
 
     def open(self, encode=True):
@@ -178,7 +178,7 @@ class BatchGenerator(object):
         if sep is None:
             sep = dialect.delimiter
 
-        if not self.force_multiline:
+        if self.fast_mode:
             # peek the first 100 records for multiline CSV
             with self.open() as csvfile:
                 reader = csv.reader(csvfile, dialect, delimiter=sep)
@@ -193,15 +193,15 @@ class BatchGenerator(object):
 
                 if reader.line_num != peek_size:
                     self._ui.fatal('Detected multiline CSV format'
-                                   ' -- please use flag `--multiline` '
+                                   ' -- dont use flag `--fast` '
                                    'to force CSV parsing. '
                                    'Note that this will slow down scoring.')
                     sys.exit(0)
 
-        if self.force_multiline:
-            reader_factory = SlowReader
-        else:
+        if self.fast_mode:
             reader_factory = FastReader
+        else:
+            reader_factory = SlowReader
 
         with self.open() as csvfile:
             reader = reader_factory(csvfile, dialect=dialect,
@@ -223,9 +223,9 @@ class BatchGenerator(object):
                                                              time() - t0))
 
 
-def peek_row(dataset, delimiter, ui, multiline):
+def peek_row(dataset, delimiter, ui, fast_mode):
     """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, multiline)
+    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode)
     try:
         batch = next(iter(batches))
     except StopIteration:
@@ -414,10 +414,10 @@ class WorkUnitGenerator(object):
                 continue
             hook = partial(self._response_callback, batch=batch)
 
-            if self.ctx.multiline:
-                chunk_formatter = slow_to_csv_chunk
-            else:
+            if self.ctx.fast_mode:
                 chunk_formatter = fast_to_csv_chunk
+            else:
+                chunk_formatter = slow_to_csv_chunk
 
             data = chunk_formatter(batch.data, batch.fieldnames)
             if not isinstance(data, bytes):
@@ -445,7 +445,7 @@ class RunContext(object):
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
-                 multiline):
+                 fast_mode):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -459,13 +459,13 @@ class RunContext(object):
         self.lock = threading.Lock()
         self._ui = ui
         self.file_context = file_context
-        self.multiline = multiline
+        self.fast_mode = fast_mode
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
-               multiline):
+               fast_mode):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -486,7 +486,7 @@ class RunContext(object):
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
-                         multiline)
+                         fast_mode)
 
     def __enter__(self):
         self.db = shelve.open(self.file_context.file_name, writeback=True)
@@ -506,7 +506,6 @@ class RunContext(object):
            - write it to the output stream (if necessary pull out columns).
            - put the batch_id into the journal.
         """
-        fast_mode = not self.multiline
         delimiter = self.delimiter or ','
 
         if self.keep_cols:
@@ -524,8 +523,7 @@ class RunContext(object):
             # first column is row_id
             comb = []
             for row, predicted in zip(batch.data, pred):
-                pass
-                if fast_mode:
+                if self.fast_mode:
                     # row is a full line, we need to cut it into fields
                     # FIXME this will fail on quoted fields!
                     row = row.rstrip().split(delimiter)
@@ -554,7 +552,7 @@ class RunContext(object):
     def batch_generator(self):
         return iter(BatchGenerator(self.dataset, self.n_samples,
                                    self.n_retry, self.delimiter, self._ui,
-                                   self.multiline))
+                                   self.fast_mode))
 
 
 class ContextFile(object):
@@ -662,7 +660,7 @@ class OldRunContext(RunContext):
                                           self.n_retry,
                                           self.delimiter,
                                           self._ui,
-                                          self.multiline)
+                                          self.fast_mode)
                 if b.id not in already_processed_batches)
 
 
@@ -725,7 +723,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           resume, n_samples,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
-                          timeout, ui, multiline,
+                          timeout, ui, fast_mode,
                           dry_run=False):
     t1 = time()
     if not api_token:
@@ -741,12 +739,12 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
     # Make a sync request to check authentication and fail early
-    first_row = peek_row(dataset, delimiter, ui, multiline)
+    first_row = peek_row(dataset, delimiter, ui, fast_mode)
     ui.debug('First row for auth request: {}'.format(first_row))
-    if multiline:
-        chunk_formatter = slow_to_csv_chunk
-    else:
+    if fast_mode:
         chunk_formatter = fast_to_csv_chunk
+    else:
+        chunk_formatter = slow_to_csv_chunk
 
     first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
     if six.PY3:
@@ -758,7 +756,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
                               lid, keep_cols, n_retry, delimiter,
-                              dataset, pred_name, ui, multiline))
+                              dataset, pred_name, ui, fast_mode))
         network = stack.enter_context(Network(concurrent, timeout))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'

@@ -26,7 +26,7 @@ def test_gzipped_csv(live_server):
         pred_name=None,
         timeout=30,
         ui=ui,
-        multiline=True
+        fast_mode=False
     )
 
     assert ret is None
@@ -55,7 +55,7 @@ def test_explicit_delimiter(live_server):
         pred_name=None,
         timeout=30,
         ui=ui,
-        multiline=True
+        fast_mode=False
     )
 
     assert ret is None
@@ -84,7 +84,7 @@ def test_explicit_delimiter_gzip(live_server):
         pred_name=None,
         timeout=30,
         ui=ui,
-        multiline=True
+        fast_mode=False
     )
 
     assert ret is None
@@ -113,7 +113,7 @@ def test_tab_delimiter(live_server):
         pred_name=None,
         timeout=30,
         ui=ui,
-        multiline=True
+        fast_mode=False
     )
 
     assert ret is None
@@ -143,7 +143,7 @@ def test_empty_file(live_server):
             pred_name=None,
             timeout=30,
             ui=ui,
-            multiline=True
+            fast_mode=False
         )
     assert str(ctx.value) == "Input file 'tests/fixtures/empty.csv' is empty."
 
@@ -172,7 +172,7 @@ def test_no_delimiter(live_server):
             pred_name=None,
             timeout=30,
             ui=ui,
-            multiline=True
+            fast_mode=False
         )
     assert str(ctx.value) == ("Delimiter ';' not found. "
                               "Please check your input file "
@@ -203,7 +203,7 @@ def test_header_only(live_server):
             pred_name=None,
             timeout=30,
             ui=ui,
-            multiline=True
+            fast_mode=False
         )
     assert str(ctx.value) == ("Input file 'tests/fixtures/header_only.csv' "
                               "is empty.")

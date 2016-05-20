@@ -145,11 +145,10 @@ def main(argv=sys.argv[1:]):
                         'defaults to comma ( , ).')
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?')
-    csv_gr.add_argument('--multiline', action='store_true',
+    csv_gr.add_argument('--fast', action='store_true',
                         default=False,
-                        help='Force parser with multiline csv support.'
-                        'This parser can be significantly slower than the '
-                        'one that does not support multiline csv. ')
+                        help='Experimental: faster CSV processor. '
+                        'Note: does not support multiline csv. ')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -168,7 +167,7 @@ def main(argv=sys.argv[1:]):
         'n_concurrent': 4,
         'n_retry': 3,
         'resume': False,
-        'multiline': False
+        'fast': False
     }
     conf_file = get_config_file()
     if conf_file:
@@ -207,7 +206,7 @@ def main(argv=sys.argv[1:]):
     out_file = parsed_args['out']
     datarobot_key = parsed_args.get('datarobot_key')
     timeout = int(parsed_args['timeout'])
-    multiline = parsed_args['multiline']
+    fast_mode = parsed_args['fast']
 
     if 'user' not in parsed_args:
         user = ui.prompt_user()
@@ -252,7 +251,7 @@ def main(argv=sys.argv[1:]):
             resume=resume, n_samples=n_samples,
             out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
             dataset=dataset, pred_name=pred_name, timeout=timeout,
-            ui=ui, multiline=multiline, dry_run=dry_run)
+            ui=ui, fast_mode=fast_mode, dry_run=dry_run)
     except SystemError:
         pass
     except ShelveError as e:

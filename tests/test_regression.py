@@ -29,7 +29,7 @@ def test_regression(live_server, tmpdir):
         pred_name=None,
         timeout=30,
         ui=ui,
-        multiline=True
+        fast_mode=False
     )
 
     assert ret is None
@@ -65,7 +65,7 @@ def test_regression_rename(live_server, tmpdir):
         pred_name='new_name',
         timeout=30,
         ui=ui,
-        multiline=True
+        fast_mode=False
     )
 
     assert ret is None
@@ -101,7 +101,7 @@ def test_regression_rename_fast(live_server, tmpdir):
         pred_name='new_name',
         timeout=30,
         ui=ui,
-        multiline=False
+        fast_mode=True
     )
 
     assert ret is None
@@ -111,14 +111,14 @@ def test_regression_rename_fast(live_server, tmpdir):
         assert actual == f.read()
 
 
-def check_regression_jp(live_server, tmpdir, multiline, gzipped):
+def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
     """Use utf8 encoded input data.
 
     """
-    if multiline:
-        out_fname = 'out_w_multiline.csv'
+    if fast_mode:
+        out_fname = 'out_fast.csv'
     else:
-        out_fname = 'out_w_multiline.csv'
+        out_fname = 'out.csv'
     out = tmpdir.join(out_fname)
 
     dataset_suffix = '.gz' if gzipped else ''
@@ -145,7 +145,7 @@ def check_regression_jp(live_server, tmpdir, multiline, gzipped):
         pred_name='new_name',
         timeout=30,
         ui=ui,
-        multiline=multiline
+        fast_mode=fast_mode
     )
 
     assert ret is None
@@ -156,17 +156,17 @@ def check_regression_jp(live_server, tmpdir, multiline, gzipped):
         assert actual == f.read()
 
 
-def test_multiline_regression_jp(live_server, tmpdir):
+def test_fast_mode_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, True, False)
 
 
-def test_wo_multiline_regression_jp(live_server, tmpdir):
+def test_wo_fast_mode_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, False, False)
 
 
-def test_multiline_gzipped_regression_jp(live_server, tmpdir):
+def test_fast_mode_gzipped_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, True, True)
 
 
-def test_wo_multiline_gzipped_regression_jp(live_server, tmpdir):
+def test_wo_fast_mode_gzipped_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, False, True)

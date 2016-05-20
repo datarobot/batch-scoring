@@ -39,7 +39,7 @@ def test_without_passed_user_and_passwd(monkeypatch):
             pred_name=None,
             timeout=30,
             ui=mock.ANY,
-            multiline=False,
+            fast_mode=False,
             dry_run=False
         )
 
@@ -78,7 +78,7 @@ def test_keep_cols(monkeypatch):
             pred_name=None,
             timeout=30,
             ui=mock.ANY,
-            multiline=False,
+            fast_mode=False,
             dry_run=False
         )
 
@@ -161,7 +161,7 @@ def test_datarobot_key(monkeypatch):
             pred_name=None,
             timeout=30,
             ui=mock.ANY,
-            multiline=False,
+            fast_mode=False,
             dry_run=False
         )
 
