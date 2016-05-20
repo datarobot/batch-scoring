@@ -527,8 +527,8 @@ class RunContext(object):
                 pass
                 if fast_mode:
                     # row is a full line, we need to cut it into fields
-                    #  we do this very crude -- this will fail on quoted fields!
-                    row = row.split(delimiter)
+                    # FIXME this will fail on quoted fields!
+                    row = row.rstrip().split(delimiter)
                 keeps = [row[i] for i in indices]
                 comb.append([predicted[0]] + keeps + predicted[1:])
         else:
