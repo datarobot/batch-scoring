@@ -83,7 +83,11 @@ class FastReader(object):
 
     def __init__(self, fd, sep=",", dialect=None, encoding='utf-8'):
         self.fd = fd
-        reader = csv.reader(self.fd, dialect, delimiter=sep)
+        self.sep = sep
+        self.dialect = dialect
+        self.encoding = encoding
+        self._check_for_multiline_input()
+        reader = self._create_reader()
         self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
 
@@ -92,6 +96,28 @@ class FastReader(object):
         it = iter(self.fd)
         next(it)  # skip header
         return it
+
+    def _create_reader(self):
+        self.fd.seek(0)
+        return csv.reader(self.fd, self.dialect, delimiter=self.sep)
+
+    def _check_for_multiline_input(self, peek_size=100):
+        # peek the first `peek_size` records for multiline CSV
+        reader = self._create_reader()
+        i = 0
+        for line in reader:
+            i += 1
+            if i == peek_size:
+                break
+
+        peek_size = min(i, peek_size)
+
+        if reader.line_num != peek_size:
+            self._ui.fatal('Detected multiline CSV format'
+                           ' -- dont use flag `--fast` '
+                           'to force CSV parsing. '
+                           'Note that this will slow down scoring.')
+            sys.exit(0)
 
 
 class SlowReader(object):
@@ -127,14 +153,15 @@ class BatchGenerator(object):
         in the form that can be passed to the HTTP request.
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, fast_mode):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, fast_mode,
+                 encoding='utf-8'):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
         self.sep = delimiter
         self._ui = ui
         self.fast_mode = fast_mode
-        self.encoding = 'utf-8'
+        self.encoding = encoding
 
     def open(self, encode=True):
         if six.PY3:
@@ -144,10 +171,7 @@ class BatchGenerator(object):
         if self.dataset.endswith('.gz'):
             fd = gzip.open(self.dataset, mode)
         else:
-            if six.PY2:
-                fd = open(self.dataset, mode)
-            else:
-                fd = open(self.dataset, mode)
+            fd = open(self.dataset, mode)
 
         return fd
 
@@ -177,26 +201,6 @@ class BatchGenerator(object):
                          "or consider the flag `--delimiter=''`.").format(sep))
         if sep is None:
             sep = dialect.delimiter
-
-        if self.fast_mode:
-            # peek the first 100 records for multiline CSV
-            with self.open() as csvfile:
-                reader = csv.reader(csvfile, dialect, delimiter=sep)
-                peek_size = 100
-                i = 0
-                for line in reader:
-                    i += 1
-                    if i == peek_size:
-                        break
-
-                peek_size = min(i, peek_size)
-
-                if reader.line_num != peek_size:
-                    self._ui.fatal('Detected multiline CSV format'
-                                   ' -- dont use flag `--fast` '
-                                   'to force CSV parsing. '
-                                   'Note that this will slow down scoring.')
-                    sys.exit(0)
 
         if self.fast_mode:
             reader_factory = FastReader

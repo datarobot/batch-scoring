@@ -15,7 +15,7 @@ test: .install flake8
 	py.test -v tests/
 
 cov cover coverage: .install flake8
-	py.test -v -x --cov=datarobot_batch_scoring \
+	py.test -v --cov=datarobot_batch_scoring \
             --cov-report=term --cov-report=html tests/
 	@echo "open file://`pwd`/htmlcov/index.html"
 
