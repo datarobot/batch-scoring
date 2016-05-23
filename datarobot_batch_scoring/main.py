@@ -145,11 +145,19 @@ def main(argv=sys.argv[1:]):
                         'defaults to comma ( , ).')
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?')
+    csv_gr.add_argument('--fast', action='store_true',
+                        default=False,
+                        help='Experimental: faster CSV processor. '
+                        'Note: does not support multiline csv. ')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
     misc_gr.add_argument('-n', '--no', dest='prompt', action='store_false',
                          help="Always answer 'no' for user prompts")
+    misc_gr.add_argument('--dry_run', dest='dry_run', action='store_true',
+                         help="Only read/chunk input data but dont send "
+                         "requests.")
+
     defaults = {
         'prompt': None,
         'out': 'out.csv',
@@ -158,7 +166,8 @@ def main(argv=sys.argv[1:]):
         'n_samples': 1000,
         'n_concurrent': 4,
         'n_retry': 3,
-        'resume': False
+        'resume': False,
+        'fast': False
     }
     conf_file = get_config_file()
     if conf_file:
@@ -197,6 +206,7 @@ def main(argv=sys.argv[1:]):
     out_file = parsed_args['out']
     datarobot_key = parsed_args.get('datarobot_key')
     timeout = int(parsed_args['timeout'])
+    fast_mode = parsed_args['fast']
 
     if 'user' not in parsed_args:
         user = ui.prompt_user()
@@ -224,6 +234,7 @@ def main(argv=sys.argv[1:]):
     create_api_token = parsed_args.get('create_api_token')
     pwd = parsed_args.get('password')
     pred_name = parsed_args.get('pred_name')
+    dry_run = parsed_args.get('dry_run', False)
 
     base_url = '{}/{}/'.format(host, 'v1')
     base_headers = {}
@@ -240,7 +251,7 @@ def main(argv=sys.argv[1:]):
             resume=resume, n_samples=n_samples,
             out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
             dataset=dataset, pred_name=pred_name, timeout=timeout,
-            ui=ui)
+            ui=ui, fast_mode=fast_mode, dry_run=dry_run)
     except SystemError:
         pass
     except ShelveError as e:

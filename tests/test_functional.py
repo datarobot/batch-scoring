@@ -58,6 +58,7 @@ def test_simple(live_server, tmpdir):
         pred_name=None,
         timeout=30,
         ui=ui,
+        fast_mode=False
     )
 
     assert ret is None
@@ -67,7 +68,7 @@ def test_simple(live_server, tmpdir):
         assert expected == f.read()
 
 
-def test_keep_cols(live_server, tmpdir):
+def test_keep_cols(live_server, tmpdir, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -92,7 +93,8 @@ def test_keep_cols(live_server, tmpdir):
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name=None,
         timeout=30,
-        ui=ui
+        ui=ui,
+        fast_mode=fast_mode
     )
 
     assert ret is None
@@ -100,6 +102,10 @@ def test_keep_cols(live_server, tmpdir):
     expected = out.read_text('utf-8')
     with open('tests/fixtures/temperatura_output_keep_x.csv', 'r') as f:
         assert expected == f.read()
+
+
+def test_keep_cols_fast_mode(live_server, tmpdir):
+    test_keep_cols(live_server, tmpdir, True)
 
 
 def test_pred_name_classification(live_server, tmpdir):
@@ -127,7 +133,8 @@ def test_pred_name_classification(live_server, tmpdir):
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name='healthy',
         timeout=30,
-        ui=ui
+        ui=ui,
+        fast_mode=False
     )
 
     assert ret is None

@@ -68,7 +68,7 @@ def test_run_main_with_conf_file(monkeypatch):
                  'tests/fixtures/temperatura_predict.csv',
                  '--n_samples',
                  '10',
-                 '--n_concurrent', '1', '--no']
+                 '--n_concurrent', '1', '--no', '--fast']
     raw_data = textwrap.dedent("""\
         [batch_scoring]
         host=file_host
@@ -105,7 +105,9 @@ def test_run_main_with_conf_file(monkeypatch):
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
                 timeout=30,
-                ui=mock.ANY
+                ui=mock.ANY,
+                fast_mode=True,
+                dry_run=False
             )
 
 
@@ -151,5 +153,7 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
                 timeout=30,
-                ui=mock.ANY
+                ui=mock.ANY,
+                fast_mode=False,
+                dry_run=False
             )

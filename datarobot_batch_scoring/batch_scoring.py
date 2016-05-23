@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import codecs
+import io
 import collections
 import csv
 import glob
 import gzip
-import io
 import json
 import operator
 import os
@@ -14,9 +13,14 @@ import shelve
 import sys
 import threading
 import hashlib
-from functools import partial, reduce
-from pprint import pformat
+from functools import partial
+from functools import reduce
+from itertools import chain
 from time import time
+from multiprocessing import Queue
+from multiprocessing import Process
+from six.moves import queue
+from six.moves import zip
 
 import requests
 import six
@@ -41,10 +45,101 @@ class ShelveError(Exception):
 Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt')
 Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
+SENTINEL = Batch(-1, None, '', -1)
+
 
 class TargetType(object):
     REGRESSION = 'Regression'
     BINARY = 'Binary'
+
+
+def fast_to_csv_chunk(data, header):
+    """Fast routine to format data for prediction api.
+
+    Returns data in unicode.
+    """
+    header = ','.join(header)
+    return ''.join(chain((header, '\n'), data))
+
+
+def slow_to_csv_chunk(data, header):
+    """Slow routine to format data for prediction api.
+
+    Returns data in unicode.
+    """
+    if six.PY3:
+        buf = io.StringIO()
+    else:
+        buf = io.BytesIO()
+
+    writer = csv.writer(buf)
+    writer.writerow(header)
+    writer.writerows(data)
+    return buf.getvalue()
+
+
+class FastReader(object):
+    """A reader that only reads the file in text mode but not parses it. """
+
+    def __init__(self, fd, sep=",", dialect=None, encoding='utf-8'):
+        self.fd = fd
+        self.sep = sep
+        self.dialect = dialect
+        self.encoding = encoding
+        self._check_for_multiline_input()
+        reader = self._create_reader()
+        self.header = next(reader)
+        self.fieldnames = [c.strip() for c in self.header]
+
+    def __iter__(self):
+        self.fd.seek(0)
+        it = iter(self.fd)
+        next(it)  # skip header
+        return it
+
+    def _create_reader(self):
+        self.fd.seek(0)
+        return csv.reader(self.fd, self.dialect, delimiter=self.sep)
+
+    def _check_for_multiline_input(self, peek_size=100):
+        # peek the first `peek_size` records for multiline CSV
+        reader = self._create_reader()
+        i = 0
+        for line in reader:
+            i += 1
+            if i == peek_size:
+                break
+
+        peek_size = min(i, peek_size)
+
+        if reader.line_num != peek_size:
+            self._ui.fatal('Detected multiline CSV format'
+                           ' -- dont use flag `--fast` '
+                           'to force CSV parsing. '
+                           'Note that this will slow down scoring.')
+            sys.exit(0)
+
+
+class SlowReader(object):
+    """The slow reader does actual CSV parsing.
+    It supports multiline csv and can be a factor of 50 slower. """
+
+    def __init__(self, fd, sep=",", dialect=None, encoding='utf-8'):
+        self.fd = fd
+        self.sep = sep
+        self.dialect = dialect
+        self.reader = csv.reader(self.fd, dialect, delimiter=sep)
+        self.header = next(self.reader)
+        self.fieldnames = [c.strip() for c in self.header]
+
+    def __iter__(self):
+        self.fd.seek(0)
+        self.reader = csv.reader(self.fd, self.dialect, delimiter=self.sep)
+        for i, row in enumerate(self.reader):
+            if i == 0:
+                # skip header
+                continue
+            yield row
 
 
 class BatchGenerator(object):
@@ -54,40 +149,46 @@ class BatchGenerator(object):
     Yields
     ------
     batch : Batch
-        The next batch
+        The next batch. A batch holds the data to be send already
+        in the form that can be passed to the HTTP request.
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter, ui):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, fast_mode,
+                 encoding='utf-8'):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
         self.sep = delimiter
         self._ui = ui
+        self.fast_mode = fast_mode
+        self.encoding = encoding
 
-    def open(self):
-        if self.dataset.endswith('.gz'):
-            return gzip.open(self.dataset)
+    def open(self, encode=True):
+        if six.PY3:
+            mode = 'rt'
         else:
-            if six.PY2:
-                return open(self.dataset, 'rb')
-            else:
-                return open(self.dataset, 'rb')
+            mode = 'rb'
+        if self.dataset.endswith('.gz'):
+            fd = gzip.open(self.dataset, mode)
+        else:
+            fd = open(self.dataset, mode)
+
+        return fd
 
     def __iter__(self):
-        rows_read = 0
         sep = self.sep
 
         # handle unix tabs
         with self.open() as csvfile:
             sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(csvfile.read(1024).decode('latin-1'))
+            dialect = sniffer.sniff(csvfile.read(1024))
 
         if sep is not None:
             # if fixed sep check if we have at least one occurrence.
             with self.open() as fd:
                 header = fd.readline()
                 if isinstance(header, bytes):
-                    bsep = sep.encode('utf-8')
+                    bsep = sep.decode('utf-8')
                 else:
                     bsep = sep
                 if not header.strip():
@@ -101,26 +202,34 @@ class BatchGenerator(object):
         if sep is None:
             sep = dialect.delimiter
 
-        csvfile = codecs.getreader('latin-1')(self.open())
-        reader = csv.reader(csvfile, dialect, delimiter=sep)
-        header = next(reader)
-        fieldnames = [c.strip() for c in header]
+        if self.fast_mode:
+            reader_factory = FastReader
+        else:
+            reader_factory = SlowReader
 
-        batch_num = None
-        for batch_num, chunk in enumerate(iter_chunks(reader,
-                                                      self.chunksize)):
-            if batch_num == 0:
-                self._ui.debug('input head: {}'.format(pformat(chunk[:2])))
+        with self.open() as csvfile:
+            reader = reader_factory(csvfile, dialect=dialect,
+                                    sep=sep, encoding=self.encoding)
+            fieldnames = reader.fieldnames
 
-            yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
-            rows_read += len(chunk)
-        if batch_num is None:
-            raise ValueError("Input file '{}' is empty.".format(self.dataset))
+            batch_num = None
+            t0 = time()
+            rows_read = 0
+            for batch_num, chunk in enumerate(iter_chunks(reader,
+                                                          self.chunksize)):
+                n_rows = len(chunk)
+                yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
+                rows_read += n_rows
+            if batch_num is None:
+                raise ValueError("Input file '{}' is empty.".format(
+                    self.dataset))
+            self._ui.error('chunking {} rows took {}'.format(rows_read,
+                                                             time() - t0))
 
 
-def peek_row(dataset, delimiter, ui):
+def peek_row(dataset, delimiter, ui, fast_mode):
     """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter, ui)
+    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode)
     try:
         batch = next(iter(batches))
     except StopIteration:
@@ -128,38 +237,50 @@ def peek_row(dataset, delimiter, ui):
     return batch
 
 
-class GeneratorBackedQueue(object):
+class MultiprocessingGeneratorBackedQueue(object):
     """A queue that is backed by a generator.
 
     When the queue is exhausted it repopulates from the generator.
     """
-
-    def __init__(self, gen):
-        self.gen = gen
+    def __init__(self, queue_size, ui, queue=None):
         self.n_consumed = 0
-        self.deque = collections.deque()
+        self.queue = Queue(queue_size)
+        self.deque = Queue(queue_size)
         self.lock = threading.RLock()
+        self._ui = ui
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        with self.lock:
-            if len(self.deque):
-                return self.deque.popleft()
-            else:
-                out = next(self.gen)
+        try:
+            r = self.deque.get_nowait()
+            return r
+        except queue.Empty:
+            try:
+                r = self.queue.get()
+                if r.id == SENTINEL.id:
+                    self.queue.close()
+                    raise StopIteration
                 self.n_consumed += 1
-                return out
+                return r
+            except OSError:
+                raise StopIteration
+
+    def __len__(self):
+        return self.queue.qsize() + self.deque.qsize()
 
     def next(self):
         return self.__next__()
 
     def push(self, batch):
         # we retry a batch - decrement retry counter
-        with self.lock:
-            batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
-            self.deque.append(batch)
+        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
+        try:
+            self.deque.put(batch, block=False)
+        except queue.Empty:
+            self._ui.error('Dropping {} due to backfill queue full.'.format(
+                batch))
 
     def has_next(self):
         with self.lock:
@@ -169,6 +290,31 @@ class GeneratorBackedQueue(object):
                 return True
             except StopIteration:
                 return False
+
+
+class Shovel(object):
+
+    def __init__(self, ctx, queue, ui):
+        self.ctx = ctx
+        self._ui = ui
+        self.queue = queue
+
+    def _shove(self, q, ctx):
+        for batch in ctx.batch_generator():
+            q.put(batch)
+
+        q.put(SENTINEL)
+
+    def go(self):
+        self.p = Process(target=self._shove,
+                         args=(self.queue.queue, self.ctx),
+                         name='shovel')
+        self.p.start()
+
+    def all(self):
+        self.queue.queue = Queue(0)
+        self._shove(self.queue.queue, self.ctx)
+        self._ui.info('QSIZE:{}'.format(self.queue.queue.qsize()))
 
 
 def process_successful_request(result, batch, ctx, pred_name):
@@ -181,21 +327,17 @@ def process_successful_request(result, batch, ctx, pred_name):
         if pred_name is not None and '1.0' in sorted_classes:
             sorted_classes = ['1.0']
             out_fields = ['row_id'] + [pred_name]
-        pred = [[p['row_id']+batch.id] +
+        pred = [[p['row_id'] + batch.id] +
                 [p['class_probabilities'][c] for c in sorted_classes]
                 for p in
                 sorted(predictions, key=operator.itemgetter('row_id'))]
     elif result['task'] == TargetType.REGRESSION:
-        pred = [[p['row_id']+batch.id, p['prediction']]
+        pred = [[p['row_id'] + batch.id, p['prediction']]
                 for p in
                 sorted(predictions, key=operator.itemgetter('row_id'))]
         out_fields = ['row_id', pred_name if pred_name else '']
     else:
         ValueError('task {} not supported'.format(result['task']))
-
-    if len(pred) != len(batch.data):
-        raise ValueError('Shape mismatch {}!={}'.format(
-            len(pred), len(batch.data)))
 
     ctx.checkpoint_batch(batch, out_fields, pred)
 
@@ -209,14 +351,14 @@ class WorkUnitGenerator(object):
     If a submitted async request was not successfull it gets enqueued again.
     """
 
-    def __init__(self, batches, endpoint, headers, user, api_token,
+    def __init__(self, queue, endpoint, headers, user, api_token,
                  ctx, pred_name, ui):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
         self.api_token = api_token
         self.ctx = ctx
-        self.queue = GeneratorBackedQueue(batches)
+        self.queue = queue
         self.pred_name = pred_name
         self._ui = ui
 
@@ -265,25 +407,27 @@ class WorkUnitGenerator(object):
         return self.queue.has_next()
 
     def __iter__(self):
-        for batch in self.queue:
+        for i, batch in enumerate(self.queue):
+            if batch.id == -1:  # sentinel
+                raise StopIteration()
             # if we exhaused our retries we drop the batch
             if batch.rty_cnt == 0:
                 self._ui.error('batch {} exceeded retry limit; '
                                'we lost {} records'.format(
                                    batch.id, len(batch.data)))
                 continue
-            # otherwise we make an async request
-            if six.PY3:
-                out = io.StringIO()
+            hook = partial(self._response_callback, batch=batch)
+
+            if self.ctx.fast_mode:
+                chunk_formatter = fast_to_csv_chunk
             else:
-                out = io.BytesIO()
-            writer = csv.writer(out)
-            writer.writerow(batch.fieldnames)
-            writer.writerows(batch.data)
-            data = out.getvalue().encode('latin-1')
+                chunk_formatter = slow_to_csv_chunk
+
+            data = chunk_formatter(batch.data, batch.fieldnames)
+            if not isinstance(data, bytes):
+                data = data.encode('utf-8')
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
-            hook = partial(self._response_callback, batch=batch)
             yield requests.Request(
                 method='POST',
                 url=self.endpoint,
@@ -304,7 +448,8 @@ class RunContext(object):
     """
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
-                 n_retry, delimiter, dataset, pred_name, ui, file_context):
+                 n_retry, delimiter, dataset, pred_name, ui, file_context,
+                 fast_mode):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -318,11 +463,13 @@ class RunContext(object):
         self.lock = threading.Lock()
         self._ui = ui
         self.file_context = file_context
+        self.fast_mode = fast_mode
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
-               delimiter, dataset, pred_name, ui):
+               delimiter, dataset, pred_name, ui,
+               fast_mode):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -342,7 +489,8 @@ class RunContext(object):
             ctx_class = NewRunContext
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
-                         delimiter, dataset, pred_name, ui, file_context)
+                         delimiter, dataset, pred_name, ui, file_context,
+                         fast_mode)
 
     def __enter__(self):
         self.db = shelve.open(self.file_context.file_name, writeback=True)
@@ -358,22 +506,32 @@ class RunContext(object):
             self.file_context.clean()
 
     def checkpoint_batch(self, batch, out_fields, pred):
+        """Mark a batch as being processed:
+           - write it to the output stream (if necessary pull out columns).
+           - put the batch_id into the journal.
+        """
+        delimiter = self.delimiter or ','
+
         if self.keep_cols:
             # stack columns
             if self.db['first_write']:
                 if not all(c in batch.fieldnames for c in self.keep_cols):
                     self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
                         [c for c in self.keep_cols
-                         if c not in batch.fieldnames],
-                        batch.fieldnames))
+                         if c not in batch.fieldnames], batch.fieldnames))
 
             indices = [i for i, col in enumerate(batch.fieldnames)
                        if col in self.keep_cols]
+            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
+
             # first column is row_id
             comb = []
-            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
-            for origin, predicted in zip(batch.data, pred):
-                keeps = [origin[i] for i in indices]
+            for row, predicted in zip(batch.data, pred):
+                if self.fast_mode:
+                    # row is a full line, we need to cut it into fields
+                    # FIXME this will fail on quoted fields!
+                    row = row.rstrip().split(delimiter)
+                keeps = [row[i] for i in indices]
                 comb.append([predicted[0]] + keeps + predicted[1:])
         else:
             comb = pred
@@ -397,7 +555,8 @@ class RunContext(object):
 
     def batch_generator(self):
         return iter(BatchGenerator(self.dataset, self.n_samples,
-                                   self.n_retry, self.delimiter, self._ui))
+                                   self.n_retry, self.delimiter, self._ui,
+                                   self.fast_mode))
 
 
 class ContextFile(object):
@@ -504,7 +663,8 @@ class OldRunContext(RunContext):
                                           self.n_samples,
                                           self.n_retry,
                                           self.delimiter,
-                                          self._ui)
+                                          self._ui,
+                                          self.fast_mode)
                 if b.id not in already_processed_batches)
 
 
@@ -520,16 +680,8 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     while n_retry:
         ui.debug('request authorization')
         try:
-            if six.PY3:
-                out = io.StringIO()
-            else:
-                out = io.BytesIO()
-            writer = csv.writer(out)
-            writer.writerow(batch.fieldnames)
-            writer.writerow(batch.data[0])
-            data = out.getvalue()
             r = requests.post(endpoint, headers=base_headers,
-                              data=data.encode('latin-1'),
+                              data=batch.data,
                               auth=(user, api_token))
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
@@ -575,7 +727,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           resume, n_samples,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
-                          timeout, ui):
+                          timeout, ui, fast_mode,
+                          dry_run=False):
+    t1 = time()
     if not api_token:
         if not pwd:
             pwd = ui.getpass()
@@ -589,21 +743,41 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
 
     # Make a sync request to check authentication and fail early
-    first_row = peek_row(dataset, delimiter, ui)
+    first_row = peek_row(dataset, delimiter, ui, fast_mode)
     ui.debug('First row for auth request: {}'.format(first_row))
+    if fast_mode:
+        chunk_formatter = fast_to_csv_chunk
+    else:
+        chunk_formatter = slow_to_csv_chunk
+
+    first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
+    if six.PY3:
+        first_row_data = first_row_data.encode('utf-8')
+    first_row = first_row._replace(data=first_row_data)
     authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
 
     with ExitStack() as stack:
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
                               lid, keep_cols, n_retry, delimiter,
-                              dataset, pred_name, ui))
+                              dataset, pred_name, ui, fast_mode))
         network = stack.enter_context(Network(concurrent, timeout))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'
                  .format(n_batches_checkpointed_init))
-        batches = ctx.batch_generator()
-        work_unit_gen = WorkUnitGenerator(batches,
+
+        # make the queue twice as big as the
+        queue = MultiprocessingGeneratorBackedQueue(concurrent * 2, ui)
+        shovel = Shovel(ctx, queue, ui)
+
+        ui.info('Shovel go...')
+        t2 = time()
+        shovel.go()
+
+        ui.info('shoveling complete | total time elapsed {}s'
+                .format(time() - t2))
+
+        work_unit_gen = WorkUnitGenerator(queue,
                                           endpoint,
                                           headers=base_headers,
                                           user=user,
@@ -613,7 +787,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                           ui=ui)
         t0 = time()
         i = 0
-        while work_unit_gen.has_next():
+
+        if dry_run:
+            for _ in work_unit_gen:
+                pass
+            ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
+            ui.info('dry-run complete | total time elapsed {}s'.format(
+                time() - t1))
+            ui.close()
+        else:
             responses = network.perform_requests(
                 work_unit_gen)
             for r in responses:
@@ -621,23 +803,22 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 ui.info('{} responses sent | time elapsed {}s'
                         .format(i, time() - t0))
 
-            ui.debug('{} items still in the queue'
-                     .format(len(work_unit_gen.queue.deque)))
-
-        ui.debug('list of checkpointed batches: {}'
-                 .format(sorted(ctx.db['checkpoints'])))
-        n_batches_checkpointed = (len(ctx.db['checkpoints']) -
-                                  n_batches_checkpointed_init)
-        ui.debug('number of batches checkpointed: {}'
-                 .format(n_batches_checkpointed))
-        n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
-                                      n_batches_checkpointed)
-        batches_missing = n_batches_not_checkpointed > 0
-        if batches_missing:
-            ui.fatal(('scoring incomplete, {} batches were dropped | '
-                      'time elapsed {}s')
-                     .format(n_batches_not_checkpointed, time() - t0))
-        else:
-            ui.info('scoring complete | time elapsed {}s'
-                    .format(time() - t0))
-            ui.close()
+            ui.debug('list of checkpointed batches: {}'
+                     .format(sorted(ctx.db['checkpoints'])))
+            n_batches_checkpointed = (len(ctx.db['checkpoints']) -
+                                      n_batches_checkpointed_init)
+            ui.debug('number of batches checkpointed: {}'
+                     .format(n_batches_checkpointed))
+            n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
+                                          n_batches_checkpointed)
+            batches_missing = n_batches_not_checkpointed > 0
+            if batches_missing:
+                ui.fatal(('scoring incomplete, {} batches were dropped | '
+                          'time elapsed {}s')
+                         .format(n_batches_not_checkpointed, time() - t0))
+            else:
+                ui.info('scoring complete | time elapsed {}s'
+                        .format(time() - t0))
+                ui.info('scoring complete | total time elapsed {}s'
+                        .format(time() - t1))
+                ui.close()
