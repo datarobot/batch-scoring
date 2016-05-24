@@ -5,6 +5,7 @@ from os import getcwd
 
 import logging
 import os
+import sys
 import requests
 import six
 import sys
@@ -52,11 +53,11 @@ root_logger = logging.getLogger()
 
 class UI(object):
 
-    def __init__(self, prompt, loglevel):
+    def __init__(self, prompt, loglevel, stdout):
         self._prompt = prompt
-        self._configure_logging(loglevel)
+        self._configure_logging(loglevel, stdout)
 
-    def _configure_logging(self, level):
+    def _configure_logging(self, level, stdout):
         """Configures logging for user and debug logging. """
 
         with tempfile.NamedTemporaryFile(prefix='datarobot_batch_scoring_',
@@ -66,7 +67,10 @@ class UI(object):
 
         # user logger
         fs = '[%(levelname)s] %(message)s'
-        hdlr = logging.StreamHandler()
+        if stdout:
+            hdlr = logging.StreamHandler(sys.stdout)
+        else:
+            hdlr = logging.StreamHandler()
         dfs = None
         fmt = logging.Formatter(fs, dfs)
         hdlr.setFormatter(fmt)
@@ -75,7 +79,10 @@ class UI(object):
 
         # root logger
         fs = '%(asctime)-15s [%(levelname)s] %(message)s'
-        hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
+        if stdout:
+            hdlr = logging.StreamHandler(sys.stdout)
+        else:
+            hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
         dfs = None
         fmt = logging.Formatter(fs, dfs)
         hdlr.setFormatter(fmt)
