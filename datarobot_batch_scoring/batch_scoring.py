@@ -172,8 +172,8 @@ class BatchGenerator(object):
         in the form that can be passed to the HTTP request.
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, fast_mode,
-                 encoding=None, dialect=None):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui,
+                 fast_mode, encoding=None, dialect=None):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
@@ -196,15 +196,6 @@ class BatchGenerator(object):
         return fd
 
     def __iter__(self):
-        sep = self.sep
-
-        if self.encoding is None or self.dialect is None:
-            self.encoding, self.dialect = \
-                self.investigate_encodnig_and_dialect(self.dataset)
-
-        if sep is None:
-            sep = self.dialect.delimiter
-
         if self.fast_mode:
             reader_factory = FastReader
         else:
@@ -212,7 +203,8 @@ class BatchGenerator(object):
 
         with self.open() as csvfile:
             reader = reader_factory(csvfile, dialect=self.dialect,
-                                    sep=sep, encoding=self.encoding)
+                                    sep=self.dialect.delimiter,
+                                    encoding=self.encoding)
             fieldnames = reader.fieldnames
 
             batch_num = None
@@ -229,19 +221,42 @@ class BatchGenerator(object):
             self._ui.error('chunking {} rows took {}'.format(rows_read,
                                                              time() - t0))
 
-    @staticmethod
-    def investigate_encodnig_and_dialect(dataset):
-        if dataset.endswith('.gz'):
+    def investigate_encodnig_and_dialect(self):
+        """Try to identify encoding and dialect.
+        Providing a delimiter may help with smaller datasets.
+        Running this is costly so run it once per dataset."""
+        if self.encoding and self.dialect:
+            return self.encoding, self.dialect
+        if self.dataset.endswith('.gz'):
             o = gzip.open
         else:
             o = open
-        with o(dataset, 'rb') as dfile:
+        with o(self.dataset, 'rb') as dfile:
             sample = dfile.read(2*1024**2)
         chardet_result = chardet.detect(sample)
         encoding = chardet_result['encoding']
         sniffer = csv.Sniffer()
-        dialect = sniffer.sniff(sample.decode(encoding))
-        return encoding, dialect
+        try:
+            dialect = sniffer.sniff(sample.decode(encoding),
+                                    delimiters=self.sep)
+        except csv.Error:
+            if len(sample) < 10:
+                self._ui.fatal('Input file "%s" is less than 10 chars long '
+                               'and this is the possible cause of a csv.Error.'
+                               ' Check the file and try again.' % self.dataset)
+            elif self.sep is not None:
+                self._ui.fatal('The csv module failed to detect the CSV '
+                               'dialect. Check that you provided the correct '
+                               'delimiter, or try the script without the '
+                               '--delimiter flag.')
+            else:
+                self._ui.fatal('The csv module failed to detect the CSV '
+                               'dialect. Try giving hints with the '
+                               '--delimiter argument, E.g  '
+                               """--delimiter=','""")
+            raise
+        self.encoding, self.dialect = encoding, dialect
+        return self.encoding, self.dialect
 
 
 def peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect):
@@ -530,8 +545,7 @@ class RunContext(object):
            - write it to the output stream (if necessary pull out columns).
            - put the batch_id into the journal.
         """
-        delimiter = self.delimiter or ','
-
+        delimiter = self.dialect.delimiter
         if self.keep_cols:
             # stack columns
             if self.db['first_write']:
@@ -763,8 +777,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
-    encoding, dialect = \
-        BatchGenerator.investigate_encodnig_and_dialect(dataset)
+    encoding, dialect = BatchGenerator(
+        dataset, 1, 1, delimiter, ui, fast_mode
+        ).investigate_encodnig_and_dialect()
     # Make a sync request to check authentication and fail early
     first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect)
     ui.debug('First row for auth request: {}'.format(first_row))

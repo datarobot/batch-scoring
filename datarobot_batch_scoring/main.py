@@ -137,12 +137,11 @@ def main(argv=sys.argv[1:]):
                         'to the predictions. '
                         'Enter as a comma-separated list.')
     csv_gr.add_argument('--delimiter', type=str,
-                        nargs='?',
+                        nargs='?', default=None,
                         help='Specifies the delimiter to recognize in '
                         'the input .csv file. '
                         'If not specified, the script tries to automatically '
-                        'determine the delimiter, and if it cannot, '
-                        'defaults to comma ( , ).')
+                        'determine the delimiter.')
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?')
     csv_gr.add_argument('--fast', action='store_true',
