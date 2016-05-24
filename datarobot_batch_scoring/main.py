@@ -158,8 +158,8 @@ def main(argv=sys.argv[1:]):
                          help="Only read/chunk input data but dont send "
                          "requests.")
     misc_gr.add_argument('--stdout', action='store_true', dest='stdout',
-                        default=False,
-                        help='Send all log messages to stdout.')
+                         default=False,
+                         help='Send all log messages to stdout.')
 
     defaults = {
         'prompt': None,

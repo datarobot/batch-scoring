@@ -94,6 +94,7 @@ class UTF8Recoder:
     def next(self):
         return self.reader.next().encode("utf-8")
 
+
 class FastReader(object):
     """A reader that only reads the file in text mode but not parses it. """
 
@@ -198,7 +199,8 @@ class BatchGenerator(object):
         sep = self.sep
 
         if self.encoding is None or self.dialect is None:
-            self.encoding, self.dialect = self.investigate_encodnig_and_dialect(self.dataset)
+            self.encoding, self.dialect = \
+                self.investigate_encodnig_and_dialect(self.dataset)
 
         if sep is None:
             sep = self.dialect.delimiter
@@ -242,10 +244,10 @@ class BatchGenerator(object):
         return encoding, dialect
 
 
-
 def peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect):
     """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode, encoding, dialect)
+    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode,
+                             encoding, dialect)
     try:
         batch = next(iter(batches))
     except StopIteration:
@@ -575,7 +577,8 @@ class RunContext(object):
     def batch_generator(self):
         return iter(BatchGenerator(self.dataset, self.n_samples,
                                    self.n_retry, self.delimiter, self._ui,
-                                   self.fast_mode, self.encoding, self.dialect))
+                                   self.fast_mode, self.encoding,
+                                   self.dialect))
 
 
 class ContextFile(object):
@@ -760,7 +763,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
-    encoding, dialect = BatchGenerator.investigate_encodnig_and_dialect(dataset)
+    encoding, dialect = \
+        BatchGenerator.investigate_encodnig_and_dialect(dataset)
     # Make a sync request to check authentication and fail early
     first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect)
     ui.debug('First row for auth request: {}'.format(first_row))

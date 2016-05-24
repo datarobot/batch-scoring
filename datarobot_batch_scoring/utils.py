@@ -5,7 +5,6 @@ from os import getcwd
 
 import logging
 import os
-import sys
 import requests
 import six
 import sys
