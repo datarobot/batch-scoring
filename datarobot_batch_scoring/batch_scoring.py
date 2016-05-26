@@ -22,7 +22,6 @@ from multiprocessing import Queue
 from multiprocessing import Process
 from six.moves import queue
 from six.moves import zip
-
 import requests
 import six
 import chardet
@@ -66,7 +65,6 @@ def fast_to_csv_chunk(data, header):
 
 def slow_to_csv_chunk(data, header):
     """Slow routine to format data for prediction api.
-
     Returns data in unicode.
     """
     if six.PY3:
@@ -80,43 +78,60 @@ def slow_to_csv_chunk(data, header):
     return buf.getvalue()
 
 
-class UTF8Recoder:
+class Recoder:
     """
-    Iterator that reads an encoded stream and reencodes the input to UTF-8
+    Iterator that reads an encoded stream and decodes the input to UTF-8
+    for Python 2. In Python 3 the open function decodes the file.
     """
     def __init__(self, f, encoding):
         f.seek(0)
-        self.reader = codecs.getreader(encoding)(f)
+        # self.reader = codecs.getreader(encoding)(f)
+        if six.PY3:
+            self.reader = f
+        else:
+            self.reader = codecs.StreamRecoder(f, codecs.getencoder('utf-8'),
+                                               codecs.getdecoder('utf-8'),
+                                               codecs.getreader(encoding),
+                                               codecs.getwriter(encoding))
 
     def __iter__(self):
         return self
 
-    def next(self):
-        return self.reader.next().encode("utf-8")
+    def next(self):   # python 3
+        return self.reader.next()
+
+    def __next__(self):  # python 2
+        return self.reader.__next__()
 
 
-class FastReader(object):
-    """A reader that only reads the file in text mode but not parses it. """
-
+class CSVReader(object):
     def __init__(self, fd, sep=",", encoding=None, dialect=None):
         self.fd = fd
         self.sep = sep
         self.dialect = dialect
         self.encoding = encoding
+
+    def _create_reader(self):
+        fd = Recoder(self.fd, self.encoding)
+        return csv.reader(fd, self.dialect, delimiter=self.sep)
+
+
+class FastReader(CSVReader):
+    """A reader that only reads the file in text mode but not parses it. """
+
+    def __init__(self, fd, sep=",", encoding=None, dialect=None):
+        CSVReader.__init__(self, fd, sep=",", encoding=encoding,
+                           dialect=dialect)
         self._check_for_multiline_input()
         reader = self._create_reader()
         self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
 
     def __iter__(self):
-        utfd = UTF8Recoder(self.fd, self.encoding)
-        it = iter(utfd)
+        fd = Recoder(self.fd, self.encoding)
+        it = iter(fd)
         next(it)  # skip header
         return it
-
-    def _create_reader(self):
-        utfd = UTF8Recoder(self.fd, self.encoding)
-        return csv.reader(utfd, self.dialect, delimiter=self.sep)
 
     def _check_for_multiline_input(self, peek_size=100):
         # peek the first `peek_size` records for multiline CSV
@@ -137,23 +152,20 @@ class FastReader(object):
             sys.exit(0)
 
 
-class SlowReader(object):
+class SlowReader(CSVReader):
     """The slow reader does actual CSV parsing.
     It supports multiline csv and can be a factor of 50 slower. """
 
     def __init__(self, fd, sep=",", encoding=None, dialect=None):
-        self.fd = fd
-        self.sep = sep
-        self.dialect = dialect
-        self.reader = csv.reader(self.fd, dialect, delimiter=sep)
-        self.header = next(self.reader)
+        CSVReader.__init__(self, fd, sep=",", encoding=encoding,
+                           dialect=dialect)
+        reader = self._create_reader()
+        self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
-        self.dialect = dialect
-        self.encoding = encoding
 
     def __iter__(self):
-        utfd = UTF8Recoder(self.fd, self.encoding)
-        self.reader = csv.reader(utfd, self.dialect, delimiter=self.sep)
+        fd = Recoder(self.fd, self.encoding)
+        self.reader = csv.reader(fd, self.dialect, delimiter=self.sep)
         for i, row in enumerate(self.reader):
             if i == 0:
                 # skip header
@@ -183,16 +195,18 @@ class BatchGenerator(object):
         self.encoding = encoding
         self.dialect = dialect
 
-    def open(self, encode=True):
+    def csv_input_file_reader(self):
+        if self.dataset.endswith('.gz'):
+            opener = gzip.open
+        else:
+            opener = open
+
         if six.PY3:
             mode = 'rt'
+            fd = opener(self.dataset, mode, encoding=self.encoding)
         else:
             mode = 'rb'
-        if self.dataset.endswith('.gz'):
-            fd = gzip.open(self.dataset, mode)
-        else:
-            fd = open(self.dataset, mode)
-
+            fd = opener(self.dataset, mode)
         return fd
 
     def __iter__(self):
@@ -201,7 +215,7 @@ class BatchGenerator(object):
         else:
             reader_factory = SlowReader
 
-        with self.open() as csvfile:
+        with self.csv_input_file_reader() as csvfile:
             reader = reader_factory(csvfile, dialect=self.dialect,
                                     sep=self.dialect.delimiter,
                                     encoding=self.encoding)
@@ -228,17 +242,17 @@ class BatchGenerator(object):
         if self.encoding and self.dialect:
             return self.encoding, self.dialect
         if self.dataset.endswith('.gz'):
-            o = gzip.open
+            opener = gzip.open
         else:
-            o = open
-        with o(self.dataset, 'rb') as dfile:
+            opener = open
+        with opener(self.dataset, 'rb') as dfile:
             sample = dfile.read(2*1024**2)
         chardet_result = chardet.detect(sample)
-        encoding = chardet_result['encoding']
+        self.encoding = chardet_result['encoding']
         sniffer = csv.Sniffer()
         try:
-            dialect = sniffer.sniff(sample.decode(encoding),
-                                    delimiters=self.sep)
+            self.dialect = sniffer.sniff(sample.decode(self.encoding),
+                                         delimiters=self.sep)
         except csv.Error:
             if len(sample) < 10:
                 self._ui.fatal('Input file "%s" is less than 10 chars long '
@@ -255,7 +269,6 @@ class BatchGenerator(object):
                                '--delimiter argument, E.g  '
                                """--delimiter=','""")
             raise
-        self.encoding, self.dialect = encoding, dialect
         return self.encoding, self.dialect
 
 
@@ -482,7 +495,7 @@ class RunContext(object):
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
-                 fast_mode, encoding=None, dialect=None):
+                 fast_mode, encoding, dialect):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -520,6 +533,7 @@ class RunContext(object):
             is_resume = False
         if is_resume:
             ctx_class = OldRunContext
+
         else:
             ctx_class = NewRunContext
 
@@ -700,7 +714,9 @@ class OldRunContext(RunContext):
                                           self.n_retry,
                                           self.delimiter,
                                           self._ui,
-                                          self.fast_mode)
+                                          self.fast_mode,
+                                          self.encoding,
+                                          self.dialect)
                 if b.id not in already_processed_batches)
 
 
