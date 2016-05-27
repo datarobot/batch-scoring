@@ -117,7 +117,7 @@ class UI(object):
         logger.error(msg)
         exc_info = sys.exc_info()
         root_logger.error(msg, exc_info=exc_info)
-        sys.exit(1)
+        os._exit(1)
 
     def getpass(self):
         if self._prompt is not None:

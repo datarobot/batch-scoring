@@ -114,7 +114,7 @@ class TestUi(object):
             with mock.patch(
                     'datarobot_batch_scoring.utils.root_logger') as m_root:
                 with mock.patch(
-                        'datarobot_batch_scoring.utils.sys.exit') as m_exit:
+                        'datarobot_batch_scoring.utils.os._exit') as m_exit:
                     ui.fatal('text')
                 m_log.error.assert_called_with(msg)
                 m_root.error.assert_called_with(msg,
