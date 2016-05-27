@@ -60,7 +60,11 @@ def fast_to_csv_chunk(data, header):
     Returns data in unicode.
     """
     header = ','.join(header)
-    return ''.join(chain((header, '\n'), data))
+    chunk = ''.join(chain((header, '\n'), data))
+    if six.PY3:
+        return chunk.encode('utf-8')
+    else:
+        return chunk
 
 
 def slow_to_csv_chunk(data, header):
@@ -75,7 +79,10 @@ def slow_to_csv_chunk(data, header):
     writer = csv.writer(buf)
     writer.writerow(header)
     writer.writerows(data)
-    return buf.getvalue()
+    if six.PY3:
+        return buf.getvalue().encode('utf-8')
+    else:
+        return buf.getvalue()
 
 
 class Recoder:
@@ -85,11 +92,11 @@ class Recoder:
     """
     def __init__(self, f, encoding):
         f.seek(0)
-        # self.reader = codecs.getreader(encoding)(f)
         if six.PY3:
             self.reader = f
-        else:
-            self.reader = codecs.StreamRecoder(f, codecs.getencoder('utf-8'),
+        if six.PY2:
+            self.reader = codecs.StreamRecoder(f,
+                                               codecs.getencoder('utf-8'),
                                                codecs.getdecoder('utf-8'),
                                                codecs.getreader(encoding),
                                                codecs.getwriter(encoding))
@@ -105,13 +112,19 @@ class Recoder:
 
 
 class CSVReader(object):
-    def __init__(self, fd, sep=",", encoding=None, dialect=None):
+    def __init__(self, fd, sep, encoding=None, dialect=None):
         self.fd = fd
         self.sep = sep
         self.dialect = dialect
         self.encoding = encoding
 
     def _create_reader(self):
+        if self.sep is not None:
+            self.sep = str(self.sep)
+        #  in Python 2 csv.dialect encodes these inconsistently.
+        self.dialect.delimiter = str(self.dialect.delimiter)
+        self.dialect.lineterminator = str(self.dialect.lineterminator)
+        self.dialect.quotechar = str(self.dialect.quotechar)
         fd = Recoder(self.fd, self.encoding)
         return csv.reader(fd, self.dialect, delimiter=self.sep)
 
@@ -119,9 +132,9 @@ class CSVReader(object):
 class FastReader(CSVReader):
     """A reader that only reads the file in text mode but not parses it. """
 
-    def __init__(self, fd, sep=",", encoding=None, dialect=None):
-        CSVReader.__init__(self, fd, sep=",", encoding=encoding,
-                           dialect=dialect)
+    def __init__(self, fd, sep, encoding=None, dialect=None):
+        super(FastReader, self).__init__(fd, sep, encoding=encoding,
+                                         dialect=dialect)
         self._check_for_multiline_input()
         reader = self._create_reader()
         self.header = next(reader)
@@ -156,9 +169,9 @@ class SlowReader(CSVReader):
     """The slow reader does actual CSV parsing.
     It supports multiline csv and can be a factor of 50 slower. """
 
-    def __init__(self, fd, sep=",", encoding=None, dialect=None):
-        CSVReader.__init__(self, fd, sep=",", encoding=encoding,
-                           dialect=dialect)
+    def __init__(self, fd, sep, encoding=None, dialect=None):
+        super(SlowReader, self).__init__(fd, sep, encoding=encoding,
+                                         dialect=dialect)
         reader = self._create_reader()
         self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
@@ -202,11 +215,10 @@ class BatchGenerator(object):
             opener = open
 
         if six.PY3:
-            mode = 'rt'
-            fd = opener(self.dataset, mode, encoding=self.encoding)
+            fd = opener(self.dataset, 'rt',
+                        encoding=self.encoding)
         else:
-            mode = 'rb'
-            fd = opener(self.dataset, mode)
+            fd = opener(self.dataset, 'rb')
         return fd
 
     def __iter__(self):
@@ -235,7 +247,7 @@ class BatchGenerator(object):
             self._ui.error('chunking {} rows took {}'.format(rows_read,
                                                              time() - t0))
 
-    def investigate_encodnig_and_dialect(self):
+    def investigate_encoding_and_dialect(self):
         """Try to identify encoding and dialect.
         Providing a delimiter may help with smaller datasets.
         Running this is costly so run it once per dataset."""
@@ -248,7 +260,7 @@ class BatchGenerator(object):
         with opener(self.dataset, 'rb') as dfile:
             sample = dfile.read(2*1024**2)
         chardet_result = chardet.detect(sample)
-        self.encoding = chardet_result['encoding']
+        self.encoding = chardet_result['encoding'].lower()
         sniffer = csv.Sniffer()
         try:
             self.dialect = sniffer.sniff(sample.decode(self.encoding),
@@ -470,8 +482,6 @@ class WorkUnitGenerator(object):
                 chunk_formatter = slow_to_csv_chunk
 
             data = chunk_formatter(batch.data, batch.fieldnames)
-            if not isinstance(data, bytes):
-                data = data.encode('utf-8')
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
             yield requests.Request(
@@ -795,7 +805,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
     encoding, dialect = BatchGenerator(
         dataset, 1, 1, delimiter, ui, fast_mode
-        ).investigate_encodnig_and_dialect()
+        ).investigate_encoding_and_dialect()
     # Make a sync request to check authentication and fail early
     first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect)
     ui.debug('First row for auth request: {}'.format(first_row))
@@ -805,8 +815,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         chunk_formatter = slow_to_csv_chunk
 
     first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
-    if six.PY3:
-        first_row_data = first_row_data.encode('utf-8')
     first_row = first_row._replace(data=first_row_data)
     authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
 
