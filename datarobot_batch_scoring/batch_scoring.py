@@ -520,8 +520,9 @@ class RunContext(object):
                         [c for c in self.keep_cols
                          if c not in batch.fieldnames], batch.fieldnames))
 
-            indices = [i for i, col in enumerate(batch.fieldnames)
-                       if col in self.keep_cols]
+            feature_indices = {col: i for i, col in
+                               enumerate(batch.fieldnames)}
+            indices = [feature_indices[col] for col in self.keep_cols]
             written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
 
             # first column is row_id
