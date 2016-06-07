@@ -60,7 +60,7 @@ Additional recommended arguments
 ``[--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples>]  [--n_concurrent=<n_concurrent>]``
 
 Additional optional arguments
-``[--out=<filepath>] [--api_version=<api_version>] [—create_api_token]  [--n_retry=<n_retry>] [--delimiter=<delimiter>]  [--resume]``
+``[--out=<filepath>] [--api_version=<api_version>] [--pred_name=<string>] [--timeout=<timeout>] [—-create_api_token]  [--n_retry=<n_retry>] [--delimiter=<delimiter>]  [--resume]``
 
 Argument descriptions:
 The following table describes each of the arguments:
@@ -83,6 +83,8 @@ The following table describes each of the arguments:
  n_concurrent=<n_concurrent>   Specifies the number of concurrent requests to submit. By default, 4 concurrent requests are submitted. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
  create_api_token              Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
  n_retry=<n_retry>             Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
+ pred_name=<pred_name>         Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank.
+ timeout=<timeout>             The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring command) closes the connection and retries, up to number of times. The default value is 30 seconds.
  delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. If not specified, the script tries to automatically determine the delimiter, and if it cannot, defaults to comma ( , ).
  resume                        Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same all arguments plus this ``resume`` argument. In that case, the prediction will resume from the point at which it stopped. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
  help                          Show help of usage.
