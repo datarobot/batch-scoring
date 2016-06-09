@@ -162,7 +162,6 @@ class FastReader(CSVReader):
                            ' -- dont use flag `--fast` '
                            'to force CSV parsing. '
                            'Note that this will slow down scoring.')
-            sys.exit(0)
 
 
 class SlowReader(CSVReader):
@@ -252,7 +251,7 @@ class BatchGenerator(object):
         Providing a delimiter may help with smaller datasets.
         Running this is costly so run it once per dataset."""
         if self.encoding and self.dialect:
-            return self.encoding, self.dialect
+            return (self.encoding, self.dialect)
         if self.dataset.endswith('.gz'):
             opener = gzip.open
         else:
@@ -803,7 +802,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
-    encoding, dialect = BatchGenerator(
+    (encoding, dialect) = BatchGenerator(
         dataset, 1, 1, delimiter, ui, fast_mode
         ).investigate_encoding_and_dialect()
     # Make a sync request to check authentication and fail early

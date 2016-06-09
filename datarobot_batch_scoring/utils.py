@@ -78,10 +78,7 @@ class UI(object):
 
         # root logger
         fs = '%(asctime)-15s [%(levelname)s] %(message)s'
-        if stdout:
-            hdlr = logging.StreamHandler(sys.stdout)
-        else:
-            hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
+        hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
         dfs = None
         fmt = logging.Formatter(fs, dfs)
         hdlr.setFormatter(fmt)
@@ -123,6 +120,7 @@ class UI(object):
         logger.error(msg)
         exc_info = sys.exc_info()
         root_logger.error(msg, exc_info=exc_info)
+        self.close()
         os._exit(1)
 
     def getpass(self):
