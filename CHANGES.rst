@@ -1,3 +1,15 @@
+1.8.0 (2016 June 13)
+==================
+* use chardet module `chardet <https://pypi.python.org/pypi/chardet>`_ to
+attempt to detect character encoding
+
+* use standard lib csv module to attempt to discover CSV dialect
+
+* use stream decoder and encoder in python 2 to transparently convert to utf-8
+
+* provide a mode for sending all user messages to stdout
+
+
 1.6.0 alpha (2016 April 29)
 ==================
 
