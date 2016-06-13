@@ -1,13 +1,25 @@
 1.8.0 (2016 June 13)
 ==================
 * use chardet module `chardet <https://pypi.python.org/pypi/chardet>`_ to
-attempt to detect character encoding
+  attempt to detect character encoding
 
 * use standard lib csv module to attempt to discover CSV dialect
 
 * use stream decoder and encoder in python 2 to transparently convert to utf-8
 
 * provide a mode for sending all user messages to stdout
+
+1.7.0 (2016 May)
+==================
+* separate process for disk IO and request payload serialization
+
+* avoid codecs.getreader due to IO bottleneck
+
+* dont parse CSV (fail fatally on multiline csv)
+
+* multiline mode (to be renamed)
+
+* keep_cols resolution
 
 
 1.6.0 alpha (2016 April 29)
