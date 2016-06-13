@@ -88,6 +88,9 @@ The following table describes each of the arguments:
  delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. If not specified, the script tries to automatically determine the delimiter, and if it cannot, defaults to comma ( , ).
  resume                        Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same all arguments plus this ``resume`` argument. In that case, the prediction will resume from the point at which it stopped. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
  help                          Show help of usage.
+ fast                          Experimental: faster CSV processor. Note: does not support multiline csv.
+ stdout                        Send all log messages to stdout.
+
 ============================== ===========
 
 Example::

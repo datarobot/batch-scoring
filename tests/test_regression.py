@@ -11,7 +11,7 @@ def test_regression(live_server, tmpdir, keep_cols=None,
     # train one model in project
     out = tmpdir.join('out.csv')
 
-    ui = UI(False, 'DEBUG')
+    ui = UI(False, 'DEBUG', False)
 
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(

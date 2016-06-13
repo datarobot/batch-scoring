@@ -13,6 +13,7 @@ import shelve
 import sys
 import threading
 import hashlib
+import codecs
 from functools import partial
 from functools import reduce
 from itertools import chain
@@ -21,9 +22,9 @@ from multiprocessing import Queue
 from multiprocessing import Process
 from six.moves import queue
 from six.moves import zip
-
 import requests
 import six
+import chardet
 
 from .network import Network
 from .utils import acquire_api_token, iter_chunks
@@ -59,12 +60,15 @@ def fast_to_csv_chunk(data, header):
     Returns data in unicode.
     """
     header = ','.join(header)
-    return ''.join(chain((header, '\n'), data))
+    chunk = ''.join(chain((header, '\n'), data))
+    if six.PY3:
+        return chunk.encode('utf-8')
+    else:
+        return chunk
 
 
 def slow_to_csv_chunk(data, header):
     """Slow routine to format data for prediction api.
-
     Returns data in unicode.
     """
     if six.PY3:
@@ -75,31 +79,72 @@ def slow_to_csv_chunk(data, header):
     writer = csv.writer(buf)
     writer.writerow(header)
     writer.writerows(data)
-    return buf.getvalue()
+    if six.PY3:
+        return buf.getvalue().encode('utf-8')
+    else:
+        return buf.getvalue()
 
 
-class FastReader(object):
-    """A reader that only reads the file in text mode but not parses it. """
+class Recoder:
+    """
+    Iterator that reads an encoded stream and decodes the input to UTF-8
+    for Python 2. In Python 3 the open function decodes the file.
+    """
+    def __init__(self, f, encoding):
+        f.seek(0)
+        if six.PY3:
+            self.reader = f
+        if six.PY2:
+            self.reader = codecs.StreamRecoder(f,
+                                               codecs.getencoder('utf-8'),
+                                               codecs.getdecoder('utf-8'),
+                                               codecs.getreader(encoding),
+                                               codecs.getwriter(encoding))
 
-    def __init__(self, fd, sep=",", dialect=None, encoding='utf-8'):
+    def __iter__(self):
+        return self
+
+    def next(self):   # python 3
+        return self.reader.next()
+
+    def __next__(self):  # python 2
+        return self.reader.__next__()
+
+
+class CSVReader(object):
+    def __init__(self, fd, sep, encoding=None, dialect=None):
         self.fd = fd
         self.sep = sep
         self.dialect = dialect
         self.encoding = encoding
+
+    def _create_reader(self):
+        if self.sep is not None:
+            self.sep = str(self.sep)
+        #  in Python 2 csv.dialect encodes these inconsistently.
+        self.dialect.delimiter = str(self.dialect.delimiter)
+        self.dialect.lineterminator = str(self.dialect.lineterminator)
+        self.dialect.quotechar = str(self.dialect.quotechar)
+        fd = Recoder(self.fd, self.encoding)
+        return csv.reader(fd, self.dialect, delimiter=self.sep)
+
+
+class FastReader(CSVReader):
+    """A reader that only reads the file in text mode but not parses it. """
+
+    def __init__(self, fd, sep, encoding=None, dialect=None):
+        super(FastReader, self).__init__(fd, sep, encoding=encoding,
+                                         dialect=dialect)
         self._check_for_multiline_input()
         reader = self._create_reader()
         self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
 
     def __iter__(self):
-        self.fd.seek(0)
-        it = iter(self.fd)
+        fd = Recoder(self.fd, self.encoding)
+        it = iter(fd)
         next(it)  # skip header
         return it
-
-    def _create_reader(self):
-        self.fd.seek(0)
-        return csv.reader(self.fd, self.dialect, delimiter=self.sep)
 
     def _check_for_multiline_input(self, peek_size=100):
         # peek the first `peek_size` records for multiline CSV
@@ -117,24 +162,22 @@ class FastReader(object):
                            ' -- dont use flag `--fast` '
                            'to force CSV parsing. '
                            'Note that this will slow down scoring.')
-            sys.exit(0)
 
 
-class SlowReader(object):
+class SlowReader(CSVReader):
     """The slow reader does actual CSV parsing.
     It supports multiline csv and can be a factor of 50 slower. """
 
-    def __init__(self, fd, sep=",", dialect=None, encoding='utf-8'):
-        self.fd = fd
-        self.sep = sep
-        self.dialect = dialect
-        self.reader = csv.reader(self.fd, dialect, delimiter=sep)
-        self.header = next(self.reader)
+    def __init__(self, fd, sep, encoding=None, dialect=None):
+        super(SlowReader, self).__init__(fd, sep, encoding=encoding,
+                                         dialect=dialect)
+        reader = self._create_reader()
+        self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
 
     def __iter__(self):
-        self.fd.seek(0)
-        self.reader = csv.reader(self.fd, self.dialect, delimiter=self.sep)
+        fd = Recoder(self.fd, self.encoding)
+        self.reader = csv.reader(fd, self.dialect, delimiter=self.sep)
         for i, row in enumerate(self.reader):
             if i == 0:
                 # skip header
@@ -153,8 +196,8 @@ class BatchGenerator(object):
         in the form that can be passed to the HTTP request.
     """
 
-    def __init__(self, dataset, n_samples, n_retry, delimiter, ui, fast_mode,
-                 encoding='utf-8'):
+    def __init__(self, dataset, n_samples, n_retry, delimiter, ui,
+                 fast_mode, encoding=None, dialect=None):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
@@ -162,54 +205,31 @@ class BatchGenerator(object):
         self._ui = ui
         self.fast_mode = fast_mode
         self.encoding = encoding
+        self.dialect = dialect
 
-    def open(self, encode=True):
-        if six.PY3:
-            mode = 'rt'
-        else:
-            mode = 'rb'
+    def csv_input_file_reader(self):
         if self.dataset.endswith('.gz'):
-            fd = gzip.open(self.dataset, mode)
+            opener = gzip.open
         else:
-            fd = open(self.dataset, mode)
+            opener = open
 
+        if six.PY3:
+            fd = opener(self.dataset, 'rt',
+                        encoding=self.encoding)
+        else:
+            fd = opener(self.dataset, 'rb')
         return fd
 
     def __iter__(self):
-        sep = self.sep
-
-        # handle unix tabs
-        with self.open() as csvfile:
-            sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(csvfile.read(1024))
-
-        if sep is not None:
-            # if fixed sep check if we have at least one occurrence.
-            with self.open() as fd:
-                header = fd.readline()
-                if isinstance(header, bytes):
-                    bsep = sep.decode('utf-8')
-                else:
-                    bsep = sep
-                if not header.strip():
-                    raise ValueError("Input file '{}' is empty."
-                                     .format(self.dataset))
-                if len(header.split(bsep)) == 1:
-                    raise ValueError(
-                        ("Delimiter '{}' not found. "
-                         "Please check your input file "
-                         "or consider the flag `--delimiter=''`.").format(sep))
-        if sep is None:
-            sep = dialect.delimiter
-
         if self.fast_mode:
             reader_factory = FastReader
         else:
             reader_factory = SlowReader
 
-        with self.open() as csvfile:
-            reader = reader_factory(csvfile, dialect=dialect,
-                                    sep=sep, encoding=self.encoding)
+        with self.csv_input_file_reader() as csvfile:
+            reader = reader_factory(csvfile, dialect=self.dialect,
+                                    sep=self.dialect.delimiter,
+                                    encoding=self.encoding)
             fieldnames = reader.fieldnames
 
             batch_num = None
@@ -226,10 +246,47 @@ class BatchGenerator(object):
             self._ui.error('chunking {} rows took {}'.format(rows_read,
                                                              time() - t0))
 
+    def investigate_encoding_and_dialect(self):
+        """Try to identify encoding and dialect.
+        Providing a delimiter may help with smaller datasets.
+        Running this is costly so run it once per dataset."""
+        if self.encoding and self.dialect:
+            return (self.encoding, self.dialect)
+        if self.dataset.endswith('.gz'):
+            opener = gzip.open
+        else:
+            opener = open
+        with opener(self.dataset, 'rb') as dfile:
+            sample = dfile.read(2*1024**2)
+        chardet_result = chardet.detect(sample)
+        self.encoding = chardet_result['encoding'].lower()
+        sniffer = csv.Sniffer()
+        try:
+            self.dialect = sniffer.sniff(sample.decode(self.encoding),
+                                         delimiters=self.sep)
+        except csv.Error:
+            if len(sample) < 10:
+                self._ui.fatal('Input file "%s" is less than 10 chars long '
+                               'and this is the possible cause of a csv.Error.'
+                               ' Check the file and try again.' % self.dataset)
+            elif self.sep is not None:
+                self._ui.fatal('The csv module failed to detect the CSV '
+                               'dialect. Check that you provided the correct '
+                               'delimiter, or try the script without the '
+                               '--delimiter flag.')
+            else:
+                self._ui.fatal('The csv module failed to detect the CSV '
+                               'dialect. Try giving hints with the '
+                               '--delimiter argument, E.g  '
+                               """--delimiter=','""")
+            raise
+        return self.encoding, self.dialect
 
-def peek_row(dataset, delimiter, ui, fast_mode):
+
+def peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect):
     """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode)
+    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode,
+                             encoding, dialect)
     try:
         batch = next(iter(batches))
     except StopIteration:
@@ -424,8 +481,6 @@ class WorkUnitGenerator(object):
                 chunk_formatter = slow_to_csv_chunk
 
             data = chunk_formatter(batch.data, batch.fieldnames)
-            if not isinstance(data, bytes):
-                data = data.encode('utf-8')
             self._ui.debug('batch {} transmitting {} bytes'
                            .format(batch.id, len(data)))
             yield requests.Request(
@@ -449,7 +504,7 @@ class RunContext(object):
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
-                 fast_mode):
+                 fast_mode, encoding, dialect):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -464,12 +519,14 @@ class RunContext(object):
         self._ui = ui
         self.file_context = file_context
         self.fast_mode = fast_mode
+        self.encoding = encoding
+        self.dialect = dialect
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
-               fast_mode):
+               fast_mode, encoding, dialect):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -485,12 +542,13 @@ class RunContext(object):
             is_resume = False
         if is_resume:
             ctx_class = OldRunContext
+
         else:
             ctx_class = NewRunContext
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
-                         fast_mode)
+                         fast_mode, encoding, dialect)
 
     def __enter__(self):
         self.db = shelve.open(self.file_context.file_name, writeback=True)
@@ -510,8 +568,7 @@ class RunContext(object):
            - write it to the output stream (if necessary pull out columns).
            - put the batch_id into the journal.
         """
-        delimiter = self.delimiter or ','
-
+        delimiter = self.dialect.delimiter
         if self.keep_cols:
             # stack columns
             if self.db['first_write']:
@@ -557,7 +614,8 @@ class RunContext(object):
     def batch_generator(self):
         return iter(BatchGenerator(self.dataset, self.n_samples,
                                    self.n_retry, self.delimiter, self._ui,
-                                   self.fast_mode))
+                                   self.fast_mode, self.encoding,
+                                   self.dialect))
 
 
 class ContextFile(object):
@@ -665,7 +723,9 @@ class OldRunContext(RunContext):
                                           self.n_retry,
                                           self.delimiter,
                                           self._ui,
-                                          self.fast_mode)
+                                          self.fast_mode,
+                                          self.encoding,
+                                          self.dialect)
                 if b.id not in already_processed_batches)
 
 
@@ -742,9 +802,11 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
     base_headers['content-type'] = 'text/csv; charset=utf8'
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
-
+    (encoding, dialect) = BatchGenerator(
+        dataset, 1, 1, delimiter, ui, fast_mode
+        ).investigate_encoding_and_dialect()
     # Make a sync request to check authentication and fail early
-    first_row = peek_row(dataset, delimiter, ui, fast_mode)
+    first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding, dialect)
     ui.debug('First row for auth request: {}'.format(first_row))
     if fast_mode:
         chunk_formatter = fast_to_csv_chunk
@@ -752,8 +814,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         chunk_formatter = slow_to_csv_chunk
 
     first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
-    if six.PY3:
-        first_row_data = first_row_data.encode('utf-8')
     first_row = first_row._replace(data=first_row_data)
     authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
 
@@ -761,7 +821,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
                               lid, keep_cols, n_retry, delimiter,
-                              dataset, pred_name, ui, fast_mode))
+                              dataset, pred_name, ui, fast_mode,
+                              encoding, dialect))
         network = stack.enter_context(Network(concurrent, timeout))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'

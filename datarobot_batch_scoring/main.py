@@ -137,12 +137,11 @@ def main(argv=sys.argv[1:]):
                         'to the predictions. '
                         'Enter as a comma-separated list.')
     csv_gr.add_argument('--delimiter', type=str,
-                        nargs='?',
+                        nargs='?', default=None,
                         help='Specifies the delimiter to recognize in '
                         'the input .csv file. '
                         'If not specified, the script tries to automatically '
-                        'determine the delimiter, and if it cannot, '
-                        'defaults to comma ( , ).')
+                        'determine the delimiter.')
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?')
     csv_gr.add_argument('--fast', action='store_true',
@@ -157,6 +156,9 @@ def main(argv=sys.argv[1:]):
     misc_gr.add_argument('--dry_run', dest='dry_run', action='store_true',
                          help="Only read/chunk input data but dont send "
                          "requests.")
+    misc_gr.add_argument('--stdout', action='store_true', dest='stdout',
+                         default=False,
+                         help='Send all log messages to stdout.')
 
     defaults = {
         'prompt': None,
@@ -167,7 +169,8 @@ def main(argv=sys.argv[1:]):
         'n_concurrent': 4,
         'n_retry': 3,
         'resume': False,
-        'fast': False
+        'fast': False,
+        'stdout': False
     }
     conf_file = get_config_file()
     if conf_file:
@@ -183,7 +186,8 @@ def main(argv=sys.argv[1:]):
                    for k, v in vars(parser.parse_args(argv)).items()
                    if v is not None}
     loglevel = logging.DEBUG if parsed_args['verbose'] else logging.INFO
-    ui = UI(parsed_args.get('prompt'), loglevel)
+    stdout = parsed_args['stdout']
+    ui = UI(parsed_args.get('prompt'), loglevel, stdout)
     printed_args = copy.copy(parsed_args)
     printed_args.pop('password', None)
     ui.debug(printed_args)

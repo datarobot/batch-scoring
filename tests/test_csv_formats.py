@@ -1,3 +1,4 @@
+import csv
 import mock
 import pytest
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
@@ -122,7 +123,7 @@ def test_tab_delimiter(live_server):
 def test_empty_file(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(csv.Error) as ctx:
         run_batch_predictions(
             base_url=base_url,
             base_headers={},
@@ -145,13 +146,13 @@ def test_empty_file(live_server):
             ui=ui,
             fast_mode=False
         )
-    assert str(ctx.value) == "Input file 'tests/fixtures/empty.csv' is empty."
+    assert str(ctx.value) == ("Could not determine delimiter")
 
 
 def test_no_delimiter(live_server):
     ui = mock.Mock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(csv.Error) as ctx:
         run_batch_predictions(
             base_url=base_url,
             base_headers={},
@@ -174,9 +175,7 @@ def test_no_delimiter(live_server):
             ui=ui,
             fast_mode=False
         )
-    assert str(ctx.value) == ("Delimiter ';' not found. "
-                              "Please check your input file "
-                              "or consider the flag `--delimiter=''`.")
+    assert str(ctx.value) == ("Could not determine delimiter")
 
 
 def test_header_only(live_server):
