@@ -34,6 +34,7 @@ def test_regression(live_server, tmpdir, keep_cols=None,
         pred_name=None,
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=fast_mode
     )
 
@@ -70,6 +71,7 @@ def test_regression_rename(live_server, tmpdir):
         pred_name='new_name',
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=False
     )
 
@@ -106,6 +108,7 @@ def test_regression_rename_fast(live_server, tmpdir):
         pred_name='new_name',
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=True
     )
 
@@ -150,6 +153,7 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
         pred_name='new_name',
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=fast_mode
     )
 

@@ -25,7 +25,7 @@ import requests
 import six
 
 from .network import Network
-from .utils import acquire_api_token, iter_chunks,  Recoder, \
+from .utils import acquire_api_token, iter_chunks, auto_sampler, Recoder, \
     investigate_encoding_and_dialect
 
 
@@ -708,7 +708,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           resume, n_samples,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
-                          timeout, ui, fast_mode, dry_run=False):
+                          timeout, ui, fast_mode, auto_sample,
+                          dry_run=False):
     t1 = time()
     if not api_token:
         if not pwd:
@@ -723,6 +724,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     endpoint = base_url + '/'.join((pid, lid, 'predict'))
     encoding = investigate_encoding_and_dialect(dataset=dataset, sep=delimiter,
                                                 ui=ui)
+    if auto_sample:
+        #  override n_sample
+        n_samples = auto_sampler(dataset, encoding, ui)
+        ui.info('auto_sample: will use batches of {} rows'.format(n_samples))
     # Make a sync request to check authentication and fail early
     first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding)
     ui.debug('First row for auth request: {}'.format(first_row))

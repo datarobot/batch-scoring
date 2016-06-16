@@ -4,6 +4,7 @@ from os.path import expanduser, isfile, join as path_join
 from os import getcwd
 from time import time
 import codecs
+import io
 import gzip
 import csv
 import logging
@@ -16,6 +17,8 @@ import trafaret as t
 from six.moves.configparser import ConfigParser
 import chardet
 
+if six.PY2:
+    import StringIO
 
 OptKey = partial(t.Key, optional=True)
 
@@ -284,3 +287,75 @@ def investigate_encoding_and_dialect(dataset, sep, ui):
     ui.debug('investigate_encoding_and_dialect - vars(dialect) - {}'
              ''.format(vars(dialect)))
     return encoding
+
+
+def auto_sampler(dataset, encoding, ui):
+    """
+    Automatically find an appropriate number of rows to send per batch based
+    on the average row size.
+    :return:
+    """
+
+    t0 = time()
+
+    sample_size = int(0.5 * 1024 ** 2)
+    if dataset.endswith('.gz'):
+        opener = gzip.open
+    else:
+        opener = open
+    with opener(dataset, 'rb') as dfile:
+        sample = dfile.read(sample_size)
+    ingestable_sample = sample.decode(encoding)
+    size_bytes = sys.getsizeof(ingestable_sample.encode('utf-8'))
+
+    if size_bytes < (sample_size * 0.75):
+        #  if dataset is tiny, don't bother auto sampling.
+        ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
+        ui.info('auto_sampler: defaulting to 500 samples for small dataset')
+        return 500
+
+    if six.PY3:
+        buf = io.StringIO()
+        buf.write(ingestable_sample)
+    else:
+        buf = StringIO.StringIO()
+        buf.write(sample)
+    buf.seek(0)
+    file_lines, csv_lines = 0, 0
+    dialect = csv.get_dialect('dataset_dialect')
+    fd = Recoder(buf, encoding)
+    reader = csv.reader(fd, dialect=dialect, delimiter=dialect.delimiter)
+    line_pos = []
+    for _ in buf:
+        file_lines += 1
+        line_pos.append(buf.tell())
+    #  remove the last line since it's probably not fully formed
+    buf.truncate(line_pos[-2])
+    buf.seek(0)
+    file_lines -= 1
+    try:
+        for _ in reader:
+            csv_lines += 1
+    except csv.Error:
+        if buf.tell() in line_pos[-3:]:
+            ui.debug('auto_sampler: caught csv.Error at end of sample. '
+                     'seek_position: {}, csv_line: {}'.format(buf.tell(),
+                                                              line_pos))
+        else:
+            ui.fatal('--auto_sample failed to parse the csv file. Try again '
+                     'without --auto_sample. seek_position: {}, '
+                     'csv_line: {}'.format(buf.tell(), line_pos))
+            raise
+    else:
+        ui.debug('auto_sampler: analyzed {} csv rows'.format(csv_lines))
+
+    buf.close()
+    avg_line = int(size_bytes / csv_lines)
+    chunk_size_goal = int(1.5 * 1024 ** 2)  # size we want per batch
+    lines_per_sample = int(chunk_size_goal / avg_line) + 1
+    ui.debug('auto_sampler: lines counted: {},  avgerage line size: {}, '
+             'recommended lines per sample: {}'.format(csv_lines, avg_line,
+                                                       lines_per_sample))
+    ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
+
+    return lines_per_sample

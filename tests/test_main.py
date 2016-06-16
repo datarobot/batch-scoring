@@ -39,6 +39,7 @@ def test_without_passed_user_and_passwd(monkeypatch):
             pred_name=None,
             timeout=30,
             ui=mock.ANY,
+            auto_sample=False,
             fast_mode=False,
             dry_run=False
         )
@@ -78,6 +79,7 @@ def test_keep_cols(monkeypatch):
             pred_name=None,
             timeout=30,
             ui=mock.ANY,
+            auto_sample=False,
             fast_mode=False,
             dry_run=False
         )
@@ -162,6 +164,7 @@ def test_datarobot_key(monkeypatch):
             timeout=30,
             ui=mock.ANY,
             fast_mode=False,
+            auto_sample=False,
             dry_run=False
         )
 
