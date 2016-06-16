@@ -172,6 +172,7 @@ def main(argv=sys.argv[1:]):
         'fast': False,
         'stdout': False
     }
+
     conf_file = get_config_file()
     if conf_file:
         file_args = parse_config_file(conf_file)
@@ -246,6 +247,7 @@ def main(argv=sys.argv[1:]):
         base_headers['datarobot-key'] = datarobot_key
 
     ui.info('connecting to {}'.format(base_url))
+
     try:
         run_batch_predictions(
             base_url=base_url, base_headers=base_headers,

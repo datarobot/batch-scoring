@@ -104,12 +104,12 @@ The `batch_scoring` command check for the existence of a .batch_scoring.ini file
 
 The format of a `.batch_scoring.ini` file is as follows::
 
-[batch_scoring]
-host=file_host
-project_id=file_project_id
-model_id=file_model_id
-user=file_username
-password=file_password
+  [batch_scoring]
+  host=file_host
+  project_id=file_project_id
+  model_id=file_model_id
+  user=file_username
+  password=file_password
 
 
 Usage Notes

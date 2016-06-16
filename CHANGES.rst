@@ -1,3 +1,7 @@
+1.8.1 (2016 June 15)
+==================
+* change how csv dialects are passed around in attempt to fix a bug on Windows.
+
 1.8.0 (2016 June 13)
 ==================
 * use chardet module `chardet <https://pypi.python.org/pypi/chardet>`_ to
