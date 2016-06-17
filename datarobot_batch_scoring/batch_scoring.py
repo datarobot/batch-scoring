@@ -87,6 +87,7 @@ def slow_to_csv_chunk(data, header):
 class CSVReader(object):
     def __init__(self, fd, encoding):
         self.fd = fd
+        #  dataset_dialect is set by investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
         self.encoding = encoding
 
@@ -443,6 +444,7 @@ class RunContext(object):
         self.file_context = file_context
         self.fast_mode = fast_mode
         self.encoding = encoding
+        #  dataset_dialect is set by investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
 
     @classmethod
