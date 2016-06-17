@@ -31,9 +31,11 @@ from .utils import acquire_api_token, iter_chunks,  Recoder, \
 
 if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
+    from itertools import ifilter
     import dumbdbm  # noqa
 elif six.PY3:  # pragma: no cover
     from contextlib import ExitStack
+    ifilter = filter
     # for successful py2exe dist package
     from dbm import dumb  # noqa
 
@@ -192,15 +194,15 @@ class BatchGenerator(object):
             reader = reader_factory(csvfile, encoding=self.encoding)
             fieldnames = reader.fieldnames
 
-            batch_num = None
+            has_content = False
             t0 = time()
             rows_read = 0
-            for batch_num, chunk in enumerate(iter_chunks(reader,
-                                                          self.chunksize)):
+            for chunk in iter_chunks(reader, self.chunksize):
+                has_content = True
                 n_rows = len(chunk)
                 yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
                 rows_read += n_rows
-            if batch_num is None:
+            if not has_content:
                 raise ValueError("Input file '{}' is empty.".format(
                     self.dataset))
             self._ui.info('chunking {} rows took {}'.format(rows_read,
@@ -360,9 +362,8 @@ class WorkUnitGenerator(object):
                                     ' round-trip: {:.0f}msec').format(
                                         exec_time,
                                         r.elapsed.total_seconds() * 1000))
-
-                    process_successful_request(result, batch,
-                                               self.ctx, self.pred_name)
+                    process_successful_request(result, batch, self.ctx,
+                                               self.pred_name)
                 except Exception as e:
                     self._ui.fatal('{} response error: {}'.format(batch.id, e))
             else:
@@ -388,7 +389,7 @@ class WorkUnitGenerator(object):
         return self.queue.has_next()
 
     def __iter__(self):
-        for i, batch in enumerate(self.queue):
+        for batch in self.queue:
             if batch.id == -1:  # sentinel
                 raise StopIteration()
             # if we exhaused our retries we drop the batch
@@ -653,7 +654,8 @@ class OldRunContext(RunContext):
 
 
 def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
-    """Check if user is authorized for the given model and that schema is correct.
+    """Check if user is authorized for the given model and that schema is
+    correct.
 
     This function will make a sync request to the api endpoint with a single
     row just to make sure that the schema is correct and the user
@@ -750,11 +752,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         # make the queue twice as big as the
         queue = MultiprocessingGeneratorBackedQueue(concurrent * 2, ui)
         shovel = Shovel(ctx, queue, ui)
-
         ui.info('Shovel go...')
         t2 = time()
         shovel.go()
-
         ui.info('shoveling complete | total time elapsed {}s'
                 .format(time() - t2))
 
@@ -777,8 +777,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 time() - t1))
             ui.close()
         else:
-            responses = network.perform_requests(
-                work_unit_gen)
+            responses = network.perform_requests(work_unit_gen)
             for r in responses:
                 i += 1
                 ui.info('{} responses sent | time elapsed {}s'
