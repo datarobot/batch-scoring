@@ -148,6 +148,10 @@ def main(argv=sys.argv[1:]):
                         default=False,
                         help='Experimental: faster CSV processor. '
                         'Note: does not support multiline csv. ')
+    csv_gr.add_argument('--auto_sample', action='store_true',
+                        default=False,
+                        help='Override "n_samples" and instead '
+                        'use chunks of about 1.5 MB.')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -170,7 +174,8 @@ def main(argv=sys.argv[1:]):
         'n_retry': 3,
         'resume': False,
         'fast': False,
-        'stdout': False
+        'stdout': False,
+        'auto_sample': False
     }
 
     conf_file = get_config_file()
@@ -212,6 +217,7 @@ def main(argv=sys.argv[1:]):
     datarobot_key = parsed_args.get('datarobot_key')
     timeout = int(parsed_args['timeout'])
     fast_mode = parsed_args['fast']
+    auto_sample = parsed_args['auto_sample']
 
     if 'user' not in parsed_args:
         user = ui.prompt_user()
@@ -257,7 +263,8 @@ def main(argv=sys.argv[1:]):
             resume=resume, n_samples=n_samples,
             out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
             dataset=dataset, pred_name=pred_name, timeout=timeout,
-            ui=ui, fast_mode=fast_mode, dry_run=dry_run)
+            ui=ui, fast_mode=fast_mode, auto_sample=auto_sample,
+            dry_run=dry_run)
     except SystemError:
         pass
     except ShelveError as e:

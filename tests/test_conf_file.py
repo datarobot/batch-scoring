@@ -106,6 +106,7 @@ def test_run_main_with_conf_file(monkeypatch):
                 pred_name=None,
                 timeout=30,
                 ui=mock.ANY,
+                auto_sample=False,
                 fast_mode=True,
                 dry_run=False
             )
@@ -154,6 +155,7 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                 pred_name=None,
                 timeout=30,
                 ui=mock.ANY,
+                auto_sample=False,
                 fast_mode=False,
                 dry_run=False
             )

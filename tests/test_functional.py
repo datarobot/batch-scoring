@@ -58,6 +58,7 @@ def test_simple(live_server, tmpdir):
         pred_name=None,
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=False
     )
 
@@ -94,6 +95,7 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
         pred_name=None,
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=fast_mode
     )
 
@@ -134,6 +136,7 @@ def test_pred_name_classification(live_server, tmpdir):
         pred_name='healthy',
         timeout=30,
         ui=ui,
+        auto_sample=False,
         fast_mode=False
     )
 

@@ -1,5 +1,11 @@
+1.8.2 (2016 June 16)
+==================
+* added --auto_sample option to find the n_samples automatically. 
+
 1.8.1 (2016 June 15)
 ==================
+* added --auto_sample option to find the n_samples automatically. 
+
 * change how csv dialects are passed around in attempt to fix a bug on Windows.
 
 1.8.0 (2016 June 13)

@@ -57,7 +57,7 @@ Required arguments:
 ``batch_scoring --host=<host> --user=<user> <project_id> <model_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
 
 Additional recommended arguments
-``[--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples>]  [--n_concurrent=<n_concurrent>]``
+``[--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples> | --auto_sample]  [--n_concurrent=<n_concurrent>]``
 
 Additional optional arguments
 ``[--out=<filepath>] [--api_version=<api_version>] [--pred_name=<string>] [--timeout=<timeout>] [—-create_api_token]  [--n_retry=<n_retry>] [--delimiter=<delimiter>]  [--resume]``
@@ -90,6 +90,7 @@ The following table describes each of the arguments:
  help                          Show help of usage.
  fast                          Experimental: faster CSV processor. Note: does not support multiline csv.
  stdout                        Send all log messages to stdout.
+ auto_sample                   Override "n_samples" and instead use chunks of about 1.5 MB. This can improve throughput.
 
 ============================== ===========
 

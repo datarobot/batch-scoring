@@ -3,7 +3,8 @@ import logging
 import mock
 import pytest
 from datarobot_batch_scoring.utils import (verify_objectid, UI,
-                                           iter_chunks, acquire_api_token)
+                                           iter_chunks, acquire_api_token,
+                                           auto_sampler)
 from datarobot_batch_scoring.batch_scoring import \
     investigate_encoding_and_dialect
 
@@ -182,6 +183,20 @@ def test_stdout_logging_and_csv_module_fail(capsys):
         m_exit.assert_called_with(1)
     out, err = capsys.readouterr()
     assert msg == out.strip('\n')
+
+
+def test_auto_sample():
+    ui = UI(None, logging.DEBUG, stdout=False)
+    data = 'tests/fixtures/criteo_top30_1m.csv.gz'
+    encoding = investigate_encoding_and_dialect(data, None, ui)
+    assert auto_sampler(data, encoding, ui) == 8988
+
+
+def test_auto_small_dataset():
+    ui = UI(None, logging.DEBUG, stdout=False)
+    data = 'tests/fixtures/regression_jp.csv.gz'
+    encoding = investigate_encoding_and_dialect(data, None, ui)
+    assert auto_sampler(data, encoding, ui) == 500
 
 
 def test_acquire_api_token(live_server):
