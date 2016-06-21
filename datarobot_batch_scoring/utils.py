@@ -2,7 +2,10 @@ from functools import partial
 import getpass
 from os.path import expanduser, isfile, join as path_join
 from os import getcwd
-
+from time import time
+import codecs
+import gzip
+import csv
 import logging
 import os
 import requests
@@ -11,6 +14,8 @@ import sys
 import tempfile
 import trafaret as t
 from six.moves.configparser import ConfigParser
+import chardet
+
 
 OptKey = partial(t.Key, optional=True)
 
@@ -120,7 +125,6 @@ class UI(object):
         logger.error(msg)
         exc_info = sys.exc_info()
         root_logger.error(msg, exc_info=exc_info)
-        self.close()
         os._exit(1)
 
     def getpass(self):
@@ -129,7 +133,34 @@ class UI(object):
         return getpass.getpass('password> ')
 
     def close(self):
+        #  this should not be called if there is a fatal error.
         os.unlink(self.root_logger_filename)
+
+
+class Recoder:
+    """
+    Iterator that reads an encoded stream and decodes the input to UTF-8
+    for Python 2. In Python 3 the open function decodes the file.
+    """
+    def __init__(self, f, encoding):
+        f.seek(0)
+        if six.PY3:
+            self.reader = f
+        if six.PY2:
+            self.reader = codecs.StreamRecoder(f,
+                                               codecs.getencoder('utf-8'),
+                                               codecs.getdecoder('utf-8'),
+                                               codecs.getreader(encoding),
+                                               codecs.getwriter(encoding))
+
+    def __iter__(self):
+        return self
+
+    def next(self):   # python 3
+        return self.reader.next()
+
+    def __next__(self):  # python 2
+        return self.reader.__next__()
 
 
 def get_config_file():
@@ -153,8 +184,8 @@ def parse_config_file(file_path):
     config = ConfigParser()
     config.read(file_path)
     if 'batch_scoring' not in config.sections():
-        # We are return empty dict, because there is nothing in this file
-        # that related to arguments to batch scoring.
+        #  We are return empty dict, because there is nothing in this file
+        #  that related to arguments to batch scoring.
         return {}
     parsed_dict = dict(config.items('batch_scoring'))
     return config_validator(parsed_dict)
@@ -203,3 +234,53 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     ui.debug('api-token: {}'.format(api_token))
 
     return api_token
+
+
+def investigate_encoding_and_dialect(dataset, sep, ui):
+    """Try to identify encoding and dialect.
+    Providing a delimiter may help with smaller datasets.
+    Running this is costly so run it once per dataset."""
+    t0 = time()
+    if dataset.endswith('.gz'):
+        opener = gzip.open
+    else:
+        opener = open
+    with opener(dataset, 'rb') as dfile:
+        sample = dfile.read(2*1024**2)
+    chardet_result = chardet.detect(sample)
+    encoding = chardet_result['encoding'].lower()
+    sniffer = csv.Sniffer()
+    try:
+        dialect = sniffer.sniff(sample.decode(encoding), delimiters=sep)
+    except csv.Error:
+        if len(sample) < 10:
+            ui.fatal('Input file "%s" is less than 10 chars long '
+                     'and this is the possible cause of a csv.Error.'
+                     ' Check the file and try again.' % dataset)
+        elif sep is not None:
+            ui.fatal('The csv module failed to detect the CSV '
+                     'dialect. Check that you provided the correct '
+                     'delimiter, or try the script without the '
+                     '--delimiter flag.')
+        else:
+            ui.fatal('The csv module failed to detect the CSV '
+                     'dialect. Try giving hints with the '
+                     '--delimiter argument, E.g  '
+                     """--delimiter=','""")
+        raise
+    #  in Python 2, csv.dialect sometimes returns unicode which the
+    #  PY2 csv.reader cannot handle. This may be from the Recoder
+    if six.PY2:
+        dialect.lineterminator = str(dialect.lineterminator)
+        for a in ['delimiter', 'lineterminator', 'quotechar']:
+            if isinstance(getattr(dialect, a, None), type(u'')):
+                recast = str(getattr(dialect, a))
+                setattr(dialect, a, recast)
+    csv.register_dialect('dataset_dialect', dialect)
+    ui.info('investigate_encoding_and_dialect - total time seconds -'
+            ' {}'.format(time() - t0))
+    ui.debug('investigate_encoding_and_dialect - encoding detected -'
+             ' {}'.format(encoding))
+    ui.debug('investigate_encoding_and_dialect - vars(dialect) - {}'
+             ''.format(vars(dialect)))
+    return encoding

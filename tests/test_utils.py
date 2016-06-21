@@ -4,7 +4,8 @@ import mock
 import pytest
 from datarobot_batch_scoring.utils import (verify_objectid, UI,
                                            iter_chunks, acquire_api_token)
-from datarobot_batch_scoring.batch_scoring import BatchGenerator
+from datarobot_batch_scoring.batch_scoring import \
+    investigate_encoding_and_dialect
 
 
 def test_invalid_objectid():
@@ -158,10 +159,8 @@ def test_iter_chunks():
 def test_investigate_encoding_and_dialect():
     ui = UI(None, logging.DEBUG, stdout=False)
     data = 'tests/fixtures/windows_encoded.csv'
-    bg = BatchGenerator(dataset=data, n_samples=10, n_retry=3,
-                        delimiter=None, ui=ui, fast_mode=False)
-    bg.investigate_encoding_and_dialect()
-    (encoding, dialect) = bg.investigate_encoding_and_dialect()
+    encoding = investigate_encoding_and_dialect(data, None, ui)
+    dialect = csv.get_dialect('dataset_dialect')
     assert encoding == 'iso-8859-2'
     assert dialect.lineterminator == '\r\n'
     assert dialect.quotechar == '"'
@@ -171,8 +170,6 @@ def test_investigate_encoding_and_dialect():
 def test_stdout_logging_and_csv_module_fail(capsys):
     ui = UI(None, logging.DEBUG, stdout=True)
     data = 'tests/fixtures/unparsable.csv'
-    bg = BatchGenerator(dataset=data, n_samples=10, n_retry=3,
-                        delimiter=None, ui=ui, fast_mode=False)
     exc = str("""[ERROR] The csv module failed to detect the CSV dialect. """ +
               """Try giving hints with the --delimiter argument, E.g  """ +
               """--delimiter=','""")
@@ -181,7 +178,7 @@ def test_stdout_logging_and_csv_module_fail(capsys):
            exc, ui.root_logger_filename)
     with mock.patch('datarobot_batch_scoring.utils.os._exit') as m_exit:
         with pytest.raises(csv.Error):
-            bg.investigate_encoding_and_dialect()
+            investigate_encoding_and_dialect(data, None, ui)
         m_exit.assert_called_with(1)
     out, err = capsys.readouterr()
     assert msg == out.strip('\n')
