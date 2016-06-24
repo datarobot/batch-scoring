@@ -24,7 +24,7 @@ from six.moves import zip
 import requests
 import six
 
-from .network import Network
+from .network import Network, FakeResponse
 from .utils import acquire_api_token, iter_chunks, auto_sampler, Recoder, \
     investigate_encoding_and_dialect
 
@@ -366,6 +366,11 @@ class WorkUnitGenerator(object):
                                                self.pred_name)
                 except Exception as e:
                     self._ui.fatal('{} response error: {}'.format(batch.id, e))
+
+            elif isinstance(r, FakeResponse):
+                self.queue.push(batch)
+                self._ui.debug('Skipping processing response '
+                               'because of FakeResponse')
             else:
                 try:
                     self._ui.warning('batch {} failed with status: {}'
@@ -749,7 +754,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
                               encoding))
-        network = stack.enter_context(Network(concurrent, timeout))
+        network = stack.enter_context(Network(concurrent, timeout, ui))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'
                  .format(n_batches_checkpointed_init))
