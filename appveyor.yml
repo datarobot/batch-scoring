@@ -4,10 +4,10 @@ environment:
   PYPI_PASSWD:
     secure: u+K6dKi7+CXXVFEUG4V7zUyV3w7Ntg0Ork/RGVV0eSQ=
   matrix:
-    - PYTHON: "C:\\Python27"
-    - PYTHON: "C:\\Python27-x64"
     - PYTHON: "C:\\Python35"
     - PYTHON: "C:\\Python35-x64"
+    - PYTHON: "C:\\Python27"
+    - PYTHON: "C:\\Python27-x64"
 
 install:
   - "build.cmd %PYTHON%\\python.exe -m pip install -U pip"
@@ -18,7 +18,7 @@ install:
 build: false
 
 test_script:
-  - "build.cmd %PYTHON%\\python.exe -m pytest"
+  - "build.cmd %PYTHON%\\python.exe -m pytest -vvv"
 
 after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"

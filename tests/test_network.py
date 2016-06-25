@@ -4,11 +4,12 @@ import textwrap
 import requests
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
+from utils import PickableMock
 
 
 def test_request_client_timeout(live_server, tmpdir):
     out = tmpdir.join('out.csv')
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with mock.patch('datarobot_batch_scoring.'
                     'network.requests.Session') as nw_mock:

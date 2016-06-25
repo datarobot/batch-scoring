@@ -1,11 +1,11 @@
 import csv
-import mock
 import pytest
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
+from utils import PickableMock
 
 
 def test_gzipped_csv(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
@@ -35,7 +35,7 @@ def test_gzipped_csv(live_server):
 
 
 def test_explicit_delimiter(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
@@ -65,7 +65,7 @@ def test_explicit_delimiter(live_server):
 
 
 def test_explicit_delimiter_gzip(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
@@ -95,7 +95,7 @@ def test_explicit_delimiter_gzip(live_server):
 
 
 def test_tab_delimiter(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
@@ -120,12 +120,11 @@ def test_tab_delimiter(live_server):
         auto_sample=False,
         fast_mode=False
     )
-
     assert ret is None
 
 
 def test_empty_file(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(csv.Error) as ctx:
         run_batch_predictions(
@@ -155,7 +154,7 @@ def test_empty_file(live_server):
 
 
 def test_no_delimiter(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(csv.Error) as ctx:
         run_batch_predictions(
@@ -185,7 +184,7 @@ def test_no_delimiter(live_server):
 
 
 def test_header_only(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         run_batch_predictions(

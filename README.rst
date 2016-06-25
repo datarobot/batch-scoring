@@ -101,9 +101,9 @@ Example::
 
 Using configuration file
 ------------------------
-The `batch_scoring` command check for the existence of a .batch_scoring.ini file at the location `$HOME/.batch_scoring.ini` (your home directory) and directory where you running the script (working directory). If this file exists, the command uses the same arguments that described above.
+The `batch_scoring` command check for the existence of a batch_scoring.ini file at the location `$HOME/batch_scoring.ini` (your home directory) and directory where you running the script (working directory). If this file exists, the command uses the same arguments that described above.
 
-The format of a `.batch_scoring.ini` file is as follows::
+The format of a `batch_scoring.ini` file is as follows::
 
   [batch_scoring]
   host=file_host
@@ -117,3 +117,8 @@ Usage Notes
 ------------
   * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
   * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
+  * The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file, and Windows users will see an additional log file, `datarobot_batch_scoring_batcher.log`.
+
+Notes for Windows Users
+------------
+The batch_scoring script is tested on Windows, but for now it is recommended to use the script with Python 2.7. Python 3.4+ should work, but we have had some issues which prevent us from running all or our tests against Python 3+.

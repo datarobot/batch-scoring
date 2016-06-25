@@ -1,3 +1,9 @@
+1.8.3 (2016 July 6)
+==================
+* This release is compatible with Windows
+
+* logs are now sent to two files within the directory where the script is run
+
 1.8.2 (2016 June 16)
 ==================
 * added --auto_sample option to find the n_samples automatically. 
