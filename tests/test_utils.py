@@ -7,6 +7,7 @@ from datarobot_batch_scoring.utils import (verify_objectid, UI,
                                            auto_sampler)
 from datarobot_batch_scoring.batch_scoring import \
     investigate_encoding_and_dialect
+from utils import PickableMock
 
 
 def test_invalid_objectid():
@@ -16,131 +17,134 @@ def test_invalid_objectid():
 
 class TestUi(object):
     def test_prompt_yesno_always_yes(self):
-        ui = UI(True, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            assert ui.prompt_yesno('msg')
-            assert not m_input.called
+        with UI(True, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                assert ui.prompt_yesno('msg')
+                assert not m_input.called
 
     def test_prompt_yesno_always_no(self):
-        ui = UI(False, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            assert not ui.prompt_yesno('msg')
-            assert not m_input.called
+        with UI(False, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                assert not ui.prompt_yesno('msg')
+                assert not m_input.called
 
     def test_prompt_yesno_user_input_yes(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            m_input.return_value = 'yEs'
-            assert ui.prompt_yesno('msg')
-            m_input.assert_called_with('msg (Yes/No)> ')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                m_input.return_value = 'yEs'
+                assert ui.prompt_yesno('msg')
+                m_input.assert_called_with('msg (Yes/No)> ')
 
     def test_prompt_yesno_user_input_no(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            m_input.return_value = 'nO'
-            assert not ui.prompt_yesno('msg')
-            m_input.assert_called_with('msg (Yes/No)> ')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                m_input.return_value = 'nO'
+                assert not ui.prompt_yesno('msg')
+                m_input.assert_called_with('msg (Yes/No)> ')
 
     def test_prompt_yesno_user_input_invalid(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            m_input.side_effect = ['invalid', 'yes']
-            assert ui.prompt_yesno('msg')
-            m_input.assert_has_calls([mock.call('msg (Yes/No)> '),
-                                      mock.call('Please type (Yes/No)> ')])
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                m_input.side_effect = ['invalid', 'yes']
+                assert ui.prompt_yesno('msg')
+                m_input.assert_has_calls([mock.call('msg (Yes/No)> '),
+                                          mock.call('Please type (Yes/No)> ')])
 
     def test_prompt_yesno_user_input_y(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            m_input.return_value = 'y'
-            assert ui.prompt_yesno('msg')
-            m_input.assert_called_with('msg (Yes/No)> ')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                m_input.return_value = 'y'
+                assert ui.prompt_yesno('msg')
+                m_input.assert_called_with('msg (Yes/No)> ')
 
     def test_prompt_yesno_user_input_n(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            m_input.return_value = 'n'
-            assert not ui.prompt_yesno('msg')
-            m_input.assert_called_with('msg (Yes/No)> ')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
+                m_input.return_value = 'n'
+                assert not ui.prompt_yesno('msg')
+                m_input.assert_called_with('msg (Yes/No)> ')
 
     def test_prompt_user(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.input') as m_input:
-            m_input.return_value = 'Andrew'
-            assert ui.prompt_user() == 'Andrew'
-            m_input.assert_called_with('user name> ')
+            with UI(None, logging.DEBUG, stdout=False) as ui:
+                with mock.patch('datarobot_batch_scoring.utils.input'
+                                '') as m_input:
+                    m_input.return_value = 'Andrew'
+                    assert ui.prompt_user() == 'Andrew'
+                    m_input.assert_called_with('user name> ')
 
     def test_debug(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
-            ui.debug('text')
-            m_log.debug.assert_called_with('text')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+                ui.debug('text')
+                m_log.debug.assert_called_with('text')
 
     def test_info(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
-            ui.info('text')
-            m_log.info.assert_called_with('text')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+                ui.info('text')
+                m_log.info.assert_called_with('text')
 
     def test_warning(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
-            ui.warning('text')
-            m_log.warning.assert_called_with('text')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+                ui.warning('text')
+                m_log.warning.assert_called_with('text')
 
     def test_error(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
-            with mock.patch(
-                    'datarobot_batch_scoring.utils.root_logger') as m_root:
-                ui.error('text')
-                m_log.error.assert_called_with('text')
-                m_root.error.assert_called_with('text', exc_info=False)
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+                with mock.patch(
+                        'datarobot_batch_scoring.utils.root_logger') as m_root:
+                    ui.error('text')
+                    m_log.error.assert_called_with('text')
+                    m_root.error.assert_called_with('text', exc_info=False)
 
     def test_error_with_excinfo(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
-            with mock.patch(
-                    'datarobot_batch_scoring.utils.root_logger') as m_root:
-                try:
-                    1 / 0
-                except:
-                    ui.error('text')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
+                with mock.patch('datarobot_batch_scoring.utils.root_logger'
+                                '') as m_root:
+                    try:
+                        1 / 0
+                    except:
+                        ui.error('text')
                 m_log.error.assert_called_with('text')
                 m_root.error.assert_called_with('text', exc_info=True)
 
     def test_fatal(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        msg = ('{}\nIf you need assistance please send the log \n'
-               'file {} to support@datarobot.com .').format(
-                   'text', ui.root_logger_filename)
-        with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
-            with mock.patch(
-                    'datarobot_batch_scoring.utils.root_logger') as m_root:
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.logger') as m_log:
                 with mock.patch(
-                        'datarobot_batch_scoring.utils.os._exit') as m_exit:
-                    ui.fatal('text')
-                m_log.error.assert_called_with(msg)
-                m_root.error.assert_called_with(msg,
-                                                exc_info=(None, None, None))
-                m_exit.assert_called_with(1)
+                        'datarobot_batch_scoring.utils.root_logger') as m_root:
+                    with mock.patch(
+                            'datarobot_batch_scoring.utils.os._exit'
+                            '') as m_exit:
+                        msg = ('{}\nIf you need assistance please send the '
+                               'log file/s:\n{}to support@datarobot.com.'
+                               '').format('text', ui.get_all_logfiles())
+                        ui.fatal('text')
+                        m_log.error.assert_called_with(msg)
+                        m_root.error.assert_called_with(msg,
+                                                        exc_info=(None, None,
+                                                                  None))
+                        m_exit.assert_called_with(1)
 
     def test_getpass(self):
-        ui = UI(None, logging.DEBUG, stdout=False)
-        with mock.patch(
-                'datarobot_batch_scoring.utils.getpass.getpass') as m_getpass:
-            m_getpass.return_value = 'passwd'
-            assert 'passwd' == ui.getpass()
-            m_getpass.assert_called_with('password> ')
+        with UI(None, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.getpass.getpass'
+                            '') as m_getpass:
+                m_getpass.return_value = 'passwd'
+                assert 'passwd' == ui.getpass()
+                m_getpass.assert_called_with('password> ')
 
     def test_getpass_noninteractive(self):
-        ui = UI(True, logging.DEBUG, stdout=False)
-        with mock.patch(
-                'datarobot_batch_scoring.utils.getpass.getpass') as m_getpass:
-            with pytest.raises(RuntimeError) as exc:
-                ui.getpass()
-            assert str(exc.value) == "Non-interactive session"
-            assert not m_getpass.called
+        with UI(True, logging.DEBUG, stdout=False) as ui:
+            with mock.patch('datarobot_batch_scoring.utils.getpass.getpass'
+                            '') as m_getpass:
+                with pytest.raises(RuntimeError) as exc:
+                    ui.getpass()
+                assert str(exc.value) == "Non-interactive session"
+                assert not m_getpass.called
 
 
 def test_iter_chunks():
@@ -158,49 +162,49 @@ def test_iter_chunks():
 
 
 def test_investigate_encoding_and_dialect():
-    ui = UI(None, logging.DEBUG, stdout=False)
-    data = 'tests/fixtures/windows_encoded.csv'
-    encoding = investigate_encoding_and_dialect(data, None, ui)
-    dialect = csv.get_dialect('dataset_dialect')
-    assert encoding == 'iso-8859-2'
-    assert dialect.lineterminator == '\r\n'
-    assert dialect.quotechar == '"'
-    assert dialect.delimiter == ','
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        data = 'tests/fixtures/windows_encoded.csv'
+        encoding = investigate_encoding_and_dialect(data, None, ui)
+        dialect = csv.get_dialect('dataset_dialect')
+        assert encoding == 'iso-8859-2'
+        assert dialect.lineterminator == '\r\n'
+        assert dialect.quotechar == '"'
+        assert dialect.delimiter == ','
 
 
 def test_stdout_logging_and_csv_module_fail(capsys):
-    ui = UI(None, logging.DEBUG, stdout=True)
-    data = 'tests/fixtures/unparsable.csv'
-    exc = str("""[ERROR] The csv module failed to detect the CSV dialect. """ +
-              """Try giving hints with the --delimiter argument, E.g  """ +
-              """--delimiter=','""")
-    msg = ('{}\nIf you need assistance please send the log \n'
-           'file {} to support@datarobot.com .').format(
-           exc, ui.root_logger_filename)
-    with mock.patch('datarobot_batch_scoring.utils.os._exit') as m_exit:
-        with pytest.raises(csv.Error):
-            investigate_encoding_and_dialect(data, None, ui)
-        m_exit.assert_called_with(1)
-    out, err = capsys.readouterr()
-    assert msg == out.strip('\n')
+    with UI(None, logging.DEBUG, stdout=True) as ui:
+        data = 'tests/fixtures/unparsable.csv'
+        exc = str("""[ERROR] The csv module failed to detect the CSV """ +
+                  """dialect. Try giving hints with the --delimiter """ +
+                  """argument, E.g  --delimiter=','""")
+        msg = ('{}\nIf you need assistance please send the output of this '
+               'script to support@datarobot.com.').format(exc)
+        with mock.patch('datarobot_batch_scoring.utils.os._exit') as m_exit:
+            with pytest.raises(csv.Error):
+                investigate_encoding_and_dialect(data, None, ui)
+            m_exit.assert_called_with(1)
+        out, err = capsys.readouterr()
+        assert msg in out.strip('\n')
 
 
 def test_auto_sample():
-    ui = UI(None, logging.DEBUG, stdout=False)
-    data = 'tests/fixtures/criteo_top30_1m.csv.gz'
-    encoding = investigate_encoding_and_dialect(data, None, ui)
-    assert auto_sampler(data, encoding, ui) == 8988
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        data = 'tests/fixtures/criteo_top30_1m.csv.gz'
+        encoding = investigate_encoding_and_dialect(data, None, ui)
+        assert auto_sampler(data, encoding, ui) == 8988
+        ui.close()
 
 
 def test_auto_small_dataset():
-    ui = UI(None, logging.DEBUG, stdout=False)
-    data = 'tests/fixtures/regression_jp.csv.gz'
-    encoding = investigate_encoding_and_dialect(data, None, ui)
-    assert auto_sampler(data, encoding, ui) == 500
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        data = 'tests/fixtures/regression_jp.csv.gz'
+        encoding = investigate_encoding_and_dialect(data, None, ui)
+        assert auto_sampler(data, encoding, ui) == 500
 
 
 def test_acquire_api_token(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = acquire_api_token(base_url, {}, 'username', 'password', False, ui)
     assert ret == 'Som3tok3n'
@@ -209,7 +213,7 @@ def test_acquire_api_token(live_server):
 
 
 def test_acquire_api_token_unauthorized(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'unknown', 'passwd', False, ui)
@@ -219,7 +223,7 @@ def test_acquire_api_token_unauthorized(live_server):
 
 
 def test_acquire_api_token_bad_status(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'bad_status', 'passwd', False, ui)
@@ -229,7 +233,7 @@ def test_acquire_api_token_bad_status(live_server):
 
 
 def test_acquire_api_token_no_token1(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'no_token1', 'passwd', False, ui)
@@ -240,7 +244,7 @@ def test_acquire_api_token_no_token1(live_server):
 
 
 def test_acquire_api_token_no_token2(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'no_token2', 'passwd', False, ui)
@@ -251,7 +255,7 @@ def test_acquire_api_token_no_token2(live_server):
 
 
 def test_create_and_acquire_api_token(live_server):
-    ui = mock.Mock()
+    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = acquire_api_token(base_url, {}, 'username', 'password', True, ui)
     assert ret == 'Som3tok3n'

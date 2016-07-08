@@ -1,24 +1,24 @@
-version: 1.6.0a0.dev{build}
+version: 1.8.0a0.dev{build}
 
 environment:
   PYPI_PASSWD:
     secure: u+K6dKi7+CXXVFEUG4V7zUyV3w7Ntg0Ork/RGVV0eSQ=
   matrix:
-    - PYTHON: "C:\\Python27"
-    - PYTHON: "C:\\Python27-x64"
     - PYTHON: "C:\\Python35"
     - PYTHON: "C:\\Python35-x64"
+    - PYTHON: "C:\\Python27"
+    - PYTHON: "C:\\Python27-x64"
 
 install:
   - "build.cmd %PYTHON%\\python.exe -m pip install -U pip"
   - "build.cmd %PYTHON%\\python.exe -m pip install wheel"
 #  - "build.cmd %PYTHON%\\python.exe -m pip install twine"
-  - "build.cmd %PYTHON%\\python.exe -m pip install -e ."
+  - "build.cmd %PYTHON%\\python.exe -m pip install -r requirements.txt"
 
 build: false
 
 test_script:
-  - "build.cmd %PYTHON%\\python.exe setup.py test"
+  - "build.cmd %PYTHON%\\python.exe -m pytest -vvv"
 
 after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"

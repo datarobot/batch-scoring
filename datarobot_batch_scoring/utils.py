@@ -12,7 +12,6 @@ import os
 import requests
 import six
 import sys
-import tempfile
 import trafaret as t
 from six.moves.configparser import ConfigParser
 import chardet
@@ -24,7 +23,7 @@ OptKey = partial(t.Key, optional=True)
 
 input = six.moves.input
 
-CONFIG_FILENAME = '.batch_scoring.ini'
+CONFIG_FILENAME = 'batch_scoring.ini'
 
 
 def verify_objectid(id_):
@@ -60,23 +59,31 @@ root_logger = logging.getLogger()
 
 class UI(object):
 
-    def __init__(self, prompt, loglevel, stdout):
+    def __init__(self, prompt, loglevel, stdout, file_name_suffix='main'):
         self._prompt = prompt
+        self.loglevel = loglevel
+        self.stdout = stdout
+        self.log_files = []
+        self.file_name_suffix = file_name_suffix
         self._configure_logging(loglevel, stdout)
 
     def _configure_logging(self, level, stdout):
         """Configures logging for user and debug logging. """
-
-        with tempfile.NamedTemporaryFile(prefix='datarobot_batch_scoring_',
-                                         suffix='.log', delete=False) as fd:
-            pass
-        self.root_logger_filename = fd.name
+        self.root_logger_filename = self.get_file_name(self.file_name_suffix)
+        if isfile(self.root_logger_filename):
+            os.unlink(self.root_logger_filename)
+        if self.file_name_suffix is 'main':
+            self.log_files.append(str(self.root_logger_filename))
 
         # user logger
-        fs = '[%(levelname)s] %(message)s'
-        if stdout:
+        if self.file_name_suffix != 'main':
+            fs = '%(asctime)-15s [%(levelname)s] %(message)s'
+            hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
+        elif stdout:
+            fs = '[%(levelname)s] %(message)s'
             hdlr = logging.StreamHandler(sys.stdout)
         else:
+            fs = '[%(levelname)s] %(message)s'
             hdlr = logging.StreamHandler()
         dfs = None
         fmt = logging.Formatter(fs, dfs)
@@ -85,13 +92,14 @@ class UI(object):
         logger.addHandler(hdlr)
 
         # root logger
-        fs = '%(asctime)-15s [%(levelname)s] %(message)s'
-        hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
-        dfs = None
-        fmt = logging.Formatter(fs, dfs)
-        hdlr.setFormatter(fmt)
-        root_logger.setLevel(logging.DEBUG)
-        root_logger.addHandler(hdlr)
+        if stdout is False and self.file_name_suffix == 'main':
+            fs = '%(asctime)-15s [%(levelname)s] %(message)s'
+            hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
+            dfs = None
+            fmt = logging.Formatter(fs, dfs)
+            hdlr.setFormatter(fmt)
+            root_logger.setLevel(logging.DEBUG)
+            root_logger.addHandler(hdlr)
 
     def prompt_yesno(self, msg):
         if self._prompt is not None:
@@ -114,30 +122,115 @@ class UI(object):
         logger.warning(msg)
 
     def error(self, msg):
-        logger.error(msg)
         if sys.exc_info()[0]:
             exc_info = True
         else:
             exc_info = False
-        root_logger.error(msg, exc_info=exc_info)
+        if self.file_name_suffix != 'main':
+            logger.error(msg, exc_info=exc_info)
+        elif self.stdout:
+            logger.error(msg, exc_info=exc_info)
+        else:
+            logger.error(msg)
+            root_logger.error(msg, exc_info=exc_info)
 
     def fatal(self, msg):
-        msg = ('{}\nIf you need assistance please send the log \n'
-               'file {} to support@datarobot.com .').format(
-                   msg, self.root_logger_filename)
-        logger.error(msg)
         exc_info = sys.exc_info()
-        root_logger.error(msg, exc_info=exc_info)
+        if self.file_name_suffix != 'main':
+            msg = ('{}\nIf you need assistance please send the log file/s:\n'
+                   '{}to support@datarobot.com.').format(
+                           msg, self.get_all_logfiles())
+            logger.error(msg, exc_info=exc_info)
+        elif self.stdout:
+            msg = ('{}\nIf you need assistance please send the output of this '
+                   'script to support@datarobot.com.').format(
+                   msg)
+            logger.error(msg, exc_info=exc_info)
+        else:
+            msg = ('{}\nIf you need assistance please send the log file/s:\n'
+                   '{}to support@datarobot.com.').format(
+                           msg, self.get_all_logfiles())
+            logger.error(msg)
+            root_logger.error(msg, exc_info=exc_info)
+        self.close()
         os._exit(1)
+
+    def close(self):
+        for l in [logger, root_logger]:
+            handlers = l.handlers[:]
+            for h in handlers:
+                if isinstance(h, logging.FileHandler):
+                    h.close()
+                    l.removeHandler(h)
+                    if hasattr(l, 'shutdown'):
+                        l.shutdown()
+
+    def get_file_name(self, suffix):
+        return os.path.join(os.getcwd(), 'datarobot_batch_scoring_{}.log'
+                                         ''.format(suffix))
+
+    def get_all_logfiles(self):
+        file_names = ''
+        for logfile in self.log_files:
+            file_names += '\t{}\n'.format(logfile)
+        return file_names
+
+    def set_next_UI_name(self, suffix):
+        """
+        On the Windows platform we want to init a new UI inside each subproc
+        This allows us to set the name new log file name after pickling
+        """
+        # if self.get_file_name('main') is not self.root_logger_filename:
+        #     raise SystemError('set_next_UI_name() should not be called in '
+        #                       'non-windows environments.')
+        if self.file_name_suffix != 'main':
+            #  For now let's only init new UI's from the main process
+            self.error('set_next_UI_name() called by "{}" UI instance. This '
+                       'should only be called by "main".'
+                       ''.format(self.file_name_suffix))
+        self.log_files.append(self.get_file_name(suffix))
+        self._next_suffix = suffix
+
+    def __getstate__(self):
+        """
+        On windows we need to pickle the UI instances or create new
+        instances inside the subprocesses since there's no fork.
+        """
+        if os.name is not 'nt':
+            raise SystemError('__getstate__() should not be called in '
+                              'non-windows environments.')
+        d = self.__dict__.copy()
+        #  replace the old file suffix with a separate log file
+        d['file_name_suffix'] = self._next_suffix
+        #  remove args not needed for __new__
+        for k in [i for i in d.keys()]:
+            if k not in ['_prompt', 'loglevel', 'stdout', 'file_name_suffix']:
+                del d[k]
+        return d
+
+    def __setstate__(self, d):
+        """
+        On windows we need to pickle the UI instances or create new
+        instances inside the subprocesses since there's no fork.
+        This method is called when unpickling a UI instance.
+        It actually creates a new UI that logs to a separate file.
+        """
+        if os.name is not 'nt':
+            raise SystemError('__getstate__() should not be called in '
+                              'non-windows environments.')
+        self.__dict__.update(d)
+        self._configure_logging(self.loglevel, self.stdout)
 
     def getpass(self):
         if self._prompt is not None:
             raise RuntimeError("Non-interactive session")
         return getpass.getpass('password> ')
 
-    def close(self):
-        #  this should not be called if there is a fatal error.
-        os.unlink(self.root_logger_filename)
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 class Recoder:
@@ -280,6 +373,9 @@ def investigate_encoding_and_dialect(dataset, sep, ui):
                 recast = str(getattr(dialect, a))
                 setattr(dialect, a, recast)
     csv.register_dialect('dataset_dialect', dialect)
+    #  the csv writer should use the systems newline char
+    csv.register_dialect('writer_dialect', dialect,
+                         lineterminator=os.linesep)
     ui.info('investigate_encoding_and_dialect - total time seconds -'
             ' {}'.format(time() - t0))
     ui.debug('investigate_encoding_and_dialect - encoding detected -'

@@ -2,9 +2,9 @@ import threading
 import time
 import os
 import os.path
+from glob import glob
 import socket
 import pytest
-
 try:
     from urllib2 import urlopen, HTTPError
 except ImportError:
@@ -82,8 +82,9 @@ def live_server(app, monkeypatch):
             res = urllib2.urlopen(index_url)
             assert res.code == 200
     """
-    if os.path.exists('.shelve'):
-        os.unlink('.shelve')
+    files = glob('*shelve*')
+    for file in files:
+        os.unlink(file)
     # Bind to an open port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 0))

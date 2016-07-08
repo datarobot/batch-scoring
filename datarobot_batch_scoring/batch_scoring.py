@@ -11,23 +11,20 @@ import operator
 import os
 import shelve
 import sys
-import threading
 import hashlib
 from functools import partial
 from functools import reduce
 from itertools import chain
 from time import time
-from multiprocessing import Queue
-from multiprocessing import Process
+import multiprocessing
 from six.moves import queue
 from six.moves import zip
 import requests
 import six
 
-from .network import Network, FakeResponse
-from .utils import acquire_api_token, iter_chunks, auto_sampler, Recoder, \
-    investigate_encoding_and_dialect
-
+from datarobot_batch_scoring.network import Network, FakeResponse
+from datarobot_batch_scoring.utils import acquire_api_token, iter_chunks, \
+    auto_sampler, Recoder, investigate_encoding_and_dialect
 
 if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
@@ -61,7 +58,7 @@ def fast_to_csv_chunk(data, header):
     Returns data in unicode.
     """
     header = ','.join(header)
-    chunk = ''.join(chain((header, '\n'), data))
+    chunk = ''.join(chain((header, os.linesep), data))
     if six.PY3:
         return chunk.encode('utf-8')
     else:
@@ -163,13 +160,14 @@ class BatchGenerator(object):
     """
 
     def __init__(self, dataset, n_samples, n_retry, delimiter, ui,
-                 fast_mode, encoding):
+                 fast_mode, encoding, already_processed_batches=set()):
         self.dataset = dataset
         self.chunksize = n_samples
         self.rty_cnt = n_retry
         self._ui = ui
         self.fast_mode = fast_mode
         self.encoding = encoding
+        self.already_processed_batches = already_processed_batches
 
     def csv_input_file_reader(self):
         if self.dataset.endswith('.gz'):
@@ -200,7 +198,8 @@ class BatchGenerator(object):
             for chunk in iter_chunks(reader, self.chunksize):
                 has_content = True
                 n_rows = len(chunk)
-                yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
+                if rows_read not in self.already_processed_batches:
+                    yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
                 rows_read += n_rows
             if not has_content:
                 raise ValueError("Input file '{}' is empty.".format(
@@ -225,11 +224,11 @@ class MultiprocessingGeneratorBackedQueue(object):
 
     When the queue is exhausted it repopulates from the generator.
     """
-    def __init__(self, queue_size, ui, queue=None):
+    def __init__(self, ui, queue, deque, rlock):
         self.n_consumed = 0
-        self.queue = Queue(queue_size)
-        self.deque = Queue(queue_size)
-        self.lock = threading.RLock()
+        self.queue = queue
+        self.deque = deque
+        self.rlock = rlock
         self._ui = ui
 
     def __iter__(self):
@@ -243,7 +242,6 @@ class MultiprocessingGeneratorBackedQueue(object):
             try:
                 r = self.queue.get()
                 if r.id == SENTINEL.id:
-                    self.queue.close()
                     raise StopIteration
                 self.n_consumed += 1
                 return r
@@ -266,7 +264,7 @@ class MultiprocessingGeneratorBackedQueue(object):
                 batch))
 
     def has_next(self):
-        with self.lock:
+        with self.rlock:
             try:
                 item = self.next()
                 self.push(item)
@@ -277,27 +275,35 @@ class MultiprocessingGeneratorBackedQueue(object):
 
 class Shovel(object):
 
-    def __init__(self, ctx, queue, ui):
-        self.ctx = ctx
+    def __init__(self, queue, batch_gen_args, ui):
         self._ui = ui
         self.queue = queue
+        self.batch_gen_args = batch_gen_args
+        self.dialect = csv.get_dialect('dataset_dialect')
+        #  The following should only impact Windows
+        self._ui.set_next_UI_name('batcher')
 
-    def _shove(self, q, ctx):
-        for batch in ctx.batch_generator():
-            q.put(batch)
+    def _shove(self, args, dialect, queue):
+        _ui = args[4]
+        _ui.info('Shovel process started')
+        csv.register_dialect('dataset_dialect', dialect)
+        batch_generator = BatchGenerator(*args)
+        try:
+            for batch in batch_generator:
+                _ui.debug('queueing batch {}'.format(batch.id))
+                queue.put(batch)
 
-        q.put(SENTINEL)
+            queue.put(SENTINEL)
+        finally:
+            if os.name is 'nt':
+                _ui.close()
 
     def go(self):
-        self.p = Process(target=self._shove,
-                         args=(self.queue.queue, self.ctx),
-                         name='shovel')
+        self.p = multiprocessing.Process(target=self._shove,
+                                         args=([self.batch_gen_args,
+                                                self.dialect, self.queue]),
+                                         name='shovel')
         self.p.start()
-
-    def all(self):
-        self.queue.queue = Queue(0)
-        self._shove(self.queue.queue, self.ctx)
-        self._ui.info('QSIZE:{}'.format(self.queue.queue.qsize()))
 
 
 def process_successful_request(result, batch, ctx, pred_name):
@@ -335,7 +341,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, queue, endpoint, headers, user, api_token,
-                 ctx, pred_name, ui):
+                 ctx, pred_name, fast_mode, ui):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -343,6 +349,7 @@ class WorkUnitGenerator(object):
         self.ctx = ctx
         self.queue = queue
         self.pred_name = pred_name
+        self.fast_mode = fast_mode
         self._ui = ui
 
     def _response_callback(self, r, batch=None, *args, **kw):
@@ -405,7 +412,7 @@ class WorkUnitGenerator(object):
                 continue
             hook = partial(self._response_callback, batch=batch)
 
-            if self.ctx.fast_mode:
+            if self.fast_mode:
                 chunk_formatter = fast_to_csv_chunk
             else:
                 chunk_formatter = slow_to_csv_chunk
@@ -434,7 +441,7 @@ class RunContext(object):
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
-                 fast_mode, encoding):
+                 fast_mode, encoding, lock):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -445,19 +452,21 @@ class RunContext(object):
         self.dataset = dataset
         self.pred_name = pred_name
         self.out_stream = None
-        self.lock = threading.Lock()
+        self.lock = lock
         self._ui = ui
         self.file_context = file_context
         self.fast_mode = fast_mode
         self.encoding = encoding
-        #  dataset_dialect is set by investigate_encoding_and_dialect in utils
+        #  dataset_dialect and writer_dialect are set by
+        #  investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
+        self.writer_dialect = csv.get_dialect('writer_dialect')
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
-               fast_mode, encoding):
+               fast_mode, encoding, lock):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -479,7 +488,7 @@ class RunContext(object):
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
-                         fast_mode, encoding)
+                         fast_mode, encoding, lock)
 
     def __enter__(self):
         self.db = shelve.open(self.file_context.file_name, writeback=True)
@@ -499,7 +508,7 @@ class RunContext(object):
            - write it to the output stream (if necessary pull out columns).
            - put the batch_id into the journal.
         """
-        delimiter = self.dialect.delimiter
+        input_delimiter = self.dialect.delimiter
         if self.keep_cols:
             # stack columns
             if self.db['first_write']:
@@ -511,6 +520,7 @@ class RunContext(object):
             feature_indices = {col: i for i, col in
                                enumerate(batch.fieldnames)}
             indices = [feature_indices[col] for col in self.keep_cols]
+
             written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
 
             # first column is row_id
@@ -519,7 +529,7 @@ class RunContext(object):
                 if self.fast_mode:
                     # row is a full line, we need to cut it into fields
                     # FIXME this will fail on quoted fields!
-                    row = row.rstrip().split(delimiter)
+                    row = row.rstrip().split(input_delimiter)
                 keeps = [row[i] for i in indices]
                 comb.append([predicted[0]] + keeps + predicted[1:])
         else:
@@ -530,7 +540,7 @@ class RunContext(object):
             # might end up with inconsistent state
             # TODO write partition files instead of appending
             #  store checksum of each partition and back-check
-            writer = csv.writer(self.out_stream)
+            writer = csv.writer(self.out_stream, dialect=self.writer_dialect)
             if self.db['first_write']:
                 writer.writerow(written_fields)
             writer.writerows(comb)
@@ -541,11 +551,6 @@ class RunContext(object):
             self.db['first_write'] = False
             self._ui.info('batch {} checkpointed'.format(batch.id))
             self.db.sync()
-
-    def batch_generator(self):
-        return iter(BatchGenerator(self.dataset, self.n_samples,
-                                   self.n_retry, self.delimiter, self._ui,
-                                   self.fast_mode, self.encoding))
 
 
 class ContextFile(object):
@@ -598,12 +603,25 @@ class NewRunContext(RunContext):
         # used to check if output file is dirty (ie first write op)
         self.db['first_write'] = True
         self.db.sync()
-
-        self.out_stream = open(self.out_file, 'w+')
+        if six.PY2:
+            self.out_stream = open(self.out_file, 'w+b')
+        elif six.PY3:
+            self.out_stream = open(self.out_file, 'w+', newline='')
         return self
 
     def __exit__(self, type, value, traceback):
         super(NewRunContext, self).__exit__(type, value, traceback)
+
+    def batch_generator_args(self):
+        """
+        returns the arguments needed to set up a BatchGenerator
+        In this case it's a fresh start
+        """
+        already_processed_batches = set()
+        args = [self.dataset, self.n_samples, self.n_retry, self.delimiter,
+                self._ui, self.fast_mode, self.encoding,
+                already_processed_batches]
+        return args
 
 
 class OldRunContext(RunContext):
@@ -635,7 +653,10 @@ class OldRunContext(RunContext):
             raise ShelveError('keep_cols mismatch: should be {} but was {}'
                               .format(self.db['keep_cols'], self.keep_cols))
 
-        self.out_stream = open(self.out_file, 'a')
+        if six.PY2:
+            self.out_stream = open(self.out_file, 'ab')
+        elif six.PY3:
+            self.out_stream = open(self.out_file, 'a', newline='')
 
         self._ui.info('resuming a shelved run with {} checkpointed batches'
                       .format(len(self.db['checkpoints'])))
@@ -644,18 +665,16 @@ class OldRunContext(RunContext):
     def __exit__(self, type, value, traceback):
         super(OldRunContext, self).__exit__(type, value, traceback)
 
-    def batch_generator(self):
-        """We filter everything that has not been checkpointed yet. """
-        self._ui.info('playing checkpoint log forward.')
+    def batch_generator_args(self):
+        """
+        returns the arguments needed to set up a BatchGenerator
+        In this case some batches may have already run
+        """
         already_processed_batches = set(self.db['checkpoints'])
-        return (b for b in BatchGenerator(self.dataset,
-                                          self.n_samples,
-                                          self.n_retry,
-                                          self.delimiter,
-                                          self._ui,
-                                          self.fast_mode,
-                                          self.encoding)
-                if b.id not in already_processed_batches)
+        args = [self.dataset, self.n_samples, self.n_retry, self.delimiter,
+                self._ui, self.fast_mode, self.encoding,
+                already_processed_batches]
+        return args
 
 
 def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
@@ -719,62 +738,74 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           dataset, pred_name,
                           timeout, ui, fast_mode, auto_sample,
                           dry_run=False):
+    multiprocessing.freeze_support()
     t1 = time()
-    if not api_token:
-        if not pwd:
-            pwd = ui.getpass()
-        try:
-            api_token = acquire_api_token(base_url, base_headers, user, pwd,
-                                          create_api_token, ui)
-        except Exception as e:
-            ui.fatal(str(e))
-
-    base_headers['content-type'] = 'text/csv; charset=utf8'
-    endpoint = base_url + '/'.join((pid, lid, 'predict'))
-    encoding = investigate_encoding_and_dialect(dataset=dataset, sep=delimiter,
-                                                ui=ui)
-    if auto_sample:
-        #  override n_sample
-        n_samples = auto_sampler(dataset, encoding, ui)
-        ui.info('auto_sample: will use batches of {} rows'.format(n_samples))
-    # Make a sync request to check authentication and fail early
-    first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding)
-    ui.debug('First row for auth request: {}'.format(first_row))
-    if fast_mode:
-        chunk_formatter = fast_to_csv_chunk
-    else:
-        chunk_formatter = slow_to_csv_chunk
-    first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
-    first_row = first_row._replace(data=first_row_data)
-    authorize(user, api_token, n_retry, endpoint, base_headers, first_row, ui)
-
+    queue_size = concurrent * 2
     with ExitStack() as stack:
+        manager = stack.enter_context(multiprocessing.Manager())
+        queue = manager.Queue(queue_size)
+        deque = manager.Queue(queue_size)
+        lock = manager.Lock()
+        rlock = manager.RLock()
+        if not api_token:
+            if not pwd:
+                pwd = ui.getpass()
+            try:
+                api_token = acquire_api_token(base_url, base_headers, user,
+                                              pwd, create_api_token, ui)
+            except Exception as e:
+                ui.fatal(str(e))
+
+        base_headers['content-type'] = 'text/csv; charset=utf8'
+        endpoint = base_url + '/'.join((pid, lid, 'predict'))
+        encoding = investigate_encoding_and_dialect(dataset=dataset,
+                                                    sep=delimiter, ui=ui)
+        if auto_sample:
+            #  override n_sample
+            n_samples = auto_sampler(dataset, encoding, ui)
+            ui.info('auto_sample: will use batches of {} rows'
+                    ''.format(n_samples))
+        # Make a sync request to check authentication and fail early
+        first_row = peek_row(dataset, delimiter, ui, fast_mode, encoding)
+        ui.debug('First row for auth request: {}'.format(first_row))
+        if fast_mode:
+            chunk_formatter = fast_to_csv_chunk
+        else:
+            chunk_formatter = slow_to_csv_chunk
+        first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
+        first_row = first_row._replace(data=first_row_data)
+        authorize(user, api_token, n_retry, endpoint, base_headers, first_row,
+                  ui)
+
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
-                              encoding))
+                              encoding, lock))
         network = stack.enter_context(Network(concurrent, timeout, ui))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'
                  .format(n_batches_checkpointed_init))
 
         # make the queue twice as big as the
-        queue = MultiprocessingGeneratorBackedQueue(concurrent * 2, ui)
-        shovel = Shovel(ctx, queue, ui)
+
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque, rlock)
+        batch_generator_args = ctx.batch_generator_args()
+        shovel = Shovel(queue, batch_generator_args, ui)
         ui.info('Shovel go...')
         t2 = time()
         shovel.go()
         ui.info('shoveling complete | total time elapsed {}s'
                 .format(time() - t2))
 
-        work_unit_gen = WorkUnitGenerator(queue,
+        work_unit_gen = WorkUnitGenerator(MGBQ,
                                           endpoint,
                                           headers=base_headers,
                                           user=user,
                                           api_token=api_token,
                                           ctx=ctx,
                                           pred_name=pred_name,
+                                          fast_mode=fast_mode,
                                           ui=ui)
         t0 = time()
         i = 0
@@ -785,7 +816,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
             ui.info('dry-run complete | total time elapsed {}s'.format(
                 time() - t1))
-            ui.close()
         else:
             responses = network.perform_requests(work_unit_gen)
             for r in responses:
@@ -811,4 +841,3 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                         .format(time() - t0))
                 ui.info('scoring complete | total time elapsed {}s'
                         .format(time() - t1))
-                ui.close()
