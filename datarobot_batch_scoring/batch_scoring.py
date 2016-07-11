@@ -742,11 +742,18 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     t1 = time()
     queue_size = concurrent * 2
     with ExitStack() as stack:
-        manager = stack.enter_context(multiprocessing.Manager())
-        queue = manager.Queue(queue_size)
-        deque = manager.Queue(queue_size)
-        lock = manager.Lock()
-        rlock = manager.RLock()
+        if os.name is 'nt':
+            manager = stack.enter_context(multiprocessing.Manager())
+            queue = manager.Queue(queue_size)
+            deque = manager.Queue(queue_size)
+            lock = manager.Lock()
+            rlock = manager.RLock()
+        else:
+            queue = multiprocessing.Queue(queue_size)
+            deque = multiprocessing.Queue(queue_size)
+            lock = multiprocessing.Lock()
+            rlock = multiprocessing.RLock()
+
         if not api_token:
             if not pwd:
                 pwd = ui.getpass()

@@ -1,3 +1,7 @@
+1.8.4 (2016 July 11)
+==================
+* minor performance improvement for nix users
+
 1.8.3 (2016 July 6)
 ==================
 * This release is compatible with Windows
