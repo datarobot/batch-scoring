@@ -742,11 +742,19 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     t1 = time()
     queue_size = concurrent * 2
     with ExitStack() as stack:
-        manager = stack.enter_context(multiprocessing.Manager())
-        queue = manager.Queue(queue_size)
-        deque = manager.Queue(queue_size)
-        lock = manager.Lock()
-        rlock = manager.RLock()
+        if os.name is 'nt':
+            #  Windows requires an additional manager process. The locks
+            #  and queues it creates are proxies for objects that exist within
+            #  the manager itself. It does not perform as well so we only
+            #  use it when necessary.
+            conc_manager = stack.enter_context(multiprocessing.Manager())
+        else:
+            #  You're on a nix of some sort and don't need a manager process.
+            conc_manager = multiprocessing
+        queue = conc_manager.Queue(queue_size)
+        deque = conc_manager.Queue(queue_size)
+        lock = conc_manager.Lock()
+        rlock = conc_manager.RLock()
         if not api_token:
             if not pwd:
                 pwd = ui.getpass()
