@@ -28,7 +28,10 @@ def test_gzipped_csv(live_server):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
 
     assert ret is None
@@ -58,7 +61,10 @@ def test_explicit_delimiter(live_server):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
 
     assert ret is None
@@ -88,7 +94,10 @@ def test_explicit_delimiter_gzip(live_server):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
 
     assert ret is None
@@ -118,7 +127,10 @@ def test_tab_delimiter(live_server):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
     assert ret is None
 
@@ -148,7 +160,10 @@ def test_empty_file(live_server):
             timeout=30,
             ui=ui,
             auto_sample=False,
-            fast_mode=False
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
     assert str(ctx.value) == ("Could not determine delimiter")
 
@@ -178,7 +193,10 @@ def test_no_delimiter(live_server):
             timeout=30,
             ui=ui,
             auto_sample=False,
-            fast_mode=False
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
     assert str(ctx.value) == ("Could not determine delimiter")
 
@@ -208,7 +226,10 @@ def test_header_only(live_server):
             timeout=30,
             ui=ui,
             auto_sample=False,
-            fast_mode=False
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
     assert str(ctx.value) == ("Input file 'tests/fixtures/header_only.csv' "
                               "is empty.")

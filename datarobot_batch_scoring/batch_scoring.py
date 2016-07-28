@@ -737,7 +737,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
                           timeout, ui, fast_mode, auto_sample,
-                          dry_run=False):
+                          dry_run, encoding, skip_dialect):
     multiprocessing.freeze_support()
     t1 = time()
     queue_size = concurrent * 2
@@ -767,7 +767,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         base_headers['content-type'] = 'text/csv; charset=utf8'
         endpoint = base_url + '/'.join((pid, lid, 'predict'))
         encoding = investigate_encoding_and_dialect(dataset=dataset,
-                                                    sep=delimiter, ui=ui)
+                                                    sep=delimiter, ui=ui,
+                                                    fast=fast_mode,
+                                                    encoding=encoding,
+                                                    skip_dialect=skip_dialect)
         if auto_sample:
             #  override n_sample
             n_samples = auto_sampler(dataset, encoding, ui)
@@ -782,8 +785,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             chunk_formatter = slow_to_csv_chunk
         first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
         first_row = first_row._replace(data=first_row_data)
-        authorize(user, api_token, n_retry, endpoint, base_headers, first_row,
-                  ui)
+        if not dry_run:
+            authorize(user, api_token, n_retry, endpoint, base_headers,
+                      first_row, ui)
 
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,

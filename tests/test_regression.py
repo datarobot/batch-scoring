@@ -39,7 +39,10 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             timeout=30,
             ui=ui,
             auto_sample=False,
-            fast_mode=fast_mode
+            fast_mode=fast_mode,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
         assert ret is None
         actual = out.read_text('utf-8')
@@ -77,7 +80,10 @@ def test_regression_rename(live_server, tmpdir):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
     assert ret is None
 
@@ -116,7 +122,10 @@ def test_regression_rename_fast(live_server, tmpdir):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=True
+        fast_mode=True,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
     assert ret is None
 
@@ -163,7 +172,10 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=fast_mode
+        fast_mode=fast_mode,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
     assert ret is None
 

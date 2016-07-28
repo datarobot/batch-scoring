@@ -1,3 +1,15 @@
+1.8.5 (2016 July 28)
+==================
+* add option to define document encoding
+
+* add option to skip csv dialect detection.
+
+* make adjustment to sample size used by dialect and encoding detection
+
+* use auto_sample as default unless "--n_samples" is defined
+
+* allow "tab" command line arg keyword. e.g. "--delimiter=tab"
+
 1.8.4 (2016 July 11)
 ==================
 * minor performance improvement for nix users

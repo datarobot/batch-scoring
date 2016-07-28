@@ -79,19 +79,20 @@ The following table describes each of the arguments:
  out=<filepath>                Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
  verbose                       Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose) displays very little output.
  keep_cols=<keep_cols>         Specifies the column names to append to the predictions. Enter as a comma-separated list.
- n_samples=<n_samples>         Specifies the number of samples to use per batch. Default sample size is 1000. For best results, set ``<n_samples>`` so that the packet size is under 3 MB.
+ n_samples=<n_samples>         Specifies the number of samples (rows) to use per batch. If not defined the "auto_sample" option will be used.
  n_concurrent=<n_concurrent>   Specifies the number of concurrent requests to submit. By default, 4 concurrent requests are submitted. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
  create_api_token              Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
  n_retry=<n_retry>             Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
  pred_name=<pred_name>         Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank.
  timeout=<timeout>             The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring command) closes the connection and retries, up to number of times. The default value is 30 seconds.
- delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. If not specified, the script tries to automatically determine the delimiter, and if it cannot, defaults to comma ( , ).
+ delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. E.g. "--delimiter=,". If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab delimited csv.
  resume                        Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same all arguments plus this ``resume`` argument. In that case, the prediction will resume from the point at which it stopped. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
  help                          Show help of usage.
  fast                          Experimental: faster CSV processor. Note: does not support multiline csv.
  stdout                        Send all log messages to stdout.
  auto_sample                   Override "n_samples" and instead use chunks of about 1.5 MB. This can improve throughput.
-
+ encoding                      Declare the dataset encoding. If an encoding is not provided the batch_scoring script attempts to detect it. E.g "utf-8", "latin-1" or "iso2022_jp". See the Python docs for a list of valid encodings https://docs.python.org/3/library/codecs.html#standard-encodings
+ skip_dialect                  Tell the batch_scoring script to skip csv dialect detection.
 ============================== ===========
 
 Example::
