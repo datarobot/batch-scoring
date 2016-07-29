@@ -172,6 +172,49 @@ def test_investigate_encoding_and_dialect():
         assert dialect.delimiter == ','
 
 
+def test_investigate_encoding_and_dialect_submit_encoding():
+
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        with mock.patch('datarobot_batch_scoring.utils.chardet.detect') as cd:
+            data = 'tests/fixtures/windows_encoded.csv'
+            encoding = investigate_encoding_and_dialect(data, None, ui,
+                                                        fast=False,
+                                                        encoding='iso-8859-2',
+                                                        skip_dialect=False)
+        assert encoding == 'iso-8859-2'
+        assert not cd.called
+
+
+def test_investigate_encoding_and_dialect_skip_dialect():
+
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        with mock.patch('datarobot_batch_scoring.utils.csv.Sniffer') as sn:
+            data = 'tests/fixtures/windows_encoded.csv'
+            encoding = investigate_encoding_and_dialect(data, None, ui,
+                                                        fast=False,
+                                                        encoding='',
+                                                        skip_dialect=True)
+        assert encoding == 'iso-8859-2'
+        assert not sn.called
+        dialect = csv.get_dialect('dataset_dialect')
+        assert dialect.delimiter == ','
+
+
+def test_investigate_encoding_and_dialect_substitute_delimiter():
+
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        with mock.patch('datarobot_batch_scoring.utils.csv.Sniffer') as sn:
+            data = 'tests/fixtures/windows_encoded.csv'
+            encoding = investigate_encoding_and_dialect(data, '|', ui,
+                                                        fast=False,
+                                                        encoding='utf-8',
+                                                        skip_dialect=True)
+        assert encoding == 'utf-8'  # Intentionally wrong
+        assert not sn.called
+        dialect = csv.get_dialect('dataset_dialect')
+        assert dialect.delimiter == '|'
+
+
 def test_stdout_logging_and_csv_module_fail(capsys):
     with UI(None, logging.DEBUG, stdout=True) as ui:
         data = 'tests/fixtures/unparsable.csv'

@@ -21,7 +21,7 @@ else:
         "trafaret[objectid]>=0.7.1",
         "contextlib2>=0.5.1",
         "futures>=3.0.4",
-        "chardet==2.3.0"
+        "chardet>=2.3.0"
         ]
     extra['entry_points'] = {
         'console_scripts': [

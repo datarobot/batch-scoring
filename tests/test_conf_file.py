@@ -119,7 +119,9 @@ def test_run_main_with_conf_file(monkeypatch):
                 ui=mock.ANY,
                 auto_sample=False,
                 fast_mode=True,
-                dry_run=False
+                dry_run=False,
+                encoding='',
+                skip_dialect=False
             )
     finally:
         os.remove(test_file.name)
@@ -172,7 +174,9 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     ui=mock.ANY,
                     auto_sample=False,
                     fast_mode=False,
-                    dry_run=False
+                    dry_run=False,
+                    encoding='',
+                    skip_dialect=False
                 )
     finally:
         os.remove(test_file.name)

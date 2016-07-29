@@ -38,6 +38,9 @@ def test_request_client_timeout(live_server, tmpdir):
             ui=ui,
             auto_sample=False,
             fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
 
     assert ret is None

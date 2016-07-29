@@ -106,9 +106,10 @@ def main(argv=sys.argv[1:]):
                          '(default: %(default)r)')
     conn_gr.add_argument('--n_samples', type=int,
                          nargs='?',
-                         default=1000,
-                         help='Specifies the number of samples to use '
-                         'per batch. (default: %(default)r)')
+                         default=False,
+                         help='Specifies the number of samples (rows) to use '
+                         'per batch. If not defined the "auto_sample" option '
+                         'will be used.')
     conn_gr.add_argument('--n_concurrent', type=int,
                          nargs='?',
                          default=4,
@@ -138,9 +139,10 @@ def main(argv=sys.argv[1:]):
     csv_gr.add_argument('--delimiter', type=str,
                         nargs='?', default=None,
                         help='Specifies the delimiter to recognize in '
-                        'the input .csv file. '
+                        'the input .csv file. E.g. "--delimiter=,". '
                         'If not specified, the script tries to automatically '
-                        'determine the delimiter.')
+                        'determine the delimiter. The special keyword "tab" '
+                        'can be used to indicate a tab delimited csv.')
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?')
     csv_gr.add_argument('--fast', action='store_true',
@@ -151,6 +153,17 @@ def main(argv=sys.argv[1:]):
                         default=False,
                         help='Override "n_samples" and instead '
                         'use chunks of about 1.5 MB.')
+    csv_gr.add_argument('--encoding', type=str,
+                        default='', help='Declare the dataset encoding. '
+                        'If an encoding is not provided the batch_scoring '
+                        'script attempts to detect it. E.g "utf-8", "latin-1" '
+                        'or "iso2022_jp". See the Python docs for a list of '
+                        'valid encodings '
+                        'https://docs.python.org/3/library/codecs.html'
+                        '#standard-encodings')
+    csv_gr.add_argument('--skip_dialect',  action='store_true',
+                        default=False, help='Tell the batch_scoring script '
+                        'to skip csv dialect detection.')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -168,13 +181,13 @@ def main(argv=sys.argv[1:]):
         'out': 'out.csv',
         'create_api_token': False,
         'timeout': 30,
-        'n_samples': 1000,
+        'n_samples': False,
         'n_concurrent': 4,
         'n_retry': 3,
         'resume': False,
         'fast': False,
         'stdout': False,
-        'auto_sample': False
+        'auto_sample': False,
     }
 
     conf_file = get_config_file()
@@ -217,6 +230,10 @@ def main(argv=sys.argv[1:]):
     timeout = int(parsed_args['timeout'])
     fast_mode = parsed_args['fast']
     auto_sample = parsed_args['auto_sample']
+    if not n_samples:
+        auto_sample = True
+    encoding = parsed_args['encoding']
+    skip_dialect = parsed_args['skip_dialect']
 
     if 'user' not in parsed_args:
         user = ui.prompt_user()
@@ -232,7 +249,7 @@ def main(argv=sys.argv[1:]):
     except ValueError as e:
         ui.fatal(str(e))
 
-    if delimiter == '\\t':
+    if delimiter == '\\t' or delimiter == 'tab':
         # NOTE: on bash you have to use Ctrl-V + TAB
         delimiter = '\t'
 
@@ -263,7 +280,7 @@ def main(argv=sys.argv[1:]):
             out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
             dataset=dataset, pred_name=pred_name, timeout=timeout,
             ui=ui, fast_mode=fast_mode, auto_sample=auto_sample,
-            dry_run=dry_run)
+            dry_run=dry_run, encoding=encoding, skip_dialect=skip_dialect)
     except SystemError:
         pass
     except ShelveError as e:

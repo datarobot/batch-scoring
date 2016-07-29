@@ -88,7 +88,10 @@ def test_simple(live_server, tmpdir):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
 
     assert ret is None
@@ -128,7 +131,10 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=fast_mode
+        fast_mode=fast_mode,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
 
     assert ret is None
@@ -175,7 +181,10 @@ def test_pred_name_classification(live_server, tmpdir):
         timeout=30,
         ui=ui,
         auto_sample=False,
-        fast_mode=False
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
     )
 
     assert ret is None

@@ -332,22 +332,48 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     return api_token
 
 
-def investigate_encoding_and_dialect(dataset, sep, ui):
+def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
+                                     encoding=None, skip_dialect=False):
     """Try to identify encoding and dialect.
     Providing a delimiter may help with smaller datasets.
     Running this is costly so run it once per dataset."""
     t0 = time()
+    if fast:
+        sample_size = int(0.2 * 1024 ** 2)
+    else:
+        sample_size = 1024 ** 2
+
     if dataset.endswith('.gz'):
         opener = gzip.open
     else:
         opener = open
     with opener(dataset, 'rb') as dfile:
-        sample = dfile.read(2*1024**2)
-    chardet_result = chardet.detect(sample)
-    encoding = chardet_result['encoding'].lower()
-    sniffer = csv.Sniffer()
+        sample = dfile.read(sample_size)
+
+    if not encoding:
+        chardet_result = chardet.detect(sample)
+        ui.debug('investigate_encoding_and_dialect - seconds to detect '
+                 'encoding: {}'.format(time() - t0))
+        encoding = chardet_result['encoding'].lower()
+    else:
+        ui.debug('investigate_encoding_and_dialect - skip encoding detect')
+        encoding = encoding.lower()
+        sample[:1000].decode(encoding)  # Fail here if the encoding is invalid
+    t1 = time()
     try:
-        dialect = sniffer.sniff(sample.decode(encoding), delimiters=sep)
+        if skip_dialect:
+            ui.debug('investigate_encoding_and_dialect - skip dialect detect')
+            if sep:
+                csv.register_dialect('dataset_dialect', csv.excel,
+                                     delimiter=sep)
+            else:
+                csv.register_dialect('dataset_dialect', csv.excel)
+            dialect = csv.get_dialect('dataset_dialect')
+        else:
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(sample.decode(encoding), delimiters=sep)
+            ui.debug('investigate_encoding_and_dialect - seconds to detect '
+                     'csv dialect: {}'.format(time() - t1))
     except csv.Error:
         if len(sample) < 10:
             ui.fatal('Input file "%s" is less than 10 chars long '
@@ -367,7 +393,6 @@ def investigate_encoding_and_dialect(dataset, sep, ui):
     #  in Python 2, csv.dialect sometimes returns unicode which the
     #  PY2 csv.reader cannot handle. This may be from the Recoder
     if six.PY2:
-        dialect.lineterminator = str(dialect.lineterminator)
         for a in ['delimiter', 'lineterminator', 'quotechar']:
             if isinstance(getattr(dialect, a, None), type(u'')):
                 recast = str(getattr(dialect, a))
@@ -376,12 +401,16 @@ def investigate_encoding_and_dialect(dataset, sep, ui):
     #  the csv writer should use the systems newline char
     csv.register_dialect('writer_dialect', dialect,
                          lineterminator=os.linesep)
-    ui.info('investigate_encoding_and_dialect - total time seconds -'
-            ' {}'.format(time() - t0))
-    ui.debug('investigate_encoding_and_dialect - encoding detected -'
+    ui.debug('investigate_encoding_and_dialect - total time seconds -'
+             ' {}'.format(time() - t0))
+    ui.debug('investigate_encoding_and_dialect - encoding -'
              ' {}'.format(encoding))
+    values = ['delimiter', 'doublequote', 'escapechar', 'lineterminator',
+              'quotechar', 'quoting', 'skipinitialspace', 'strict']
+    d_attr = ' '.join(['{}={} '.format(i, repr(getattr(dialect, i))) for i in
+                      values if hasattr(dialect, i)])
     ui.debug('investigate_encoding_and_dialect - vars(dialect) - {}'
-             ''.format(vars(dialect)))
+             ''.format(d_attr))
     return encoding
 
 
@@ -453,5 +482,4 @@ def auto_sampler(dataset, encoding, ui):
              'recommended lines per sample: {}'.format(csv_lines, avg_line,
                                                        lines_per_sample))
     ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
-
     return lines_per_sample

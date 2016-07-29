@@ -41,7 +41,9 @@ def test_without_passed_user_and_passwd(monkeypatch):
             ui=mock.ANY,
             auto_sample=False,
             fast_mode=False,
-            dry_run=False
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
 
 
@@ -71,7 +73,7 @@ def test_keep_cols(monkeypatch):
             n_retry=3,
             concurrent=4,
             resume=False,
-            n_samples=1000,
+            n_samples=False,
             out_file='out.csv',
             keep_cols=['a', 'b', 'c'],
             delimiter=None,
@@ -79,9 +81,11 @@ def test_keep_cols(monkeypatch):
             pred_name=None,
             timeout=30,
             ui=mock.ANY,
-            auto_sample=False,
+            auto_sample=True,
             fast_mode=False,
-            dry_run=False
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
         )
 
 
@@ -155,7 +159,7 @@ def test_datarobot_key(monkeypatch):
             n_retry=3,
             concurrent=4,
             resume=False,
-            n_samples=1000,
+            n_samples=False,
             out_file='out.csv',
             keep_cols=None,
             delimiter=None,
@@ -164,8 +168,53 @@ def test_datarobot_key(monkeypatch):
             timeout=30,
             ui=mock.ANY,
             fast_mode=False,
-            auto_sample=False,
-            dry_run=False
+            auto_sample=True,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+
+
+def test_encoding_options(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '56dd9570018e213242dfa93c',
+                 '56dd9570018e213242dfa93d',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--delimiter=tab',
+                 '--encoding=utf-8', '--skip_dialect']
+
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', mock.Mock(spec=UI))
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        main(argv=main_args)
+        mock_method.assert_called_once_with(
+            base_url='http://localhost:53646/api/v1/',
+            base_headers={},
+            user=mock.ANY,
+            pwd=None,
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=4,
+            resume=False,
+            n_samples=False,
+            out_file='out.csv',
+            keep_cols=None,
+            delimiter='\t',
+            dataset='tests/fixtures/temperatura_predict.csv',
+            pred_name=None,
+            timeout=30,
+            ui=mock.ANY,
+            fast_mode=False,
+            auto_sample=True,
+            dry_run=False,
+            encoding='utf-8',
+            skip_dialect=True
         )
 
 
