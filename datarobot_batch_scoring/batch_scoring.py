@@ -679,7 +679,7 @@ class OldRunContext(RunContext):
         return args
 
 
-def is_redirect(req, ui):
+def warn_if_redirected(req, ui):
     """
     test whether a request was redirect.
     Log a warning to the user if it was redirected
@@ -718,7 +718,7 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
                 # all good
                 break
 
-            is_redirect(r, ui)
+            warn_if_redirected(r, ui)
             if r.status_code == 400:
                 # client error -- maybe schema is wrong
                 try:
@@ -756,7 +756,7 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
         except:
             pass  # fall back to r.text
         content = r.content if r is not None else 'NO CONTENT'
-        is_redirect(r, ui)
+        warn_if_redirected(r, ui)
         ui.debug("Failed authorization response \n{!r}".format(content))
         ui.fatal(('authorization failed -- '
                   'please check project id and model id permissions: {}')
