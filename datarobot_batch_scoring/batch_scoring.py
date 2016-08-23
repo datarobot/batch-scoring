@@ -777,12 +777,13 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     t1 = time()
     queue_size = concurrent * 2
     #  provide version info and system info in user-agent
-    base_headers['User-Agent'] = 'datarobot_batch_scoring/{} ' \
-                                 'Python/{} {} system/{}' \
+    base_headers['User-Agent'] = 'datarobot_batch_scoring/{}|' \
+                                 'Python/{}|{}|system/{}|concurrency/{}' \
                                  ''.format(__version__,
                                            sys.version.split(' ')[0],
                                            requests.utils.default_user_agent(),
-                                           platform.system())
+                                           platform.system(),
+                                           concurrent)
 
     with ExitStack() as stack:
         if os.name is 'nt':

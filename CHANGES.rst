@@ -1,3 +1,11 @@
+1.8.6 (2016 August 23)
+==================
+* improve url parsing
+
+* return more descriptive error messages when there is a problem
+
+* include the version of the batch-scoring script in the user-agent header
+
 1.8.5 (2016 July 28)
 ==================
 * add option to define document encoding
