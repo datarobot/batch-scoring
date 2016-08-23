@@ -11,3 +11,4 @@ build
 .install-deps
 .shelve
 htmlcov
+.idea

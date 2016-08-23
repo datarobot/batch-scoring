@@ -18,6 +18,9 @@ import chardet
 
 if six.PY2:
     import StringIO
+    from urlparse import urlparse
+elif six.PY3:
+    from urllib.parse import urlparse
 
 OptKey = partial(t.Key, optional=True)
 
@@ -483,3 +486,16 @@ def auto_sampler(dataset, encoding, ui):
                                                        lines_per_sample))
     ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
     return lines_per_sample
+
+
+def parse_host(host, ui):
+    parsed = urlparse(host)
+    ui.debug('urlparse.urlparse result: {}'.format(parsed))
+    if not parsed.scheme and not parsed.netloc:
+        #  protocol missing
+        ui.fatal('Cannot parse "--host" argument. Host address must start '
+                 'with a protocol such as "http://" or "https://". '
+                 'Value given: {}'.format(host))
+    base_url = '{}://{}/api/v1/'.format(parsed.scheme, parsed.netloc)
+    ui.debug('parse_host return value: {}'.format(base_url))
+    return base_url

@@ -10,7 +10,8 @@ from datarobot_batch_scoring.batch_scoring import (run_batch_predictions,
                                                    ShelveError)
 from datarobot_batch_scoring.utils import (UI, get_config_file,
                                            parse_config_file,
-                                           verify_objectid)
+                                           verify_objectid,
+                                           parse_host)
 
 VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
 
@@ -263,7 +264,8 @@ def main(argv=sys.argv[1:]):
     pred_name = parsed_args.get('pred_name')
     dry_run = parsed_args.get('dry_run', False)
 
-    base_url = '{}/{}/'.format(host, 'v1')
+    base_url = parse_host(host, ui)
+
     base_headers = {}
     if datarobot_key:
         base_headers['datarobot-key'] = datarobot_key
