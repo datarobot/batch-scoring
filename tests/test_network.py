@@ -48,7 +48,7 @@ def test_request_client_timeout(live_server, tmpdir):
     assert '' in returned, returned
     ui.warning.assert_called_with(textwrap.dedent("""The server did not send any data
 in the allotted amount of time.
-You might want to increase --timeout parameter
+You might want to decrease the "--n_concurrent" parameters
 or
-decrease --n_samples --n_concurrent parameters
+increase "--timeout" parameter.
 """))
