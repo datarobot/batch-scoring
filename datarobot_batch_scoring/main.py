@@ -270,6 +270,7 @@ def main(argv=sys.argv[1:]):
     if datarobot_key:
         base_headers['datarobot-key'] = datarobot_key
 
+    ui.debug('batch_scoring v{}'.format(__version__))
     ui.info('connecting to {}'.format(base_url))
 
     try:
