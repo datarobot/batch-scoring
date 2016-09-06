@@ -1,6 +1,6 @@
 1.8.6 (2016 August 23)
 ==================
-* improve url parsing
+* improve url parsing. You no longer need to include "/api" in the host argument.
 
 * return more descriptive error messages when there is a problem
 
