@@ -4,7 +4,7 @@ import mock
 import pytest
 from datarobot_batch_scoring.utils import (verify_objectid, UI,
                                            iter_chunks, acquire_api_token,
-                                           auto_sampler)
+                                           auto_sampler, parse_host)
 from datarobot_batch_scoring.batch_scoring import \
     investigate_encoding_and_dialect
 from utils import PickableMock
@@ -304,3 +304,31 @@ def test_create_and_acquire_api_token(live_server):
     assert ret == 'Som3tok3n'
     ui.info.assert_called_with('api-token acquired')
     ui.debug.assert_called_with('api-token: Som3tok3n')
+
+
+@pytest.fixture
+def test_parse_host(input, expected):
+    with UI(None, logging.DEBUG, stdout=False) as ui:
+        assert parse_host(input, ui) == expected
+
+
+def test_parse_host_success():
+    test_parse_host('http://dr.com', 'http://dr.com/api/v1/')
+    test_parse_host('https://dr.com', 'https://dr.com/api/v1/')
+    test_parse_host('https://dr.com/api', 'https://dr.com/api/v1/')
+    test_parse_host('https://dr.com/api/v1', 'https://dr.com/api/v1/')
+    test_parse_host('https://dr.com/api/v1/', 'https://dr.com/api/v1/')
+    test_parse_host('http://dr.com/api/v1/', 'http://dr.com/api/v1/')
+    test_parse_host('http://dr.com:8080', 'http://dr.com:8080/api/v1/')
+    test_parse_host('https://127.0.0.1/', 'https://127.0.0.1/api/v1/')
+
+
+def test_parse_host_no_protocol_fatal():
+    host = '57a2a9eac808914f2fb8f717.com/api'
+    with UI(None, logging.INFO, stdout=False) as ui:
+        with mock.patch('datarobot_batch_scoring.utils.UI.fatal') as ui_fatal:
+            msg = ('Cannot parse "--host" argument. Host address must start '
+                   'with a protocol such as "http://" or "https://".'
+                   ' Value given: {}').format(host)
+            parse_host(host, ui)
+            ui_fatal.assert_called_with(msg)

@@ -21,10 +21,12 @@ from six.moves import queue
 from six.moves import zip
 import requests
 import six
+import platform
 
 from datarobot_batch_scoring.network import Network, FakeResponse
 from datarobot_batch_scoring.utils import acquire_api_token, iter_chunks, \
     auto_sampler, Recoder, investigate_encoding_and_dialect
+from datarobot_batch_scoring import __version__
 
 if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
@@ -677,6 +679,23 @@ class OldRunContext(RunContext):
         return args
 
 
+def warn_if_redirected(req, ui):
+    """
+    test whether a request was redirect.
+    Log a warning to the user if it was redirected
+    """
+    history = req.history
+    if history:
+        first = history[0]
+        if first.is_redirect:
+            starting_endpoint = first.url  # Requested url
+            redirect_endpoint = first.headers.get('Location')  # redirect
+            if str(starting_endpoint) != str(redirect_endpoint):
+                ui.warning('The requested URL:\n\t{}\n\twas redirected '
+                           'by the webserver to:\n\t{}'
+                           ''.format(starting_endpoint, redirect_endpoint))
+
+
 def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
     """Check if user is authorized for the given model and that schema is
     correct.
@@ -698,6 +717,8 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
             if r.status_code == 200:
                 # all good
                 break
+
+            warn_if_redirected(r, ui)
             if r.status_code == 400:
                 # client error -- maybe schema is wrong
                 try:
@@ -705,12 +726,25 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
                 except:
                     msg = r.text
                 ui.fatal('failed with client error: {}'.format(msg))
+            elif r.status_code == 403:
+                #  This is usually a bad API token. E.g.
+                #  {"status": "API token not valid", "code": 403}
+                ui.fatal('Failed with message:\n\t{}'.format(r.text))
             elif r.status_code == 401:
+                #  This can be caused by having the wrong datarobot_key
                 ui.fatal('failed to authenticate -- '
-                         'please check your username and/or api token.')
+                         'please check your: datarobot_key (if required), '
+                         'username/password and/or api token. Contact '
+                         'customer support if the problem persists '
+                         'message:\n{}'
+                         ''.format(r.__dict__.get('_content')))
             elif r.status_code == 405:
-                ui.fatal('failed to request endpoint -- '
-                         'please check your --host argument.')
+                ui.fatal('failed to request endpoint -- please check your '
+                         '"--host" argument')
+            elif r.status_code == 502:
+                ui.fatal('problem with the gateway -- please check your '
+                         '"--host" argument and contact customer support'
+                         'if the problem persists.')
         except requests.exceptions.ConnectionError:
             ui.error('cannot connect to {}'.format(endpoint))
         n_retry -= 1
@@ -722,6 +756,7 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
         except:
             pass  # fall back to r.text
         content = r.content if r is not None else 'NO CONTENT'
+        warn_if_redirected(r, ui)
         ui.debug("Failed authorization response \n{!r}".format(content))
         ui.fatal(('authorization failed -- '
                   'please check project id and model id permissions: {}')
@@ -741,6 +776,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
     multiprocessing.freeze_support()
     t1 = time()
     queue_size = concurrent * 2
+    #  provide version info and system info in user-agent
+    base_headers['User-Agent'] = 'datarobot_batch_scoring/{}|' \
+                                 'Python/{}|{}|system/{}|concurrency/{}' \
+                                 ''.format(__version__,
+                                           sys.version.split(' ')[0],
+                                           requests.utils.default_user_agent(),
+                                           platform.system(),
+                                           concurrent)
+
     with ExitStack() as stack:
         if os.name is 'nt':
             #  Windows requires an additional manager process. The locks

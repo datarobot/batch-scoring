@@ -26,7 +26,7 @@ Install or upgrade to last version:
 How to install particular version:
 ::
 
-    $ pip install datarobot_batch_scoring==1.5.1
+    $ pip install datarobot_batch_scoring==1.8.6
 
 Features
 --------
@@ -97,7 +97,7 @@ The following table describes each of the arguments:
 
 Example::
 
-  batch_scoring --host=https://beta.datarobot.com/api --user="greg@datarobot.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
+  batch_scoring --host=https://beta.datarobot.com/ --user="greg@datarobot.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
 
 
 Using configuration file

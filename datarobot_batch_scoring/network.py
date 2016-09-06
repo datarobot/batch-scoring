@@ -32,9 +32,9 @@ class Network(object):
         except requests.exceptions.ReadTimeout:
             self._ui.warning(textwrap.dedent("""The server did not send any data
 in the allotted amount of time.
-You might want to increase --timeout parameter
+You might want to decrease the "--n_concurrent" parameters
 or
-decrease --n_samples --n_concurrent parameters
+increase "--timeout" parameter.
 """))
 
         except Exception as exc:

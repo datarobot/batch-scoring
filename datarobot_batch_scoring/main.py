@@ -10,7 +10,8 @@ from datarobot_batch_scoring.batch_scoring import (run_batch_predictions,
                                                    ShelveError)
 from datarobot_batch_scoring.utils import (UI, get_config_file,
                                            parse_config_file,
-                                           verify_objectid)
+                                           verify_objectid,
+                                           parse_host)
 
 VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
 
@@ -19,8 +20,7 @@ DESCRIPTION = """
 Batch score DATASET by submitting prediction requests against HOST
 using PROJECT_ID and MODEL_ID.
 
-It will send batches of size N_SAMPLES.
-Set N_SAMPLES such that the round-trip is roughly 10sec (see verbose output).
+It optimizes prediction throughput by sending data in batches of 1.5mb.
 
 Set N_CONCURRENT to match the number of cores in the prediction API endpoint.
 
@@ -32,9 +32,9 @@ might be unordered.
 
 EPILOG = """
 Example:
-  $ batch_scoring --host https://beta.datarobot.com/api --user="<username>" \
---password="<password>" 5545eb20b4912911244d4835 5545eb71b4912911244d4847 \
-~/Downloads/diabetes_test.csv
+  $ batch_scoring --host https://example.orm.datarobot.com \
+  --user="<username>" --password="<password>" 5545eb20b4912911244d4835 \
+  5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
 """
 
 
@@ -54,10 +54,9 @@ def main(argv=sys.argv[1:]):
                         version=VERSION_TEMPLATE, help='Show version')
     dataset_gr = parser.add_argument_group('Dataset and server')
     dataset_gr.add_argument('--host', type=str,
-                            help='Specifies the hostname of the prediction '
-                            'API endpoint (the location of the data '
-                            'from where '
-                            'to get predictions)')
+                            help='Specifies the protocol (http or https) and '
+                                 'hostname of the prediction API endpoint. '
+                                 'E.g. "https://example.orm.datarobot.com"')
     dataset_gr.add_argument('project_id', type=str,
                             help='Specifies the project '
                             'identification string.')
@@ -152,7 +151,8 @@ def main(argv=sys.argv[1:]):
     csv_gr.add_argument('--auto_sample', action='store_true',
                         default=False,
                         help='Override "n_samples" and instead '
-                        'use chunks of about 1.5 MB.')
+                        'use chunks of about 1.5 MB. This is recommended and '
+                        'enabled by default if "n_samples" is not defined.')
     csv_gr.add_argument('--encoding', type=str,
                         default='', help='Declare the dataset encoding. '
                         'If an encoding is not provided the batch_scoring '
@@ -263,11 +263,13 @@ def main(argv=sys.argv[1:]):
     pred_name = parsed_args.get('pred_name')
     dry_run = parsed_args.get('dry_run', False)
 
-    base_url = '{}/{}/'.format(host, 'v1')
+    base_url = parse_host(host, ui)
+
     base_headers = {}
     if datarobot_key:
         base_headers['datarobot-key'] = datarobot_key
 
+    ui.debug('batch_scoring v{}'.format(__version__))
     ui.info('connecting to {}'.format(base_url))
 
     try:
