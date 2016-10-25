@@ -235,7 +235,7 @@ def test_auto_sample():
     with UI(None, logging.DEBUG, stdout=False) as ui:
         data = 'tests/fixtures/criteo_top30_1m.csv.gz'
         encoding = investigate_encoding_and_dialect(data, None, ui)
-        assert auto_sampler(data, encoding, ui) == 8988
+        assert auto_sampler(data, encoding, ui) == 14980
         ui.close()
 
 
