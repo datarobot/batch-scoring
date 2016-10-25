@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 import os
@@ -152,7 +153,23 @@ def app():
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
+        body = flask.request.data
+        body = body.decode('utf-8').splitlines()
+        rows = len(body) - 1
+
+        try:
+            # for files with row_id as first column
+            first_row = int(body[1].split(',')[0]) % 10
+        except ValueError:
+            first_row = 0
+            rows = 1000
+
         with open(MAPPING.get(lid), 'r') as f:
-            return f.read()
+            reply = json.load(f)
+            reply["predictions"] = \
+                reply["predictions"][first_row:first_row + rows]
+            for v in reply["predictions"]:
+                v["row_id"] -= first_row
+            return json.dumps(reply).encode('utf-8')
 
     return app

@@ -31,7 +31,8 @@ def test_gzipped_csv(live_server):
         fast_mode=False,
         dry_run=False,
         encoding='',
-        skip_dialect=False
+        skip_dialect=False,
+        max_batch_size=1000
     )
 
     assert ret is None

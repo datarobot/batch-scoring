@@ -43,10 +43,10 @@ class ShelveError(Exception):
     pass
 
 
-Batch = collections.namedtuple('Batch', 'id fieldnames data rty_cnt')
+Batch = collections.namedtuple('Batch', 'id rows fieldnames data rty_cnt')
 Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
-SENTINEL = Batch(-1, None, '', -1)
+SENTINEL = Batch(-1, 0, None, '', -1)
 
 
 class TargetType(object):
@@ -200,8 +200,9 @@ class BatchGenerator(object):
             for chunk in iter_chunks(reader, self.chunksize):
                 has_content = True
                 n_rows = len(chunk)
-                if rows_read not in self.already_processed_batches:
-                    yield Batch(rows_read, fieldnames, chunk, self.rty_cnt)
+                if (rows_read, n_rows) not in self.already_processed_batches:
+                    yield Batch(rows_read, n_rows, fieldnames,
+                                chunk, self.rty_cnt)
                 rows_read += n_rows
             if not has_content:
                 raise ValueError("Input file '{}' is empty.".format(
@@ -343,7 +344,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, queue, endpoint, headers, user, api_token,
-                 ctx, pred_name, fast_mode, ui):
+                 ctx, pred_name, fast_mode, ui, max_batch_size):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -353,6 +354,7 @@ class WorkUnitGenerator(object):
         self.pred_name = pred_name
         self.fast_mode = fast_mode
         self._ui = ui
+        self.max_batch_size = max_batch_size
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
@@ -366,9 +368,11 @@ class WorkUnitGenerator(object):
                         self.queue.push(batch)
                         return
                     exec_time = result['execution_time']
-                    self._ui.debug(('successful response: exec time '
+                    self._ui.debug(('successful response {}-{}: exec time '
                                     '{:.0f}msec |'
                                     ' round-trip: {:.0f}msec').format(
+                                        batch.id,
+                                        batch.rows,
                                         exec_time,
                                         r.elapsed.total_seconds() * 1000))
                     process_successful_request(result, batch, self.ctx,
@@ -412,23 +416,53 @@ class WorkUnitGenerator(object):
                                'we lost {} records'.format(
                                    batch.id, len(batch.data)))
                 continue
-            hook = partial(self._response_callback, batch=batch)
 
             if self.fast_mode:
                 chunk_formatter = fast_to_csv_chunk
             else:
                 chunk_formatter = slow_to_csv_chunk
 
-            data = chunk_formatter(batch.data, batch.fieldnames)
-            self._ui.debug('batch {} transmitting {} bytes'
-                           .format(batch.id, len(data)))
-            yield requests.Request(
-                method='POST',
-                url=self.endpoint,
-                headers=self.headers,
-                data=data,
-                auth=(self.user, self.api_token),
-                hooks={'response': hook})
+            todo = [batch]
+            while todo:
+                batch = todo.pop(0)
+                data = chunk_formatter(batch.data, batch.fieldnames)
+                if len(data) < self.max_batch_size:
+                    self._ui.debug('batch {}-{} transmitting {} bytes'
+                                   .format(batch.id, batch.rows, len(data)))
+
+                    hook = partial(self._response_callback, batch=batch)
+
+                    yield requests.Request(
+                        method='POST',
+                        url=self.endpoint,
+                        headers=self.headers,
+                        data=data,
+                        auth=(self.user, self.api_token),
+                        hooks={'response': hook})
+                else:
+                    self._ui.debug('batch {}-{} is too long: {} bytes,'
+                                   ' splitting' .format(batch.id, batch.rows,
+                                                        len(data)))
+
+                    if batch.rows < 2:
+                        self._ui.error('batch {} is single row but bigger '
+                                       'than limit, skipping, we lost {} '
+                                       'records'.format(batch.id,
+                                                        len(batch.data)))
+                        continue
+
+                    split_point = int(batch.rows/2)
+
+                    data1 = batch.data[:split_point]
+                    batch1 = Batch(batch.id, split_point, batch.fieldnames,
+                                   data1, batch.rty_cnt)
+                    todo.append(batch1)
+
+                    data2 = batch.data[split_point:]
+                    batch2 = Batch(batch.id + split_point,
+                                   batch.rows - split_point,
+                                   batch.fieldnames, data2, batch.rty_cnt)
+                    todo.append(batch2)
 
 
 class RunContext(object):
@@ -548,10 +582,11 @@ class RunContext(object):
             writer.writerows(comb)
             self.out_stream.flush()
 
-            self.db['checkpoints'].append(batch.id)
+            self.db['checkpoints'].append((batch.id, batch.rows))
 
             self.db['first_write'] = False
-            self._ui.info('batch {} checkpointed'.format(batch.id))
+            self._ui.info('batch {}-{} checkpointed'
+                          .format(batch.id, batch.rows))
             self.db.sync()
 
 
@@ -772,7 +807,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
                           timeout, ui, fast_mode, auto_sample,
-                          dry_run, encoding, skip_dialect):
+                          dry_run, encoding, skip_dialect,
+                          max_batch_size=3.5 * 1024 ** 2):
     multiprocessing.freeze_support()
     t1 = time()
     queue_size = concurrent * 2
@@ -862,7 +898,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                           ctx=ctx,
                                           pred_name=pred_name,
                                           fast_mode=fast_mode,
-                                          ui=ui)
+                                          ui=ui,
+                                          max_batch_size=max_batch_size)
         t0 = time()
         i = 0
 
