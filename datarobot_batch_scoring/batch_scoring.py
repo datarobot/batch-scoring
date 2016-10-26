@@ -48,6 +48,8 @@ Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 SENTINEL = Batch(-1, 0, None, '', -1)
 
+MAX_BATCH_SIZE = 5 * 1024 ** 2
+
 
 class TargetType(object):
     REGRESSION = 'Regression'
@@ -808,7 +810,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           dataset, pred_name,
                           timeout, ui, fast_mode, auto_sample,
                           dry_run, encoding, skip_dialect,
-                          max_batch_size=3.5 * 1024 ** 2):
+                          max_batch_size=MAX_BATCH_SIZE):
     multiprocessing.freeze_support()
     t1 = time()
     queue_size = concurrent * 2
