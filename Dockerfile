@@ -1,4 +1,4 @@
-FROM python:3.5
+FROM python:2.7
 
 COPY requirements.txt /opt/project/requirements.txt
 
@@ -14,6 +14,8 @@ RUN pip install -e .
 
 COPY docker-entrypoint.sh /
 
+RUN chmod +x /docker-entrypoint.sh
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-CMD ["/usr/local/bin/batch_scoring"]
+CMD ["/bin/bash"]

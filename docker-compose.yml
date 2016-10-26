@@ -2,4 +2,11 @@ version: "2"
 services:
   python:
      image: batch-scoring
-     build: .
+     build:
+        context: .
+        dockerfile: Dockerfile
+  python26:
+     image: batch-scoring-2.6
+     build:
+        context: .
+        dockerfile: Dockerfile-2.6
