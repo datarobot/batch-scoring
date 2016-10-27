@@ -28,6 +28,13 @@ input = six.moves.input
 
 CONFIG_FILENAME = 'batch_scoring.ini'
 
+DETECT_SAMPLE_SIZE_FAST = int(0.2 * 1024 ** 2)
+DETECT_SAMPLE_SIZE_SLOW = 1024 ** 2
+
+AUTO_SAMPLE_SIZE = int(0.5 * 1024 ** 2)
+AUTO_SMALL_SAMPLES = 500
+AUTO_GOAL_SIZE = int(2.5 * 1024 ** 2)  # size we want per batch
+
 
 def verify_objectid(id_):
     """Verify if id_ is a proper ObjectId. """
@@ -342,9 +349,9 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
     Running this is costly so run it once per dataset."""
     t0 = time()
     if fast:
-        sample_size = int(0.2 * 1024 ** 2)
+        sample_size = DETECT_SAMPLE_SIZE_FAST
     else:
-        sample_size = 1024 ** 2
+        sample_size = DETECT_SAMPLE_SIZE_SLOW
 
     if dataset.endswith('.gz'):
         opener = gzip.open
@@ -426,7 +433,7 @@ def auto_sampler(dataset, encoding, ui):
 
     t0 = time()
 
-    sample_size = int(0.5 * 1024 ** 2)
+    sample_size = AUTO_SAMPLE_SIZE
     if dataset.endswith('.gz'):
         opener = gzip.open
     else:
@@ -439,8 +446,9 @@ def auto_sampler(dataset, encoding, ui):
     if size_bytes < (sample_size * 0.75):
         #  if dataset is tiny, don't bother auto sampling.
         ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
-        ui.info('auto_sampler: defaulting to 500 samples for small dataset')
-        return 500
+        ui.info('auto_sampler: defaulting to {} samples for small dataset'
+                .format(AUTO_SMALL_SAMPLES))
+        return AUTO_SMALL_SAMPLES
 
     if six.PY3:
         buf = io.StringIO()
@@ -479,7 +487,7 @@ def auto_sampler(dataset, encoding, ui):
 
     buf.close()
     avg_line = int(size_bytes / csv_lines)
-    chunk_size_goal = int(1.5 * 1024 ** 2)  # size we want per batch
+    chunk_size_goal = AUTO_GOAL_SIZE  # size we want per batch
     lines_per_sample = int(chunk_size_goal / avg_line) + 1
     ui.debug('auto_sampler: lines counted: {},  avgerage line size: {}, '
              'recommended lines per sample: {}'.format(csv_lines, avg_line,
