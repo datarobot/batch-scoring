@@ -42,7 +42,8 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             fast_mode=fast_mode,
             dry_run=False,
             encoding='',
-            skip_dialect=False
+            skip_dialect=False,
+            max_batch_size=100
         )
         assert ret is None
         actual = out.read_text('utf-8')
