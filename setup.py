@@ -15,14 +15,11 @@ else:
     py2exe = None
     from setuptools import setup
 
-    install_requires = [
-        "six>=1.9.0",
-        "requests>=2.7.0",
-        "trafaret[objectid]>=0.7.1",
-        "contextlib2>=0.5.1",
-        "futures>=3.0.4",
-        "chardet>=2.3.0"
-        ]
+    fname = os.path.join(os.path.abspath(os.path.dirname(
+        __file__)), 'requirements.txt')
+
+    install_requires = open(fname, 'r').readlines()
+
     extra['entry_points'] = {
         'console_scripts': [
             'batch_scoring = datarobot_batch_scoring.main:main']}
