@@ -1,12 +1,10 @@
 FROM python:2.7
 
-COPY requirements.txt /opt/project/requirements.txt
+COPY requirements.txt requirements-test.txt /opt/project/
 
 WORKDIR /opt/project
 
-RUN grep -v '^-e .' requirements.txt >/tmp/requirements.txt && \
-	pip install -r /tmp/requirements.txt && \
-	rm /tmp/requirements.txt
+RUN pip install -r requirements.txt -r requirements-test.txt
 
 COPY . /opt/project
 
