@@ -143,7 +143,11 @@ def main(argv=sys.argv[1:]):
                         'determine the delimiter. The special keyword "tab" '
                         'can be used to indicate a tab delimited csv.')
     csv_gr.add_argument('--pred_name', type=str,
-                        nargs='?')
+                        nargs='?', default=None,
+                        help='Specifies column name for prediction results, '
+                        'empty name is used if not specified. For binary '
+                        'predictions assumes last class in lexical order '
+                        'as positive')
     csv_gr.add_argument('--fast', action='store_true',
                         default=False,
                         help='Experimental: faster CSV processor. '

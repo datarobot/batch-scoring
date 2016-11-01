@@ -18,6 +18,22 @@ You can also create virtualenvs with different python versions::
 
     $ mkvirtualenv batch_scoring_3 -p /usr/bin/python3.5
 
+Using Docker containers
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Build containers::
+
+    $ docker-compose build
+
+Run tests in 2.7 and 3.5::
+
+    $ docker-compose run python27 make test
+    $ docker-compose run python35 make test
+
+Run batch-scoring from container::
+
+    $ docker-compose run python27 batch-scoring {args..}
+    $ docker-compose run python35 batch-scoring {args..}
 
 Deployment
 ----------

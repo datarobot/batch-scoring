@@ -318,8 +318,8 @@ def process_successful_request(result, batch, ctx, pred_name):
         sorted_classes = list(
             sorted(predictions[0]['class_probabilities'].keys()))
         out_fields = ['row_id'] + sorted_classes
-        if pred_name is not None and '1.0' in sorted_classes:
-            sorted_classes = ['1.0']
+        if pred_name is not None:
+            sorted_classes = [sorted_classes[-1]]
             out_fields = ['row_id'] + [pred_name]
         pred = [[p['row_id'] + batch.id] +
                 [p['class_probabilities'][c] for c in sorted_classes]

@@ -1,3 +1,17 @@
+X.X.X (?)
+=========
+* --pred_name parameter is documented. Potentially backward incompatible change:
+      previously 1.0 class was used as positive result for binary predictions,
+      now last class in lexical order is used
+
+1.8.7 (2016 November 1)
+==================
+* internal check and error avoidance logic for too big requests to API
+
+* docker and docker-compose files for dockerized run of tests and script
+
+* auto sampler target batch size increased to 2.5M
+
 1.8.6 (2016 August 23)
 ==================
 * improve url parsing. You no longer need to include "/api" in the host argument.
