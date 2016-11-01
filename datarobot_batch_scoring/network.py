@@ -60,8 +60,12 @@ increase "--timeout" parameter.
             yield
         #  wait for all batches to finish before returning
         while self.futures:
+            f_len = self.futures
             self.futures = [i for i in self.futures if not i.done()]
-            self._ui.debug('SLEEP Until End')
+            if f_len != self.futures:
+                self._ui.debug('Waiting for final requests to finish. '
+                               'remaining requests: {}'
+                               ''.format(len(self.futures)))
             sleep(0.1)
 
     def __enter__(self):
