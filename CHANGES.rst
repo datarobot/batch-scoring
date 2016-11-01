@@ -1,12 +1,12 @@
-X.X.X (?)
-=========
-* --pred_name parameter is documented. Potentially backward incompatible change:
-      previously 1.0 class was used as positive result for binary predictions,
-      now last class in lexical order is used
-
 1.8.7 (2016 November 1)
 ==================
-* internal check and error avoidance logic for too big requests to API
+* --pred_name parameter is documented. Potentially backward incompatible change:
+Previously, 1.0 class was used as positive result for binary predictions, 
+now last class in lexical order is used
+
+* Fixed memory leak and performance problem caused by unrestricted batch-generator
+
+* internal check and error avoidance logic for requests that are too large
 
 * docker and docker-compose files for dockerized run of tests and script
 
