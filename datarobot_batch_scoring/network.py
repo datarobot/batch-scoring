@@ -1,7 +1,6 @@
 import collections
 import logging
 import textwrap
-import gc
 from time import sleep
 import requests
 
@@ -47,19 +46,14 @@ increase "--timeout" parameter.
                 callback = request.hooks['response'][0]
             response = FakeResponse(400, 'No Response')
             callback(response)
-        finally:
-            request.data = None
-            prepared.data = None
-            del request
-            del prepared
-            gc.collect()
 
     def perform_requests(self, requests):
         for r in requests:
             while True:
                 self.futures = [i for i in self.futures if not i.done()]
                 if len(self.futures) < self.concurrency:
-                    self.futures.append(self._executor.submit(self._request, r))
+                    self.futures.append(self._executor.submit(self._request,
+                                                              r))
                     break
                 else:
                     sleep(0.1)
