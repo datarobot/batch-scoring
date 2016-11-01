@@ -2,7 +2,7 @@ import collections
 import logging
 import textwrap
 import gc
-
+from time import sleep
 import requests
 
 try:
@@ -24,6 +24,8 @@ class Network(object):
         self._timeout = timeout
         self.session = requests.Session()
         self._ui = ui or logger
+        self.futures = []
+        self.concurrency = concurrency
 
     def _request(self, request):
         prepared = self.session.prepare_request(request)
@@ -53,7 +55,20 @@ increase "--timeout" parameter.
             gc.collect()
 
     def perform_requests(self, requests):
-        return self._executor.map(self._request, requests)
+        for r in requests:
+            while True:
+                self.futures = [i for i in self.futures if not i.done()]
+                if len(self.futures) < self.concurrency:
+                    self.futures.append(self._executor.submit(self._request, r))
+                    break
+                else:
+                    sleep(0.1)
+            yield
+        #  wait for all batches to finish before returning
+        while self.futures:
+            self.futures = [i for i in self.futures if not i.done()]
+            self._ui.debug('SLEEP Until End')
+            sleep(0.1)
 
     def __enter__(self):
         return self

@@ -912,8 +912,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.info('dry-run complete | total time elapsed {}s'.format(
                 time() - t1))
         else:
-            responses = network.perform_requests(work_unit_gen)
-            for r in responses:
+            for r in  network.perform_requests(work_unit_gen):
                 i += 1
                 ui.info('{} responses sent | time elapsed {}s'
                         .format(i, time() - t0))
