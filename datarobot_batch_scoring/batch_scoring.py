@@ -249,7 +249,8 @@ class MultiprocessingGeneratorBackedQueue(object):
                 r = self.queue.get()
                 if r.id == SENTINEL.id:
                     if r.rows == ERROR_SENTINEL.rows:
-                        self._ui.error('Error parsing CSV file, check logs for exact error')
+                        self._ui.error('Error parsing CSV file, '
+                                       'check logs for exact error')
                     raise StopIteration
                 self.n_consumed += 1
                 return r
