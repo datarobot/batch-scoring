@@ -250,3 +250,13 @@ def test_regression_keep_cols_multi_fast(live_server, tmpdir):
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx.csv',
                     fast_mode=True)
+
+
+@pytest.mark.skipif(six.PY3 and os.name is 'nt',
+                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
+                           " reproduce on actual Windows machine.")
+def test_regression_bad_csv(live_server, tmpdir):
+    test_regression(live_server, tmpdir,
+                    in_fixture='tests/fixtures/regression_bad.csv',
+                    out_fixture='tests/fixtures/regression_output_bad.csv',
+                    fast_mode=False)
