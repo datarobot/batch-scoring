@@ -60,6 +60,8 @@ config_validator = t.Dict({
     OptKey('api_token'): t.String,
     OptKey('create_api_token'): t.String,
     OptKey('pred_name'): t.String,
+    OptKey('skip_row_id'): t.Bool,
+    OptKey('output_delimiter'): t.String,
 }).allow_extra('*')
 
 
@@ -343,7 +345,8 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
 
 
 def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
-                                     encoding=None, skip_dialect=False):
+                                     encoding=None, skip_dialect=False,
+                                     output_delimiter=None):
     """Try to identify encoding and dialect.
     Providing a delimiter may help with smaller datasets.
     Running this is costly so run it once per dataset."""
@@ -410,7 +413,8 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
     csv.register_dialect('dataset_dialect', dialect)
     #  the csv writer should use the systems newline char
     csv.register_dialect('writer_dialect', dialect,
-                         lineterminator=os.linesep)
+                         lineterminator=os.linesep,
+                         delimiter=(output_delimiter or dialect.delimiter))
     ui.debug('investigate_encoding_and_dialect - total time seconds -'
              ' {}'.format(time() - t0))
     ui.debug('investigate_encoding_and_dialect - encoding -'

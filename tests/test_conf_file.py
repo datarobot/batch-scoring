@@ -121,7 +121,9 @@ def test_run_main_with_conf_file(monkeypatch):
                 fast_mode=True,
                 dry_run=False,
                 encoding='',
-                skip_dialect=False
+                skip_dialect=False,
+                skip_row_id=False,
+                output_delimiter=None
             )
     finally:
         os.remove(test_file.name)
@@ -176,7 +178,9 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     fast_mode=False,
                     dry_run=False,
                     encoding='',
-                    skip_dialect=False
+                    skip_dialect=False,
+                    skip_row_id=False,
+                    output_delimiter=None
                 )
     finally:
         os.remove(test_file.name)
