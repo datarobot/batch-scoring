@@ -89,11 +89,12 @@ def slow_to_csv_chunk(data, header):
 
 
 class CSVReader(object):
-    def __init__(self, fd, encoding):
+    def __init__(self, fd, encoding, ui):
         self.fd = fd
         #  dataset_dialect is set by investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
         self.encoding = encoding
+        self._ui = ui
 
     def _create_reader(self):
         fd = Recoder(self.fd, self.encoding)
@@ -103,8 +104,8 @@ class CSVReader(object):
 class FastReader(CSVReader):
     """A reader that only reads the file in text mode but not parses it. """
 
-    def __init__(self, fd, encoding):
-        super(FastReader, self).__init__(fd, encoding)
+    def __init__(self, fd, encoding, ui):
+        super(FastReader, self).__init__(fd, encoding, ui)
         self._check_for_multiline_input()
         reader = self._create_reader()
         self.header = next(reader)
@@ -138,8 +139,8 @@ class SlowReader(CSVReader):
     """The slow reader does actual CSV parsing.
     It supports multiline csv and can be a factor of 50 slower. """
 
-    def __init__(self, fd, encoding):
-        super(SlowReader, self).__init__(fd, encoding)
+    def __init__(self, fd, encoding, ui):
+        super(SlowReader, self).__init__(fd, encoding, ui)
         reader = self._create_reader()
         self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
@@ -194,7 +195,7 @@ class BatchGenerator(object):
             reader_factory = SlowReader
 
         with self.csv_input_file_reader() as csvfile:
-            reader = reader_factory(csvfile, encoding=self.encoding)
+            reader = reader_factory(csvfile, self.encoding, self._ui)
             fieldnames = reader.fieldnames
 
             has_content = False

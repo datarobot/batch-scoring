@@ -269,6 +269,21 @@ def test_regression_bad_csv(live_server, tmpdir):
 @pytest.mark.skipif(six.PY3 and os.name is 'nt',
                     reason="py3 on windows appveyor fails unexpectedly. Cannot"
                            " reproduce on actual Windows machine.")
+def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
+    def sys_exit(code):
+        raise RuntimeError
+
+    monkeypatch.setattr(os, "_exit", sys_exit)
+    with pytest.raises(RuntimeError):
+        test_regression(live_server, tmpdir,
+                        in_fixture='tests/fixtures/regression_bad2.csv',
+                        out_fixture='tests/fixtures/regression_output_bad2.csv',
+                        fast_mode=True)
+
+
+@pytest.mark.skipif(six.PY3 and os.name is 'nt',
+                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
+                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
