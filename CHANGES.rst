@@ -10,6 +10,8 @@ X.X.X (?)
 * added summary of run at the end of script output with full list of errors,
     warnings and total stats.
 
+* fixed error when trying to report multiline CSV error in fast mode
+
 1.8.7 (2016 November 1)
 ==================
 * --pred_name parameter is documented. Potentially backward incompatible change:
