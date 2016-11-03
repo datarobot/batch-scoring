@@ -11,7 +11,7 @@ services:
      image: batch-scoring-2.7
      build:
         context: .
-        dockerfile: Dockerfile-3.5
+        dockerfile: Dockerfile-2.7
      volumes:
         - .:/opt/project
   python35:
