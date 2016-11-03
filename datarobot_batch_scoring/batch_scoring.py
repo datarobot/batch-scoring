@@ -47,6 +47,7 @@ Batch = collections.namedtuple('Batch', 'id rows fieldnames data rty_cnt')
 Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 SENTINEL = Batch(-1, 0, None, '', -1)
+ERROR_SENTINEL = Batch(-1, 1, None, '', -1)
 
 MAX_BATCH_SIZE = 5 * 1024 ** 2
 
@@ -247,6 +248,9 @@ class MultiprocessingGeneratorBackedQueue(object):
             try:
                 r = self.queue.get()
                 if r.id == SENTINEL.id:
+                    if r.rows == ERROR_SENTINEL.rows:
+                        self._ui.error('Error parsing CSV file, '
+                                       'check logs for exact error')
                     raise StopIteration
                 self.n_consumed += 1
                 return r
@@ -299,7 +303,11 @@ class Shovel(object):
                 queue.put(batch)
 
             queue.put(SENTINEL)
+        except csv.Error:
+            queue.put(ERROR_SENTINEL)
+            raise
         finally:
+            queue.put(SENTINEL)
             if os.name is 'nt':
                 _ui.close()
 
