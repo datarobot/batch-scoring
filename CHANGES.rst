@@ -5,6 +5,11 @@ X.X.X (?)
 
 * --skip_row_id flag to skip row_id column in output
 
+* fixed hang of batch-scoring script on CSV parse errors
+
+* added summary of run at the end of script output with full list of errors,
+    warnings and total stats.
+
 1.8.7 (2016 November 1)
 ==================
 * --pred_name parameter is documented. Potentially backward incompatible change:
