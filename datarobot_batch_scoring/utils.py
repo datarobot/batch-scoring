@@ -414,7 +414,7 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
     #  the csv writer should use the systems newline char
     csv.register_dialect('writer_dialect', dialect,
                          lineterminator=os.linesep,
-                         delimiter=(output_delimiter or dialect.delimiter))
+                         delimiter=str(output_delimiter or dialect.delimiter))
     ui.debug('investigate_encoding_and_dialect - total time seconds -'
              ' {}'.format(time() - t0))
     ui.debug('investigate_encoding_and_dialect - encoding -'
