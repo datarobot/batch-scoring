@@ -487,7 +487,7 @@ class RunContext(object):
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
-                 fast_mode, encoding, lock):
+                 fast_mode, encoding, skip_row_id, output_delimiter, lock):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -503,6 +503,8 @@ class RunContext(object):
         self.file_context = file_context
         self.fast_mode = fast_mode
         self.encoding = encoding
+        self.skip_row_id = skip_row_id
+        self.output_delimiter = output_delimiter
         #  dataset_dialect and writer_dialect are set by
         #  investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
@@ -512,7 +514,7 @@ class RunContext(object):
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
-               fast_mode, encoding, lock):
+               fast_mode, encoding, skip_row_id, output_delimiter, lock):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -534,7 +536,8 @@ class RunContext(object):
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
-                         fast_mode, encoding, lock)
+                         fast_mode, encoding, skip_row_id, output_delimiter,
+                         lock)
 
     def __enter__(self):
         self.db = shelve.open(self.file_context.file_name, writeback=True)
@@ -567,7 +570,12 @@ class RunContext(object):
                                enumerate(batch.fieldnames)}
             indices = [feature_indices[col] for col in self.keep_cols]
 
-            written_fields = ['row_id'] + self.keep_cols + out_fields[1:]
+            written_fields = []
+
+            if not self.skip_row_id:
+                written_fields.append('row_id')
+
+            written_fields += self.keep_cols + out_fields[1:]
 
             # first column is row_id
             comb = []
@@ -577,10 +585,19 @@ class RunContext(object):
                     # FIXME this will fail on quoted fields!
                     row = row.rstrip().split(input_delimiter)
                 keeps = [row[i] for i in indices]
-                comb.append([predicted[0]] + keeps + predicted[1:])
+                output_row = []
+                if not self.skip_row_id:
+                    output_row.append(predicted[0])
+                output_row += keeps + predicted[1:]
+                comb.append(output_row)
         else:
-            comb = pred
-            written_fields = out_fields
+            if not self.skip_row_id:
+                comb = pred
+                written_fields = out_fields
+            else:
+                written_fields = out_fields[1:]
+                comb = [row[1:] for row in pred]
+
         with self.lock:
             # if an error happends during/after the append we
             # might end up with inconsistent state
@@ -645,6 +662,8 @@ class NewRunContext(RunContext):
         self.db['project_id'] = self.project_id
         self.db['model_id'] = self.model_id
         self.db['keep_cols'] = self.keep_cols
+        self.db['skip_row_id'] = self.skip_row_id
+        self.db['output_delimiter'] = self.output_delimiter
         # list of batch ids that have been processed
         self.db['checkpoints'] = []
         # used to check if output file is dirty (ie first write op)
@@ -699,6 +718,15 @@ class OldRunContext(RunContext):
         if self.db['keep_cols'] != self.keep_cols:
             raise ShelveError('keep_cols mismatch: should be {} but was {}'
                               .format(self.db['keep_cols'], self.keep_cols))
+        if self.db['skip_row_id'] != self.skip_row_id:
+            raise ShelveError('skip_row_id mismatch: should be {} but was {}'
+                              .format(self.db['skip_row_id'],
+                                      self.skip_row_id))
+        if self.db['output_delimiter'] != self.output_delimiter:
+            raise ShelveError('output_delimiter mismatch: should be {}'
+                              ' but was {}'.format(
+                                    self.db['output_delimiter'],
+                                    self.output_delimiter))
 
         if six.PY2:
             self.out_stream = open(self.out_file, 'ab')
@@ -818,6 +846,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           dataset, pred_name,
                           timeout, ui, fast_mode, auto_sample,
                           dry_run, encoding, skip_dialect,
+                          skip_row_id=False,
+                          output_delimiter=None,
                           max_batch_size=MAX_BATCH_SIZE):
     multiprocessing.freeze_support()
     t1 = time()
@@ -856,11 +886,13 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         base_headers['content-type'] = 'text/csv; charset=utf8'
         endpoint = base_url + '/'.join((pid, lid, 'predict'))
-        encoding = investigate_encoding_and_dialect(dataset=dataset,
-                                                    sep=delimiter, ui=ui,
-                                                    fast=fast_mode,
-                                                    encoding=encoding,
-                                                    skip_dialect=skip_dialect)
+        encoding = investigate_encoding_and_dialect(
+            dataset=dataset,
+            sep=delimiter, ui=ui,
+            fast=fast_mode,
+            encoding=encoding,
+            skip_dialect=skip_dialect,
+            output_delimiter=output_delimiter)
         if auto_sample:
             #  override n_sample
             n_samples = auto_sampler(dataset, encoding, ui)
@@ -883,7 +915,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             RunContext.create(resume, n_samples, out_file, pid,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
-                              encoding, lock))
+                              encoding, skip_row_id, output_delimiter, lock))
         network = stack.enter_context(Network(concurrent, timeout, ui))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'

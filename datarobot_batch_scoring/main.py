@@ -168,6 +168,10 @@ def main(argv=sys.argv[1:]):
     csv_gr.add_argument('--skip_dialect',  action='store_true',
                         default=False, help='Tell the batch_scoring script '
                         'to skip csv dialect detection.')
+    csv_gr.add_argument('--skip_row_id', action='store_true', default=False,
+                        help='Skip the row_id column in output.')
+    csv_gr.add_argument('--output_delimiter', type=str, default=None,
+                        help='Set the delimiter for output file.')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -238,6 +242,8 @@ def main(argv=sys.argv[1:]):
         auto_sample = True
     encoding = parsed_args['encoding']
     skip_dialect = parsed_args['skip_dialect']
+    skip_row_id = parsed_args['skip_row_id']
+    output_delimiter = parsed_args.get('output_delimiter')
 
     if 'user' not in parsed_args:
         user = ui.prompt_user()
@@ -260,6 +266,14 @@ def main(argv=sys.argv[1:]):
     if delimiter and delimiter not in VALID_DELIMITERS:
         ui.fatal('Delimiter "{}" is not a valid delimiter.'
                  .format(delimiter))
+
+    if output_delimiter == '\\t' or output_delimiter == 'tab':
+        # NOTE: on bash you have to use Ctrl-V + TAB
+        output_delimiter = '\t'
+
+    if output_delimiter and output_delimiter not in VALID_DELIMITERS:
+        ui.fatal('Output delimiter "{}" is not a valid delimiter.'
+                 .format(output_delimiter))
 
     api_token = parsed_args.get('api_token')
     create_api_token = parsed_args.get('create_api_token')
@@ -286,7 +300,9 @@ def main(argv=sys.argv[1:]):
             out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
             dataset=dataset, pred_name=pred_name, timeout=timeout,
             ui=ui, fast_mode=fast_mode, auto_sample=auto_sample,
-            dry_run=dry_run, encoding=encoding, skip_dialect=skip_dialect)
+            dry_run=dry_run, encoding=encoding, skip_dialect=skip_dialect,
+            skip_row_id=skip_row_id, output_delimiter=output_delimiter
+        )
     except SystemError:
         pass
     except ShelveError as e:

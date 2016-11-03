@@ -1,3 +1,10 @@
+X.X.X (?)
+==================
+* --output_delimiter flag to set delimiter for output CSV. "tab" can be used 
+    for tab-delimited output
+
+* --skip_row_id flag to skip row_id column in output
+
 1.8.7 (2016 November 1)
 ==================
 * --pred_name parameter is documented. Potentially backward incompatible change:
