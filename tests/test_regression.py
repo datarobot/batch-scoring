@@ -277,7 +277,7 @@ def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
     with pytest.raises(RuntimeError):
         test_regression(live_server, tmpdir,
                         in_fixture='tests/fixtures/regression_bad2.csv',
-                        out_fixture='tests/fixtures/regression_output_bad2.csv',
+                        out_fixture=None,
                         fast_mode=True)
 
 
