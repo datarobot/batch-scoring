@@ -12,7 +12,8 @@ from utils import PickableMock
 def test_regression(live_server, tmpdir, keep_cols=None,
                     in_fixture='tests/fixtures/regression_predict.csv',
                     out_fixture='tests/fixtures/regression_output.csv',
-                    fast_mode=False, skip_row_id=False, output_delimiter=None):
+                    fast_mode=False, skip_row_id=False, output_delimiter=None,
+                    skip_dialect=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -42,7 +43,7 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             fast_mode=fast_mode,
             dry_run=False,
             encoding='',
-            skip_dialect=False,
+            skip_dialect=skip_dialect,
             skip_row_id=skip_row_id,
             output_delimiter=output_delimiter,
             max_batch_size=100
@@ -354,3 +355,26 @@ def test_regression_keep_cols_multi_output(live_server, tmpdir):
         in_fixture='tests/fixtures/regression.csv',
         out_fixture='tests/fixtures/regression_output_yx_output.csv',
         output_delimiter='|')
+
+
+@pytest.mark.skipif(six.PY3 and os.name is 'nt',
+                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
+                           " reproduce on actual Windows machine.")
+def test_regression_keep_cols_multi_output_skip_dialect(live_server, tmpdir):
+    test_regression(
+        live_server, tmpdir, keep_cols=['y', 'x'],
+        skip_dialect=True,
+        in_fixture='tests/fixtures/regression.csv',
+        out_fixture='tests/fixtures/regression_output_yx_output.csv',
+        output_delimiter='|')
+
+
+@pytest.mark.skipif(six.PY3 and os.name is 'nt',
+                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
+                           " reproduce on actual Windows machine.")
+def test_regression_keep_cols_multi_skip_dialect(live_server, tmpdir):
+    test_regression(
+        live_server, tmpdir, keep_cols=['y', 'x'],
+        skip_dialect=True,
+        in_fixture='tests/fixtures/regression.csv',
+        out_fixture='tests/fixtures/regression_output_yx.csv')
