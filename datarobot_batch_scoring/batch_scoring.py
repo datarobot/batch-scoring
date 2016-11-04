@@ -15,7 +15,7 @@ import hashlib
 from functools import partial
 from functools import reduce
 from itertools import chain
-from time import time
+from time import time, sleep
 import multiprocessing
 from six.moves import queue
 from six.moves import zip
@@ -285,15 +285,47 @@ class MultiprocessingGeneratorBackedQueue(object):
 
 class Shovel(object):
 
-    def __init__(self, queue, batch_gen_args, ui):
+    def __init__(self, queue, batch_gen_args, ui, ctx, ck_queue):
         self._ui = ui
         self.queue = queue
         self.batch_gen_args = batch_gen_args
         self.dialect = csv.get_dialect('dataset_dialect')
         #  The following should only impact Windows
         self._ui.set_next_UI_name('batcher')
+        self.ctx = ctx
+        self.ck_queue = ck_queue
 
-    def _shove(self, args, dialect, queue):
+    def process_successful_request(self):
+        """Process a successful request. """
+        self._ui.debug('STARTING')
+        while True:
+            (result, batch, pred_name) = self.ck_queue.get()
+
+            predictions = result['predictions']
+            if result['task'] == TargetType.BINARY:
+                sorted_classes = list(
+                    sorted(predictions[0]['class_probabilities'].keys()))
+                out_fields = ['row_id'] + sorted_classes
+                if pred_name is not None:
+                    sorted_classes = [sorted_classes[-1]]
+                    out_fields = ['row_id'] + [pred_name]
+                pred = [[p['row_id'] + batch.id] +
+                        [p['class_probabilities'][c] for c in sorted_classes]
+                        for p in
+                        sorted(predictions, key=operator.itemgetter('row_id'))]
+            elif result['task'] == TargetType.REGRESSION:
+                pred = [[p['row_id'] + batch.id, p['prediction']]
+                        for p in
+                        sorted(predictions, key=operator.itemgetter('row_id'))]
+                out_fields = ['row_id', pred_name if pred_name else '']
+            else:
+                ValueError('task {} not supported'.format(result['task']))
+
+            self.ctx.checkpoint_batch(batch, out_fields, pred)
+            self._ui.debug('QSIZE  {}'.format(self.ck_queue.qsize()))
+
+
+    def _shove(self, args, dialect, queue, ctx):
         _ui = args[4]
         _ui.info('Shovel process started')
         csv.register_dialect('dataset_dialect', dialect)
@@ -315,34 +347,13 @@ class Shovel(object):
     def go(self):
         self.p = multiprocessing.Process(target=self._shove,
                                          args=([self.batch_gen_args,
-                                                self.dialect, self.queue]),
+                                                self.dialect, self.queue,
+                                                self.ctx]),
                                          name='shovel')
         self.p.start()
-
-
-def process_successful_request(result, batch, ctx, pred_name):
-    """Process a successful request. """
-    predictions = result['predictions']
-    if result['task'] == TargetType.BINARY:
-        sorted_classes = list(
-            sorted(predictions[0]['class_probabilities'].keys()))
-        out_fields = ['row_id'] + sorted_classes
-        if pred_name is not None:
-            sorted_classes = [sorted_classes[-1]]
-            out_fields = ['row_id'] + [pred_name]
-        pred = [[p['row_id'] + batch.id] +
-                [p['class_probabilities'][c] for c in sorted_classes]
-                for p in
-                sorted(predictions, key=operator.itemgetter('row_id'))]
-    elif result['task'] == TargetType.REGRESSION:
-        pred = [[p['row_id'] + batch.id, p['prediction']]
-                for p in
-                sorted(predictions, key=operator.itemgetter('row_id'))]
-        out_fields = ['row_id', pred_name if pred_name else '']
-    else:
-        ValueError('task {} not supported'.format(result['task']))
-
-    ctx.checkpoint_batch(batch, out_fields, pred)
+        self.r = multiprocessing.Process(target=self.process_successful_request,
+                                         name='process_successful_request')
+        self.r.start()
 
 
 class WorkUnitGenerator(object):
@@ -355,7 +366,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, queue, endpoint, headers, user, api_token,
-                 ctx, pred_name, fast_mode, ui, max_batch_size):
+                 ctx, pred_name, fast_mode, ui, max_batch_size, ck_queue):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -366,6 +377,7 @@ class WorkUnitGenerator(object):
         self.fast_mode = fast_mode
         self._ui = ui
         self.max_batch_size = max_batch_size
+        self.ck_queue = ck_queue
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
@@ -386,8 +398,7 @@ class WorkUnitGenerator(object):
                                         batch.rows,
                                         exec_time,
                                         r.elapsed.total_seconds() * 1000))
-                    process_successful_request(result, batch, self.ctx,
-                                               self.pred_name)
+                    self.ck_queue.put((result, batch, self.pred_name))
                 except Exception as e:
                     self._ui.fatal('{} response error: {}'.format(batch.id, e))
 
@@ -606,23 +617,22 @@ class RunContext(object):
                 written_fields = out_fields[1:]
                 comb = [row[1:] for row in pred]
 
-        with self.lock:
-            # if an error happends during/after the append we
-            # might end up with inconsistent state
-            # TODO write partition files instead of appending
-            #  store checksum of each partition and back-check
-            writer = csv.writer(self.out_stream, dialect=self.writer_dialect)
-            if self.db['first_write']:
-                writer.writerow(written_fields)
-            writer.writerows(comb)
-            self.out_stream.flush()
+        # if an error happends during/after the append we
+        # might end up with inconsistent state
+        # TODO write partition files instead of appending
+        #  store checksum of each partition and back-check
+        writer = csv.writer(self.out_stream, dialect=self.writer_dialect)
+        if self.db['first_write']:
+            writer.writerow(written_fields)
+        writer.writerows(comb)
+        self.out_stream.flush()
 
-            self.db['checkpoints'].append((batch.id, batch.rows))
+        self.db['checkpoints'].append((batch.id, batch.rows))
 
-            self.db['first_write'] = False
-            self._ui.info('batch {}-{} checkpointed'
-                          .format(batch.id, batch.rows))
-            self.db.sync()
+        self.db['first_write'] = False
+        self._ui.info('batch {}-{} checkpointed'
+                      .format(batch.id, batch.rows))
+        self.db.sync()
 
     def save_error(self, batch, error, bucket="errors"):
         with self.lock:
@@ -899,6 +909,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         deque = conc_manager.Queue(queue_size)
         lock = conc_manager.Lock()
         rlock = conc_manager.RLock()
+        ck_queue = conc_manager.Queue(queue_size * 2)
         if not api_token:
             if not pwd:
                 pwd = ui.getpass()
@@ -949,7 +960,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque, rlock)
         batch_generator_args = ctx.batch_generator_args()
-        shovel = Shovel(queue, batch_generator_args, ui)
+        shovel = Shovel(queue, batch_generator_args, ui, ctx, ck_queue)
         ui.info('Shovel go...')
         t2 = time()
         shovel.go()
@@ -965,7 +976,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                           pred_name=pred_name,
                                           fast_mode=fast_mode,
                                           ui=ui,
-                                          max_batch_size=max_batch_size)
+                                          max_batch_size=max_batch_size,
+                                          ck_queue=ck_queue)
         t0 = time()
         i = 0
 
@@ -980,7 +992,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 i += 1
                 ui.info('{} responses sent | time elapsed {}s'
                         .format(i, time() - t0))
-
+            sleep(2.5) # wait for writes
             ui.debug('list of checkpointed batches: {}'
                      .format(sorted(ctx.db['checkpoints'])))
             n_batches_checkpointed = (len(ctx.db['checkpoints']) -
