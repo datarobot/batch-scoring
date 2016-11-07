@@ -89,11 +89,12 @@ def slow_to_csv_chunk(data, header):
 
 
 class CSVReader(object):
-    def __init__(self, fd, encoding):
+    def __init__(self, fd, encoding, ui):
         self.fd = fd
         #  dataset_dialect is set by investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
         self.encoding = encoding
+        self._ui = ui
 
     def _create_reader(self):
         fd = Recoder(self.fd, self.encoding)
@@ -103,8 +104,8 @@ class CSVReader(object):
 class FastReader(CSVReader):
     """A reader that only reads the file in text mode but not parses it. """
 
-    def __init__(self, fd, encoding):
-        super(FastReader, self).__init__(fd, encoding)
+    def __init__(self, fd, encoding, ui):
+        super(FastReader, self).__init__(fd, encoding, ui)
         self._check_for_multiline_input()
         reader = self._create_reader()
         self.header = next(reader)
@@ -138,8 +139,8 @@ class SlowReader(CSVReader):
     """The slow reader does actual CSV parsing.
     It supports multiline csv and can be a factor of 50 slower. """
 
-    def __init__(self, fd, encoding):
-        super(SlowReader, self).__init__(fd, encoding)
+    def __init__(self, fd, encoding, ui):
+        super(SlowReader, self).__init__(fd, encoding, ui)
         reader = self._create_reader()
         self.header = next(reader)
         self.fieldnames = [c.strip() for c in self.header]
@@ -194,7 +195,7 @@ class BatchGenerator(object):
             reader_factory = SlowReader
 
         with self.csv_input_file_reader() as csvfile:
-            reader = reader_factory(csvfile, encoding=self.encoding)
+            reader = reader_factory(csvfile, self.encoding, self._ui)
             fieldnames = reader.fieldnames
 
             has_content = False
@@ -404,14 +405,16 @@ class WorkUnitGenerator(object):
                                      .format(batch.id, r.status_code))
 
                 text = r.text
-                self._ui.error('batch {} failed status_code:{} text:{}'
-                               .format(batch.id,
-                                       r.status_code,
-                                       text))
+                msg = ('batch {} failed, queued to retry, status_code:{} '
+                       'text:{}'.format(batch.id, r.status_code, text))
+                self._ui.error(msg)
+                self.ctx.save_warning(batch, msg)
                 self.queue.push(batch)
         except Exception as e:
-            self._ui.error('batch {} - dropping due to: {}'
-                           .format(batch.id, e))
+            msg = 'batch {} - dropping due to: {}, {} records lost'.format(
+                batch.id, e, batch.rows)
+            self._ui.error(msg)
+            self.ctx.save_error(batch, msg)
 
     def has_next(self):
         return self.queue.has_next()
@@ -422,9 +425,11 @@ class WorkUnitGenerator(object):
                 raise StopIteration()
             # if we exhaused our retries we drop the batch
             if batch.rty_cnt == 0:
-                self._ui.error('batch {} exceeded retry limit; '
-                               'we lost {} records'.format(
-                                   batch.id, len(batch.data)))
+                msg = ('batch {} exceeded retry limit; '
+                       'we lost {} records'.format(
+                            batch.id, len(batch.data)))
+                self._ui.error(msg)
+                self.ctx.save_error(batch, msg)
                 continue
 
             if self.fast_mode:
@@ -450,17 +455,20 @@ class WorkUnitGenerator(object):
                         auth=(self.user, self.api_token),
                         hooks={'response': hook})
                 else:
-                    self._ui.debug('batch {}-{} is too long: {} bytes,'
-                                   ' splitting' .format(batch.id, batch.rows,
-                                                        len(data)))
-
                     if batch.rows < 2:
-                        self._ui.error('batch {} is single row but bigger '
-                                       'than limit, skipping, we lost {} '
-                                       'records'.format(batch.id,
-                                                        len(batch.data)))
+                        msg = ('batch {} is single row but bigger '
+                               'than limit, skipping. We lost {} '
+                               'records'.format(batch.id,
+                                                len(batch.data)))
+                        self._ui.error(msg)
+                        self.ctx.save_error(batch, msg)
                         continue
 
+                    msg = ('batch {}-{} is too long: {} bytes,'
+                           ' splitting'.format(batch.id, batch.rows,
+                                               len(data)))
+                    self._ui.debug(msg)
+                    self.ctx.save_warning(batch, msg)
                     split_point = int(batch.rows/2)
 
                     data1 = batch.data[:split_point]
@@ -616,6 +624,15 @@ class RunContext(object):
                           .format(batch.id, batch.rows))
             self.db.sync()
 
+    def save_error(self, batch, error, bucket="errors"):
+        with self.lock:
+            msgs = self.db[bucket].setdefault((batch.id, batch.rows), [])
+            msgs.append(error)
+            self.db.sync()
+
+    def save_warning(self, batch, error):
+        self.save_error(batch, error, "warnings")
+
 
 class ContextFile(object):
     def __init__(self, project_id, model_id, n_samples, keep_cols):
@@ -666,6 +683,9 @@ class NewRunContext(RunContext):
         self.db['output_delimiter'] = self.output_delimiter
         # list of batch ids that have been processed
         self.db['checkpoints'] = []
+        # dictionary of error messages per batch
+        self.db['warnings'] = {}
+        self.db['errors'] = {}
         # used to check if output file is dirty (ie first write op)
         self.db['first_write'] = True
         self.db.sync()
@@ -975,3 +995,28 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                         .format(time() - t0))
                 ui.info('scoring complete | total time elapsed {}s'
                         .format(time() - t1))
+
+            total_done = 0
+            for _, batch_len in ctx.db["checkpoints"]:
+                total_done += batch_len
+
+            total_lost = 0
+            for bucket in ("warnings", "errors"):
+                ui.info('==== Scoring {} ===='.format(bucket))
+                if ctx.db[bucket]:
+                    msg_data = ctx.db[bucket]
+                    msg_keys = sorted(msg_data.keys())
+                    for batch_id in msg_keys:
+                        first = True
+                        for msg in msg_data[batch_id]:
+                            if first:
+                                first = False
+                                ui.info("{}: {}".format(batch_id, msg))
+                            else:
+                                ui.info("        {}".format(msg))
+
+                        if bucket == "errors":
+                            total_lost += batch_id[1]
+
+            ui.info('==== Total stats ===='.format(bucket))
+            ui.info("done: {} lost: {}".format(total_done, total_lost))
