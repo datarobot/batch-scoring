@@ -1,17 +1,12 @@
 from __future__ import print_function
-import pytest
 import os
 import sys
 import subprocess
 import tempfile
-import six
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from utils import (PickableMock, read_logs)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_args_from_subprocess(live_server):
     # train one model in project
     with tempfile.NamedTemporaryFile(prefix='test_',
@@ -58,9 +53,6 @@ def test_args_from_subprocess(live_server):
     assert spc is 0
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_simple(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')
@@ -101,9 +93,6 @@ def test_simple(live_server, tmpdir):
     assert str(actual) == str(expected)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_keep_cols(live_server, tmpdir, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
@@ -144,16 +133,10 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
         assert expected == f.read()
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_keep_cols_fast_mode(live_server, tmpdir):
     test_keep_cols(live_server, tmpdir, True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_pred_name_classification(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')
