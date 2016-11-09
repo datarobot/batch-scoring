@@ -9,7 +9,8 @@ def test_regression(live_server, tmpdir, keep_cols=None,
                     in_fixture='tests/fixtures/regression_predict.csv',
                     out_fixture='tests/fixtures/regression_output.csv',
                     fast_mode=False, skip_row_id=False, output_delimiter=None,
-                    skip_dialect=False):
+                    skip_dialect=False,
+                    n_samples=10):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -27,7 +28,7 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             n_retry=3,
             concurrent=1,
             resume=False,
-            n_samples=10,
+            n_samples=n_samples,
             out_file=str(out),
             keep_cols=keep_cols,
             delimiter=None,
@@ -156,7 +157,7 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
         n_retry=3,
         concurrent=1,
         resume=False,
-        n_samples=10,
+        n_samples=100,
         out_file=str(out),
         keep_cols=None,
         delimiter=None,
