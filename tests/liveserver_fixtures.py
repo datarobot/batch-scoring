@@ -162,14 +162,17 @@ def app():
             first_row = int(body[1].split(',')[0]) % 10
         except ValueError:
             first_row = 0
-            rows = 1000
 
         with open(MAPPING.get(lid), 'r') as f:
             reply = json.load(f)
-            reply["predictions"] = \
-                reply["predictions"][first_row:first_row + rows]
-            for v in reply["predictions"]:
-                v["row_id"] -= first_row
+            std_predictions = reply["predictions"]
+
+            reply["predictions"] = []
+            for i in range(rows):
+                pred = std_predictions[(i + first_row) % 10].copy()
+                pred["row_id"] = i
+                reply["predictions"].append(pred)
+
             return json.dumps(reply).encode('utf-8')
 
     return app

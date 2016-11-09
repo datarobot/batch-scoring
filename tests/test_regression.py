@@ -1,19 +1,17 @@
 import pytest
-import six
 import os
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from datarobot_batch_scoring.utils import UI
 from utils import PickableMock
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression(live_server, tmpdir, keep_cols=None,
                     in_fixture='tests/fixtures/regression_predict.csv',
                     out_fixture='tests/fixtures/regression_output.csv',
                     fast_mode=False, skip_row_id=False, output_delimiter=None,
-                    skip_dialect=False):
+                    skip_dialect=False,
+                    n_samples=500,
+                    max_batch_size=None):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -31,7 +29,7 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             n_retry=3,
             concurrent=1,
             resume=False,
-            n_samples=10,
+            n_samples=n_samples,
             out_file=str(out),
             keep_cols=keep_cols,
             delimiter=None,
@@ -46,19 +44,18 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             skip_dialect=skip_dialect,
             skip_row_id=skip_row_id,
             output_delimiter=output_delimiter,
-            max_batch_size=100
+            max_batch_size=max_batch_size
         )
         assert ret is None
-        actual = out.read_text('utf-8')
-        with open(out_fixture, 'rU') as f:
-            expected = f.read()
-            print(len(actual), len(expected))
-            assert actual == expected
+
+        if out_fixture:
+            actual = out.read_text('utf-8')
+            with open(out_fixture, 'rU') as f:
+                expected = f.read()
+                print(len(actual), len(expected))
+                assert actual == expected
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_rename(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')
@@ -98,9 +95,6 @@ def test_regression_rename(live_server, tmpdir):
         assert actual == f.read()
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_rename_fast(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')
@@ -140,9 +134,6 @@ def test_regression_rename_fast(live_server, tmpdir):
         assert actual == f.read()
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
     """Use utf8 encoded input data.
 
@@ -169,7 +160,7 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
         n_retry=3,
         concurrent=1,
         resume=False,
-        n_samples=10,
+        n_samples=500,
         out_file=str(out),
         keep_cols=None,
         delimiter=None,
@@ -191,55 +182,34 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
         assert actual == f.read()
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_fast_mode_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, True, False)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_wo_fast_mode_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, False, False)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_fast_mode_gzipped_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, True, True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_wo_fast_mode_gzipped_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, False, True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_x.csv')
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx.csv')
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_fast(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
@@ -247,9 +217,6 @@ def test_regression_keep_cols_fast(live_server, tmpdir):
                     fast_mode=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi_fast(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
@@ -257,19 +224,41 @@ def test_regression_keep_cols_multi_fast(live_server, tmpdir):
                     fast_mode=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
-def test_regression_bad_csv(live_server, tmpdir):
+def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir,
+                                                   monkeypatch):
+    split_called = [False]
+
+    def debug_call(*args):
+        if args[1].endswith("splitting"):
+            split_called[0] = True
+
+    monkeypatch.setattr("datarobot_batch_scoring.main.UI.debug", debug_call)
+    test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
+                    in_fixture='tests/fixtures/regression.csv',
+                    out_fixture='tests/fixtures/regression_output_yx.csv',
+                    fast_mode=True,
+                    max_batch_size=100)
+
+    assert split_called[0]
+
+
+def test_regression_bad_csv(live_server, tmpdir, monkeypatch):
+    error_called = [False]
+
+    def error_call(*args):
+        if args[1].endswith("check logs for exact error"):
+            error_called[0] = True
+
+    monkeypatch.setattr("datarobot_batch_scoring.main.UI.error",
+                        error_call)
     test_regression(live_server, tmpdir,
                     in_fixture='tests/fixtures/regression_bad.csv',
-                    out_fixture='tests/fixtures/regression_output_bad.csv',
+                    out_fixture=None,
                     fast_mode=False)
 
+    assert error_called[0]
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
+
 def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
     def sys_exit(code):
         raise RuntimeError
@@ -282,9 +271,6 @@ def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
                         fast_mode=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
@@ -292,9 +278,6 @@ def test_regression_keep_cols_wo_row_id(live_server, tmpdir):
                     skip_row_id=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
@@ -302,9 +285,6 @@ def test_regression_keep_cols_multi_wo_row_id(live_server, tmpdir):
                     skip_row_id=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_fast_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
@@ -313,9 +293,6 @@ def test_regression_keep_cols_fast_wo_row_id(live_server, tmpdir):
                     skip_row_id=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi_fast_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
@@ -324,9 +301,6 @@ def test_regression_keep_cols_multi_fast_wo_row_id(live_server, tmpdir):
                     skip_row_id=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_fast_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir,
                     in_fixture='tests/fixtures/regression.csv',
@@ -335,9 +309,6 @@ def test_regression_fast_wo_row_id(live_server, tmpdir):
                     skip_row_id=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_wo_row_id(live_server, tmpdir):
     test_regression(live_server, tmpdir,
                     in_fixture='tests/fixtures/regression.csv',
@@ -346,9 +317,6 @@ def test_regression_wo_row_id(live_server, tmpdir):
                     skip_row_id=True)
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi_output(live_server, tmpdir):
     test_regression(
         live_server, tmpdir, keep_cols=['y', 'x'],
@@ -357,9 +325,6 @@ def test_regression_keep_cols_multi_output(live_server, tmpdir):
         output_delimiter='|')
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi_output_skip_dialect(live_server, tmpdir):
     test_regression(
         live_server, tmpdir, keep_cols=['y', 'x'],
@@ -369,9 +334,6 @@ def test_regression_keep_cols_multi_output_skip_dialect(live_server, tmpdir):
         output_delimiter='|')
 
 
-@pytest.mark.skipif(six.PY3 and os.name is 'nt',
-                    reason="py3 on windows appveyor fails unexpectedly. Cannot"
-                           " reproduce on actual Windows machine.")
 def test_regression_keep_cols_multi_skip_dialect(live_server, tmpdir):
     test_regression(
         live_server, tmpdir, keep_cols=['y', 'x'],

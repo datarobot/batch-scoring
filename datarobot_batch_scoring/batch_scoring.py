@@ -868,7 +868,11 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           dry_run, encoding, skip_dialect,
                           skip_row_id=False,
                           output_delimiter=None,
-                          max_batch_size=MAX_BATCH_SIZE):
+                          max_batch_size=None):
+
+    if max_batch_size is None:
+        max_batch_size = MAX_BATCH_SIZE
+
     multiprocessing.freeze_support()
     t1 = time()
     queue_size = concurrent * 2
