@@ -122,6 +122,6 @@ Usage Notes
   * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
   * The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file, and Windows users will see an additional log file, `datarobot_batch_scoring_batcher.log`.
 
-Notes for Windows Users
+Supported Platforms
 ------------
-The batch_scoring script is tested on Windows, but for now it is recommended to use the script with Python 2.7. Python 3.4+ should work, but we have had some issues which prevent us from running all or our tests against Python 3+.
+The batch_scoring script is tested on Linux and Windows, but it should also work on OS X. Both Python 2.7 and Python 3.x are supported.
