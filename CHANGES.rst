@@ -1,4 +1,4 @@
-X.X.X (?)
+1.8.8 (2016 November 17)
 ==================
 * --output_delimiter flag to set delimiter for output CSV. "tab" can be used 
     for tab-delimited output
@@ -11,6 +11,8 @@ X.X.X (?)
     warnings and total stats.
 
 * fixed error when trying to report multiline CSV error in fast mode
+
+* Run all tests against Windows
 
 1.8.7 (2016 November 1)
 ==================

@@ -26,7 +26,7 @@ Install or upgrade to last version:
 How to install particular version:
 ::
 
-    $ pip install datarobot_batch_scoring==1.8.6
+    $ pip install datarobot_batch_scoring==1.8.8 
 
 Features
 --------
