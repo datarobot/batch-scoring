@@ -3,6 +3,7 @@ import logging
 import textwrap
 from time import sleep
 import requests
+import requests.adapters
 
 try:
     from futures import ThreadPoolExecutor
@@ -21,10 +22,14 @@ class Network(object):
     def __init__(self, concurrency, timeout, ui=None):
         self._executor = ThreadPoolExecutor(concurrency)
         self._timeout = timeout
-        self.session = requests.Session()
         self._ui = ui or logger
         self.futures = []
         self.concurrency = concurrency
+
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=concurrency, pool_maxsize=concurrency)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
 
     def _request(self, request):
         prepared = self.session.prepare_request(request)
