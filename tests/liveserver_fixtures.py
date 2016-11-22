@@ -28,7 +28,7 @@ class LiveServer(object):
     def start(self):
         """Start application in a separate process."""
         def worker(app, port):
-            return app.run(port=port, use_reloader=False)
+            return app.run(port=port, use_reloader=False, threaded=True)
         self._thread = threading.Thread(
             target=worker,
             args=(self.app, self.port)
@@ -113,6 +113,7 @@ def app():
 
     app = flask.Flask(__name__)
     app.config['SECRET_KEY'] = '42'
+    app.config['PREDICTION_DELAY'] = 0
 
     @app.route('/ping')
     def ping():
@@ -156,6 +157,9 @@ def app():
         body = flask.request.data
         body = body.decode('utf-8').splitlines()
         rows = len(body) - 1
+
+        if app.config["PREDICTION_DELAY"]:
+            time.sleep(app.config["PREDICTION_DELAY"])
 
         try:
             # for files with row_id as first column

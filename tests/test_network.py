@@ -4,6 +4,7 @@ import textwrap
 import requests
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
+from datarobot_batch_scoring.utils import UI
 from utils import PickableMock
 
 
@@ -52,3 +53,48 @@ You might want to decrease the "--n_concurrent" parameters
 or
 increase "--timeout" parameter.
 """))
+
+
+def test_request_pool_is_full(live_server, tmpdir, monkeypatch):
+    called = [0]
+
+    def log_warning(*args, **kw):
+        if args[0].startswith("Connection pool is full"):
+            called[0] = True
+
+    live_server.app.config["PREDICTION_DELAY"] = 1
+
+    out = tmpdir.join('out.csv')
+    monkeypatch.setattr("requests.packages.urllib3.connectionpool.log.warning",
+                        log_warning)
+    with UI(False, 'DEBUG', False) as ui:
+        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=30,
+            resume=False,
+            n_samples=10,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/criteo_top30_1m.csv.gz',
+            pred_name=None,
+            timeout=30,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+        assert ret is None
+
+    assert not called[0]
