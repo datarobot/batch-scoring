@@ -65,7 +65,8 @@ def test_request_pool_is_full(live_server, tmpdir, monkeypatch):
     live_server.app.config["PREDICTION_DELAY"] = 1
 
     out = tmpdir.join('out.csv')
-    monkeypatch.setattr("requests.packages.urllib3.connectionpool.log.warning", log_warning)
+    monkeypatch.setattr("requests.packages.urllib3.connectionpool.log.warning",
+                        log_warning)
     with UI(False, 'DEBUG', False) as ui:
         base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
         ret = run_batch_predictions(
@@ -97,4 +98,3 @@ def test_request_pool_is_full(live_server, tmpdir, monkeypatch):
         assert ret is None
 
     assert not called[0]
-

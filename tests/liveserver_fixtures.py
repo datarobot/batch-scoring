@@ -11,7 +11,6 @@ try:
 except ImportError:
     from urllib.request import urlopen, HTTPError
 import flask
-import time
 
 
 class LiveServer(object):

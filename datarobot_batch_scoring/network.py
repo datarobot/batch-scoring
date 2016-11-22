@@ -27,7 +27,8 @@ class Network(object):
         self.concurrency = concurrency
 
         self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=concurrency, pool_maxsize=concurrency)
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=concurrency, pool_maxsize=concurrency)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
 
