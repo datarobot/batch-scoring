@@ -89,13 +89,13 @@ class UI(object):
 
         # user logger
         if self.file_name_suffix != 'main':
-            fs = '%(asctime)-15s [%(levelname)s] %(message)s'
+            fs = '%(processName)s %(asctime)-15s [%(levelname)s] %(message)s'
             hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
         elif stdout:
-            fs = '[%(levelname)s] %(message)s'
+            fs = '%(processName)s [%(levelname)s] %(message)s'
             hdlr = logging.StreamHandler(sys.stdout)
         else:
-            fs = '[%(levelname)s] %(message)s'
+            fs = '%(processName)s [%(levelname)s] %(message)s'
             hdlr = logging.StreamHandler()
         dfs = None
         fmt = logging.Formatter(fs, dfs)
@@ -105,7 +105,7 @@ class UI(object):
 
         # root logger
         if stdout is False and self.file_name_suffix == 'main':
-            fs = '%(asctime)-15s [%(levelname)s] %(message)s'
+            fs = '%(processName)s %(asctime)-15s [%(levelname)s] %(message)s'
             hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
             dfs = None
             fmt = logging.Formatter(fs, dfs)
@@ -208,9 +208,9 @@ class UI(object):
         On windows we need to pickle the UI instances or create new
         instances inside the subprocesses since there's no fork.
         """
-        if os.name is not 'nt':
-            raise SystemError('__getstate__() should not be called in '
-                              'non-windows environments.')
+        # if os.name is not 'nt':
+        #     raise SystemError('__getstate__() should not be called in '
+        #                       'non-windows environments.')
         d = self.__dict__.copy()
         #  replace the old file suffix with a separate log file
         d['file_name_suffix'] = self._next_suffix
@@ -227,9 +227,9 @@ class UI(object):
         This method is called when unpickling a UI instance.
         It actually creates a new UI that logs to a separate file.
         """
-        if os.name is not 'nt':
-            raise SystemError('__getstate__() should not be called in '
-                              'non-windows environments.')
+        # if os.name is not 'nt':
+        #     raise SystemError('__getstate__() should not be called in '
+        #                       'non-windows environments.')
         self.__dict__.update(d)
         self._configure_logging(self.loglevel, self.stdout)
 
