@@ -115,7 +115,9 @@ def app():
     app = flask.Flask(__name__)
     app.config['SECRET_KEY'] = '42'
     app.config['PREDICTION_DELAY'] = 0
-    app.count = 0
+    app.config['FAIL_AT'] = []
+
+    app.request_number = 0
 
     @app.route('/ping')
     def ping():
@@ -163,20 +165,19 @@ def app():
         if app.config["PREDICTION_DELAY"]:
             time.sleep(app.config["PREDICTION_DELAY"])
 
+        if app.config["PREDICTION_DELAY"]:
+            time.sleep(app.config["PREDICTION_DELAY"])
+
+        if app.config["FAIL_AT"]:
+            app.request_number += 1
+            if app.request_number in app.config["FAIL_AT"]:
+                raise RuntimeError("Requested failure")
+
         try:
             # for files with row_id as first column
             first_row = int(body[1].split(',')[0]) % 10
         except ValueError:
             first_row = 0
-
-        # This is to support testing retries. It's Maybe a little hacky...
-        # look up the "pids" to see where this logic comes into play
-        if app.count < 5 and pid == 'five_tries_f7ef75d75f164':
-            app.count += 1
-            return '{badjson'.encode('utf-8')
-        if app.count < 6 and pid == 'six_tries_ff7ef75d75f164':
-            app.count += 1
-            return '{badjson'.encode('utf-8')
 
         with open(MAPPING.get(lid), 'r') as f:
             reply = json.load(f)
