@@ -17,6 +17,7 @@ from functools import reduce
 from itertools import chain
 from time import time, sleep
 import multiprocessing
+import signal
 from six.moves import queue
 from six.moves import zip
 import requests
@@ -324,7 +325,7 @@ class Shovel(object):
         self.p = multiprocessing.Process(target=self._shove,
                                          args=([self.batch_gen_args,
                                                 self.dialect, self.queue]),
-                                         name='shovel')
+                                         name='Shovel_Proc')
         self.p.start()
 
 
@@ -340,125 +341,163 @@ class WriterProcess(object):
             self.deque = deque
 
     @staticmethod
-    def push(batch, deque, ui):
+    def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
+                             reader_dialect, writer_dialect):
+        """
+        This should only be run in the spawned process.
+        Hopefully using this class for both creating the subprocess and
+        managing the subprocess isn't too confusing.
+        """
+        if multiprocessing.current_process().name is not 'Writer_Proc':
+            _ui.warning('WriterProcess.init_subprocess_class called in '
+                        'process named: "{}"'
+                        ''.format(multiprocessing.current_process().name))
+        csv.register_dialect('dataset_dialect', reader_dialect)
+        csv.register_dialect('writer_dialect', writer_dialect)
+        WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
+
+    def deque_failed_batch(self, batch):
         # we retry a batch - decrement retry counter
         batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
         try:
-            deque.put(batch, block=True)
+            self.deque.put(batch, block=True)
         except queue.Empty:
-            ui.error('Dropping {} due to backfill queue full.'.format(
+            self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
 
-    @staticmethod
-    def unpack_request_object(request, batch, ui, queue, deque):
+    def unpack_request_object(self, request, batch):
+        """
+
+        :param request: text of response from request object. contains JSON
+        :param batch: batch NamedTuple
+        :return: deserialize text to JSON and returns JSON as python objects
+        """
         try:
             result = json.loads(request['text'])  # replace with r.content
             elapsed_total_seconds = request['elapsed']
         except Exception as e:
-            ui.warning('{} response error: {} -- retry'.format(batch.id, e))
-            WriterProcess.push(batch, deque, ui)
-            return False
+            self._ui.warning('{} response error: {} -- retry'
+                             ''.format(batch.id, e))
+            self.deque_failed_batch(batch)
+            return False  # unpack failed for this batch
         exec_time = result['execution_time']
-        ui.debug(('successful response {}-{}: exec time {:.0f}msec | '
-                  'round-trip: {:.0f}msec'
-                  '').format(batch.id, batch.rows, exec_time,
-                             elapsed_total_seconds * 1000))
+        self._ui.debug(('successful response {}-{}: exec time {:.0f}msec | '
+                        'round-trip: {:.0f}msec'
+                        '').format(batch.id, batch.rows, exec_time,
+                                   elapsed_total_seconds * 1000))
         return result
 
-    @staticmethod
-    def process_response(ui, ctx, writer_queue, queue, deque, reader_dialect,
-                         writer_dialect):
+    def format_result_data(self, result, batch, pred_name):
+        """
+        :param result: JSON data returned from pred server
+        :param batch: batch NamedTuple
+        :param pred_name: name of prediction column
+        :return: out_fields, pred
+
+        Takes the result data and formats it.
+        """
+        predictions = result['predictions']
+        if result['task'] == TargetType.BINARY:
+            sorted_classes = list(
+                sorted(predictions[0]['class_probabilities'].keys()))
+            out_fields = ['row_id'] + sorted_classes
+            if pred_name is not None:
+                sorted_classes = [sorted_classes[-1]]
+                out_fields = ['row_id'] + [pred_name]
+            pred = [[p['row_id'] + batch.id] +
+                    [p['class_probabilities'][c] for c in
+                     sorted_classes]
+                    for p in
+                    sorted(predictions,
+                           key=operator.itemgetter('row_id'))]
+        elif result['task'] == TargetType.REGRESSION:
+            pred = [[p['row_id'] + batch.id, p['prediction']]
+                    for p in
+                    sorted(predictions,
+                           key=operator.itemgetter('row_id'))]
+            out_fields = ['row_id', pred_name if pred_name else '']
+        else:
+            ValueError('task "{}" not supported'
+                       ''.format(result['task']))
+        return (out_fields, pred)
+
+    def sigterm_handler(self, _signo, _stack_frame):
+        self._ui.debug('WriterProcess.sigterm_handler received signal '
+                       '"{}". Exiting 1'.format(_signo))
+        sys.exit(1)
+
+    def process_response(self):
         """Process a successful request. """
-        csv.register_dialect('dataset_dialect', reader_dialect)
-        csv.register_dialect('writer_dialect', writer_dialect)
-        ui.info(csv.list_dialects())
-        ui.debug('Writer Process started - {}'
-                 ''.format(multiprocessing.current_process().name))
+        signal.signal(signal.SIGTERM, self.sigterm_handler)
+        signal.signal(signal.SIGINT, self.sigterm_handler)
+
+        self._ui.debug('Writer Process started - {}'
+                       ''.format(multiprocessing.current_process().name))
         success = False
         try:
-            ctx.open()
+            self.ctx.open()
             while True:
-                (request, batch, pred_name) = writer_queue.get()
+                (request, batch, pred_name) = self.writer_queue.get()
                 if request == QueueMsg.ERROR:
                     # pred_name is a message if ERROR or WARNING
-                    ui.debug('Writer ERROR')
-                    ctx.save_error(batch, error=pred_name)
+                    self._ui.debug('Writer ERROR')
+                    self.ctx.save_error(batch, error=pred_name)
                     continue
                 if request == QueueMsg.WARNING:
-                    ui.debug('Writer WARNING')
-                    ctx.save_warning(batch, error=pred_name)
+                    self._ui.debug('Writer WARNING')
+                    self.ctx.save_warning(batch, error=pred_name)
                     continue
                 if batch.id == SENTINEL.id:
-                    ui.debug('Writer recieved SENTINEL')
+                    self._ui.debug('Writer received SENTINEL')
                     break
-                result = WriterProcess.unpack_request_object(request, batch,
-                                                             ui, queue, deque)
-                if result is False:
+                result = self.unpack_request_object(request, batch)
+                if result is False:  # unpack_request_object failed
                     continue
-                predictions = result['predictions']
-                if result['task'] == TargetType.BINARY:
-                    sorted_classes = list(
-                        sorted(predictions[0]['class_probabilities'].keys()))
-                    out_fields = ['row_id'] + sorted_classes
-                    if pred_name is not None:
-                        sorted_classes = [sorted_classes[-1]]
-                        out_fields = ['row_id'] + [pred_name]
-                    pred = [[p['row_id'] + batch.id] +
-                            [p['class_probabilities'][c] for c in
-                             sorted_classes]
-                            for p in
-                            sorted(predictions,
-                                   key=operator.itemgetter('row_id'))]
-                elif result['task'] == TargetType.REGRESSION:
-                    pred = [[p['row_id'] + batch.id, p['prediction']]
-                            for p in
-                            sorted(predictions,
-                                   key=operator.itemgetter('row_id'))]
-                    out_fields = ['row_id', pred_name if pred_name else '']
-                else:
-                    ValueError('task "{}" not supported'
-                               ''.format(result['task']))
-                ctx.checkpoint_batch(batch, out_fields, pred)
-                ui.debug('Writer Queue queue length: {}'
-                         ''.format(writer_queue.qsize()))
 
-            ui.info('---Writer Exiting---')
-            checkpointed = ctx.db['checkpoints']
-            ui.info('---Checkpointed--- {}'.format(checkpointed))
-            writer_queue.put(True)
+                (out_fields, pred) = self.format_result_data(result, batch,
+                                                             pred_name)
+
+                self.ctx.checkpoint_batch(batch, out_fields, pred)
+                self._ui.debug('Writer Queue queue length: {}'
+                               ''.format(self.writer_queue.qsize()))
+
+            self._ui.debug('---Writer Exiting---')
             success = True
         except Exception as e:
-            ui.error('Writer Process error: batch={}, error={}'
-                     ''.format(batch.id, e))
+            # Note this won't catch SystemExit which is raised by
+            # sigterm_handler because it's based on BaseException
+            self._ui.error('Writer Process error: batch={}, error={}'
+                           ''.format(batch.id, e))
 
         finally:
-            ctx.close()
-            queue.close()
-            writer_queue.close()
-            deque.close()
-            ui.close()
+            self.ctx.close()
+            self.queue.close()
+            self.writer_queue.close()
+            self.deque.close()
+            self._ui.close()
             if success:
                 sys.exit(0)
             else:
                 sys.exit(1)
 
     def go(self):
-        self.w = multiprocessing.Process(target=self.process_response,
-                                         args=([self._ui, self.ctx,
-                                                self.writer_queue,
-                                                self.queue, self.deque,
-                                                self.reader_dialect,
-                                                self.writer_dialect]),
-                                         name='process_response')
-        self.w.start()
-        return self.w
+        self.proc = \
+            multiprocessing.Process(target=WriterProcess.run_subproc_cls_inst,
+                                    args=([self._ui, self.ctx,
+                                           self.writer_queue,
+                                           self.queue, self.deque,
+                                           self.reader_dialect,
+                                           self.writer_dialect]),
+                                    name='Writer_Proc')
+        self.proc.start()
+        return self.proc
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
-        if hasattr(self, 'w'):
-            if self.w.is_alive():
+        if hasattr(self, 'proc'):
+            if self.proc.is_alive():
                 self._ui.debug('Terminating Writer')
                 self.writer_queue.put_nowait((None, SENTINEL, None))
 
@@ -670,7 +709,7 @@ class RunContext(object):
 
     def __exit__(self, type, value, traceback):
         self._ui.debug('EXIT CALLED ON RUNCONTEXT: successes={}'
-                         ''.format(self.scoring_succeeded))
+                       ''.format(self.scoring_succeeded))
         self.db.close()
         if self.out_stream is not None:
             self.out_stream.close()
@@ -757,7 +796,6 @@ class RunContext(object):
         self.db.sync()
 
     def save_error(self, batch, error, bucket="errors"):
-        # with self.lock:
         msgs = self.db[bucket].setdefault((batch.id, batch.rows), [])
         msgs.append(error)
         self.db.sync()
@@ -766,26 +804,12 @@ class RunContext(object):
         self.save_error(batch, error, "warnings")
 
     def __getstate__(self):
-        """
-        On windows we need to pickle the UI instances or create new
-        instances inside the subprocesses since there's no fork.
-        """
         self.close()
         self.out_stream = None
-        # self.db.sync()
-        # self.db.close()
-        self._ui._next_suffix = 'writer'
         d = self.__dict__.copy()
         return d
 
     def __setstate__(self, d):
-        """
-        On windows we need to pickle the UI instances or create new
-        instances inside the subprocesses since there's no fork.
-        This method is called when unpickling a UI instance.
-        It actually creates a new UI that logs to a separate file.
-        """
-        # from IPython import embed; embed()
         csv.register_dialect('dataset_dialect', d['dialect'])
         csv.register_dialect('writer_dialect', d['writer_dialect'])
         self.__dict__.update(d)
@@ -1144,7 +1168,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             sleep(0.5)
             ui.debug('sending Sentinel to writer process')
             writer_queue.put((None, SENTINEL, None))
-            writer_proc.join(20)
+            writer_proc.join(30)
             if writer_proc.exitcode is 0:
                 ui.debug('writer process exited successfully')
             else:

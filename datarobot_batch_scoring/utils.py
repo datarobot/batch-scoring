@@ -191,26 +191,26 @@ class UI(object):
         """
         On the Windows platform we want to init a new UI inside each subproc
         This allows us to set the name new log file name after pickling
+        On *NIX we can just write to a single file
         """
-        # if self.get_file_name('main') is not self.root_logger_filename:
-        #     raise SystemError('set_next_UI_name() should not be called in '
-        #                       'non-windows environments.')
         if self.file_name_suffix != 'main':
             #  For now let's only init new UI's from the main process
             self.error('set_next_UI_name() called by "{}" UI instance. This '
                        'should only be called by "main".'
                        ''.format(self.file_name_suffix))
-        self.log_files.append(self.get_file_name(suffix))
-        self._next_suffix = suffix
+        if os.name is 'nt':
+            self._next_suffix = suffix
+            self.log_files.append(self.get_file_name(suffix))
+        else:
+            self._next_suffix = 'main'
+            self.log_files.append(self.get_file_name(self._next_suffix))
+            self.log_files = list(set(self.log_files))  # dedupe list
 
     def __getstate__(self):
         """
         On windows we need to pickle the UI instances or create new
         instances inside the subprocesses since there's no fork.
         """
-        # if os.name is not 'nt':
-        #     raise SystemError('__getstate__() should not be called in '
-        #                       'non-windows environments.')
         d = self.__dict__.copy()
         #  replace the old file suffix with a separate log file
         d['file_name_suffix'] = self._next_suffix
@@ -227,9 +227,6 @@ class UI(object):
         This method is called when unpickling a UI instance.
         It actually creates a new UI that logs to a separate file.
         """
-        # if os.name is not 'nt':
-        #     raise SystemError('__getstate__() should not be called in '
-        #                       'non-windows environments.')
         self.__dict__.update(d)
         self._configure_logging(self.loglevel, self.stdout)
 
