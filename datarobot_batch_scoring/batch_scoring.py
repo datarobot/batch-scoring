@@ -662,14 +662,14 @@ class RunContext(object):
                          fast_mode, encoding, skip_row_id, output_delimiter)
 
     def __enter__(self):
-        self._ui.warning('ENTER CALLED ON RUNCONTEXT')
+        self._ui.debug('ENTER CALLED ON RUNCONTEXT')
         self.db = shelve.open(self.file_context.file_name, writeback=True)
         if not hasattr(self, 'partitions'):
             self.partitions = []
         return self
 
     def __exit__(self, type, value, traceback):
-        self._ui.warning('EXIT CALLED ON RUNCONTEXT: successes={}'
+        self._ui.debug('EXIT CALLED ON RUNCONTEXT: successes={}'
                          ''.format(self.scoring_succeeded))
         self.db.close()
         if self.out_stream is not None:
