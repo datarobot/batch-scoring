@@ -332,7 +332,6 @@ class Shovel(object):
 class WriterProcess(object):
     def __init__(self, ui, ctx, writer_queue, queue, deque):
             self._ui = ui
-            self._ui.set_next_UI_name('writer')
             self.reader_dialect = csv.get_dialect('dataset_dialect')
             self.writer_dialect = csv.get_dialect('writer_dialect')
             self.ctx = ctx
@@ -481,6 +480,7 @@ class WriterProcess(object):
                 sys.exit(1)
 
     def go(self):
+        self._ui.set_next_UI_name('writer')
         self.proc = \
             multiprocessing.Process(target=WriterProcess.run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
