@@ -348,6 +348,8 @@ class WriterProcess(object):
             _ui.warning('WriterProcess.run_subproc_cls_inst called in '
                         'process named: "{}"'
                         ''.format(multiprocessing.current_process().name))
+        if os.name is not 'nt':  # this happens automatically on Windows
+            ctx.open()
         WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
 
     def deque_failed_batch(self, batch):
@@ -429,7 +431,6 @@ class WriterProcess(object):
                        ''.format(multiprocessing.current_process().name))
         success = False
         try:
-            self.ctx.open()
             while True:
                 (request, batch, pred_name) = self.writer_queue.get()
                 if request == QueueMsg.ERROR:
@@ -476,6 +477,8 @@ class WriterProcess(object):
 
     def go(self):
         self._ui.set_next_UI_name('writer')
+        if os.name is not 'nt':  # happens when pickled on Windows
+            self.ctx.close()
         self.proc = \
             multiprocessing.Process(target=WriterProcess.run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
@@ -793,8 +796,8 @@ class RunContext(object):
 
     def open(self):
         self._ui.debug('OPEN CALLED ON RUNCONTEXT')
-        csv.register_dialect('dataset_dialect', self.dialect)
-        csv.register_dialect('writer_dialect', self.writer_dialect)
+        csv.register_dialect('dataset_dialect', **self.dialect)
+        csv.register_dialect('writer_dialect', **self.writer_dialect)
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
         self.db = shelve.open(self.file_context.file_name, writeback=True)
@@ -807,6 +810,12 @@ class RunContext(object):
         self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
+        values = ['delimiter', 'doublequote', 'escapechar', 'lineterminator',
+              'quotechar', 'quoting', 'skipinitialspace', 'strict']
+        self.dialect = {k: getattr(self.dialect, k) for k in values if
+                        hasattr(self.dialect, k)}
+        self.writer_dialect = {k: getattr(self.writer_dialect, k) for k
+                               in values if hasattr(self.writer_dialect, k)}
         self.db.sync()
         self.db.close()
         if self.out_stream is not None:
@@ -1128,7 +1137,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         batch_generator_args = ctx.batch_generator_args()
         shovel = Shovel(queue, batch_generator_args, ui)
         ui.info('Shovel go...')
-        ctx.close()
         shovel.go()
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
                                                    queue, deque))
