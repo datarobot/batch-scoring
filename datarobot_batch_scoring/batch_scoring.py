@@ -811,7 +811,7 @@ class RunContext(object):
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
         values = ['delimiter', 'doublequote', 'escapechar', 'lineterminator',
-              'quotechar', 'quoting', 'skipinitialspace', 'strict']
+                  'quotechar', 'quoting', 'skipinitialspace', 'strict']
         self.dialect = {k: getattr(self.dialect, k) for k in values if
                         hasattr(self.dialect, k)}
         self.writer_dialect = {k: getattr(self.writer_dialect, k) for k
@@ -820,6 +820,7 @@ class RunContext(object):
         self.db.close()
         if self.out_stream is not None:
             self.out_stream.close()
+
 
 class ContextFile(object):
     def __init__(self, project_id, model_id, n_samples, keep_cols):
