@@ -347,8 +347,8 @@ class WriterProcess(object):
         Hopefully using this class for both creating the subprocess and
         managing the subprocess isn't too confusing.
         """
-        if multiprocessing.current_process().name is not 'Writer_Proc':
-            _ui.warning('WriterProcess.init_subprocess_class called in '
+        if str(multiprocessing.current_process().name) != 'Writer_Proc':
+            _ui.warning('WriterProcess.run_subproc_cls_inst called in '
                         'process named: "{}"'
                         ''.format(multiprocessing.current_process().name))
         csv.register_dialect('dataset_dialect', reader_dialect)
@@ -469,11 +469,11 @@ class WriterProcess(object):
                            ''.format(batch.id, e))
 
         finally:
-            self.ctx.close()
-            self.queue.close()
-            self.writer_queue.close()
-            self.deque.close()
-            self._ui.close()
+            for o in [self.ctx, self.queue, self.writer_queue, self.deque,
+                      self._ui]:
+                if hasattr(o, 'close'):
+                    # On Windows the Queue doesn't have a close attr
+                    o.close()
             if success:
                 sys.exit(0)
             else:
