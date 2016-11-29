@@ -107,12 +107,14 @@ def live_server(app, monkeypatch):
 
 @pytest.fixture(scope='function')
 def app():
+    #           LID                         FILE
     MAPPING = {'56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
                '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
                None: 'tests/fixtures/temperatura.json'}
 
     app = flask.Flask(__name__)
     app.config['SECRET_KEY'] = '42'
+    app.count = 0
 
     @app.route('/ping')
     def ping():
@@ -162,6 +164,14 @@ def app():
             first_row = int(body[1].split(',')[0]) % 10
         except ValueError:
             first_row = 0
+
+        if app.count < 5 and pid == 'five_tries_f7ef75d75f164':
+            app.count += 1
+            return '{badjson'.encode('utf-8')
+
+        if app.count < 6 and pid == 'six_tries_ff7ef75d75f164':
+            app.count += 1
+            return '{badjson'.encode('utf-8')
 
         with open(MAPPING.get(lid), 'r') as f:
             reply = json.load(f)

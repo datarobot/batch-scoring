@@ -1,4 +1,5 @@
 import pytest
+import mock
 import os
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from datarobot_batch_scoring.utils import UI
@@ -340,3 +341,83 @@ def test_regression_keep_cols_multi_skip_dialect(live_server, tmpdir):
         skip_dialect=True,
         in_fixture='tests/fixtures/regression.csv',
         out_fixture='tests/fixtures/regression_output_yx.csv')
+
+
+def test_deque(live_server, tmpdir):
+
+    out = tmpdir.join('out.csv')
+
+    ui = PickableMock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    with mock.patch(
+                'datarobot_batch_scoring.batch_scoring'
+                '.WorkUnitGenerator.send_error_to_ctx') as mock_method:
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='five_tries_f7ef75d75f164',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv.gz',
+            pred_name=None,
+            timeout=30,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+
+    assert ret is None
+    actual = out.read_text('utf-8')
+    with open('tests/fixtures/temperatura_output.csv', 'rU') as f:
+        expected = f.read()
+    assert str(actual) == str(expected)
+    assert not mock_method.called
+
+
+def test_deque_fail(live_server, tmpdir):
+    out = tmpdir.join('out.csv')
+    with mock.patch(
+                'datarobot_batch_scoring.batch_scoring'
+                '.WorkUnitGenerator.send_error_to_ctx') as mock_method:
+        ui = PickableMock()
+        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+        run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='six_tries_ff7ef75d75f164',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv.gz',
+            pred_name=None,
+            timeout=30,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+        assert mock_method.called
