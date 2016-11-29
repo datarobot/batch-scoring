@@ -141,7 +141,8 @@ def main(argv=sys.argv[1:]):
                         'the input .csv file. E.g. "--delimiter=,". '
                         'If not specified, the script tries to automatically '
                         'determine the delimiter. The special keyword "tab" '
-                        'can be used to indicate a tab delimited csv.')
+                        'can be used to indicate a tab delimited csv. "pipe"'
+                        'can be used to indicate "|"')
     csv_gr.add_argument('--pred_name', type=str,
                         nargs='?', default=None,
                         help='Specifies column name for prediction results, '
@@ -171,7 +172,10 @@ def main(argv=sys.argv[1:]):
     csv_gr.add_argument('--skip_row_id', action='store_true', default=False,
                         help='Skip the row_id column in output.')
     csv_gr.add_argument('--output_delimiter', type=str, default=None,
-                        help='Set the delimiter for output file.')
+                        help='Set the delimiter for output file.The special '
+                             'keyword "tab" can be used to indicate a tab '
+                             'delimited csv. "pipe" can be used to indicate '
+                             '"|"')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -263,6 +267,10 @@ def main(argv=sys.argv[1:]):
         # NOTE: on bash you have to use Ctrl-V + TAB
         delimiter = '\t'
 
+    if delimiter == 'pipe':
+        # using the | char has issues on Windows for some reason
+        delimiter = '|'
+
     if delimiter and delimiter not in VALID_DELIMITERS:
         ui.fatal('Delimiter "{}" is not a valid delimiter.'
                  .format(delimiter))
@@ -270,6 +278,9 @@ def main(argv=sys.argv[1:]):
     if output_delimiter == '\\t' or output_delimiter == 'tab':
         # NOTE: on bash you have to use Ctrl-V + TAB
         output_delimiter = '\t'
+
+    if output_delimiter == 'pipe':
+        output_delimiter = '|'
 
     if output_delimiter and output_delimiter not in VALID_DELIMITERS:
         ui.fatal('Output delimiter "{}" is not a valid delimiter.'

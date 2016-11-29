@@ -15,7 +15,7 @@ import hashlib
 from functools import partial
 from functools import reduce
 from itertools import chain
-from time import time, sleep
+from time import time
 import multiprocessing
 import signal
 from six.moves import queue
@@ -1079,7 +1079,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         queue = conc_manager.Queue(queue_size)
         deque = conc_manager.Queue(queue_size)
         rlock = conc_manager.RLock()
-        writer_queue = conc_manager.Queue(queue_size * 2)
+        writer_queue = conc_manager.Queue(queue_size)
         if not api_token:
             if not pwd:
                 pwd = ui.getpass()
@@ -1165,7 +1165,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 ui.info('{} responses sent | time elapsed {}s'
                         .format(i, time() - t0))
 
-            sleep(0.5)
             ui.debug('sending Sentinel to writer process')
             writer_queue.put((None, SENTINEL, None))
             writer_proc.join(30)
