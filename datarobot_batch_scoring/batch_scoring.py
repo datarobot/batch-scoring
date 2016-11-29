@@ -332,16 +332,13 @@ class Shovel(object):
 class WriterProcess(object):
     def __init__(self, ui, ctx, writer_queue, queue, deque):
             self._ui = ui
-            self.reader_dialect = csv.get_dialect('dataset_dialect')
-            self.writer_dialect = csv.get_dialect('writer_dialect')
             self.ctx = ctx
             self.writer_queue = writer_queue
             self.queue = queue
             self.deque = deque
 
     @staticmethod
-    def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
-                             reader_dialect, writer_dialect):
+    def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
         """
         This should only be run in the spawned process.
         Hopefully using this class for both creating the subprocess and
@@ -351,8 +348,6 @@ class WriterProcess(object):
             _ui.warning('WriterProcess.run_subproc_cls_inst called in '
                         'process named: "{}"'
                         ''.format(multiprocessing.current_process().name))
-        csv.register_dialect('dataset_dialect', reader_dialect)
-        csv.register_dialect('writer_dialect', writer_dialect)
         WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
 
     def deque_failed_batch(self, batch):
@@ -485,9 +480,7 @@ class WriterProcess(object):
             multiprocessing.Process(target=WriterProcess.run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
                                            self.writer_queue,
-                                           self.queue, self.deque,
-                                           self.reader_dialect,
-                                           self.writer_dialect]),
+                                           self.queue, self.deque]),
                                     name='Writer_Proc')
         self.proc.start()
         return self.proc
@@ -717,21 +710,6 @@ class RunContext(object):
             # success - remove shelve
             self.file_context.clean()
 
-    def open(self):
-        self._ui.debug('OPEN CALLED ON RUNCONTEXT')
-        self.db = shelve.open(self.file_context.file_name, writeback=True)
-        if six.PY2:
-            self.out_stream = open(self.out_file, 'ab')
-        elif six.PY3:
-            self.out_stream = open(self.out_file, 'a', newline='')
-
-    def close(self):
-        self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
-        self.db.sync()
-        self.db.close()
-        if self.out_stream is not None:
-            self.out_stream.close()
-
     def checkpoint_batch(self, batch, out_fields, pred):
         """Mark a batch as being processed:
            - write it to the output stream (if necessary pull out columns).
@@ -810,11 +788,29 @@ class RunContext(object):
         return d
 
     def __setstate__(self, d):
-        csv.register_dialect('dataset_dialect', d['dialect'])
-        csv.register_dialect('writer_dialect', d['writer_dialect'])
         self.__dict__.update(d)
         self.open()
 
+    def open(self):
+        self._ui.debug('OPEN CALLED ON RUNCONTEXT')
+        csv.register_dialect('dataset_dialect', self.dialect)
+        csv.register_dialect('writer_dialect', self.writer_dialect)
+        self.dialect = csv.get_dialect('dataset_dialect')
+        self.writer_dialect = csv.get_dialect('writer_dialect')
+        self.db = shelve.open(self.file_context.file_name, writeback=True)
+        if six.PY2:
+            self.out_stream = open(self.out_file, 'ab')
+        elif six.PY3:
+            self.out_stream = open(self.out_file, 'a', newline='')
+
+    def close(self):
+        self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
+        self.dialect = csv.get_dialect('dataset_dialect')
+        self.writer_dialect = csv.get_dialect('writer_dialect')
+        self.db.sync()
+        self.db.close()
+        if self.out_stream is not None:
+            self.out_stream.close()
 
 class ContextFile(object):
     def __init__(self, project_id, model_id, n_samples, keep_cols):
