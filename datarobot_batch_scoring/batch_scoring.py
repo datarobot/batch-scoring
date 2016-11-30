@@ -319,6 +319,23 @@ class Shovel(object):
         self.p.start()
 
 
+def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
+    """
+    This was intended to be a staticmethod of WriterProcess but
+    python 2.7 on Windows can't find it unless it's at module level
+
+    This should only be run in the spawned process to launch the
+    WriterProcess class instance.
+    """
+    if str(multiprocessing.current_process().name) != 'Writer_Proc':
+        _ui.warning('WriterProcess.run_subproc_cls_inst called in '
+                    'process named: "{}"'
+                    ''.format(multiprocessing.current_process().name))
+    if os.name is not 'nt':  # this happens automatically on Windows
+        ctx.open()
+    WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
+
+
 class WriterProcess(object):
     def __init__(self, ui, ctx, writer_queue, queue, deque):
             self._ui = ui
@@ -326,21 +343,6 @@ class WriterProcess(object):
             self.writer_queue = writer_queue
             self.queue = queue
             self.deque = deque
-
-    @staticmethod
-    def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
-        """
-        This should only be run in the spawned process.
-        Hopefully using this class for both creating the subprocess and
-        managing the subprocess isn't too confusing.
-        """
-        if str(multiprocessing.current_process().name) != 'Writer_Proc':
-            _ui.warning('WriterProcess.run_subproc_cls_inst called in '
-                        'process named: "{}"'
-                        ''.format(multiprocessing.current_process().name))
-        if os.name is not 'nt':  # this happens automatically on Windows
-            ctx.open()
-        WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
 
     def deque_failed_batch(self, batch):
         # we retry a batch - decrement retry counter
@@ -470,7 +472,7 @@ class WriterProcess(object):
         if os.name is not 'nt':  # happens when pickled on Windows
             self.ctx.close()
         self.proc = \
-            multiprocessing.Process(target=WriterProcess.run_subproc_cls_inst,
+            multiprocessing.Process(target=run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
                                            self.writer_queue,
                                            self.queue, self.deque]),
