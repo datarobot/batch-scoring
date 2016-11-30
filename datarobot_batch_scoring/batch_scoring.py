@@ -424,7 +424,12 @@ class WriterProcess(object):
         success = False
         try:
             while True:
-                (request, batch, pred_name) = self.writer_queue.get()
+                try:
+                    (request, batch, pred_name) = \
+                        self.writer_queue.get_nowait()
+                except queue.Empty:
+                    (request, batch, pred_name) = self.writer_queue.get()
+
                 if request == QueueMsg.ERROR:
                     # pred_name is a message if ERROR or WARNING
                     self._ui.debug('Writer ERROR')
