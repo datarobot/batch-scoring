@@ -165,10 +165,11 @@ def app():
         except ValueError:
             first_row = 0
 
+        # This is to support testing retries. It's Maybe a little hacky...
+        # look up the "pids" to see where this logic comes into play
         if app.count < 5 and pid == 'five_tries_f7ef75d75f164':
             app.count += 1
             return '{badjson'.encode('utf-8')
-
         if app.count < 6 and pid == 'six_tries_ff7ef75d75f164':
             app.count += 1
             return '{badjson'.encode('utf-8')
