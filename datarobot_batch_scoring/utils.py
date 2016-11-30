@@ -234,9 +234,6 @@ class UI(object):
         self._configure_logging(self.loglevel, self.stdout)
 
     def getpass(self):
-        if os.name is not 'nt':
-            raise SystemError('__getstate__() should not be called in '
-                              'non-windows environments.')
         if self._prompt is not None:
             raise RuntimeError("Non-interactive session")
         return getpass.getpass('password> ')
