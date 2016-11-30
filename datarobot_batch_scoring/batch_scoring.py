@@ -236,11 +236,10 @@ class MultiprocessingGeneratorBackedQueue(object):
 
     When the queue is exhausted it repopulates from the generator.
     """
-    def __init__(self, ui, queue, deque, rlock):
+    def __init__(self, ui, queue, deque):
         self.n_consumed = 0
         self.queue = queue
         self.deque = deque
-        self.rlock = rlock
         self._ui = ui
 
     def __iter__(self):
@@ -278,15 +277,6 @@ class MultiprocessingGeneratorBackedQueue(object):
         except queue.Empty:
             self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
-
-    def has_next(self):
-        with self.rlock:
-            try:
-                item = self.next()
-                self.push(item)
-                return True
-            except StopIteration:
-                return False
 
 
 class Shovel(object):
@@ -555,9 +545,6 @@ class WorkUnitGenerator(object):
                 batch.id, e, batch.rows)
             self._ui.error(msg)
             self.send_error_to_ctx(batch, msg)
-
-    def has_next(self):
-        return self.queue.has_next()
 
     def send_warning_to_ctx(self, batch, message):
         self._ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
@@ -1084,7 +1071,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             conc_manager = multiprocessing
         queue = conc_manager.Queue(queue_size)
         deque = conc_manager.Queue(queue_size)
-        rlock = conc_manager.RLock()
         writer_queue = conc_manager.Queue(queue_size)
         if not api_token:
             if not pwd:
@@ -1134,7 +1120,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         # make the queue twice as big as the
 
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque, rlock)
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque)
         batch_generator_args = ctx.batch_generator_args()
         shovel = Shovel(queue, batch_generator_args, ui)
         ui.info('Shovel go...')

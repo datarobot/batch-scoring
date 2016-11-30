@@ -26,7 +26,7 @@ Install or upgrade to last version:
 How to install particular version:
 ::
 
-    $ pip install datarobot_batch_scoring==1.8.8 
+    $ pip install datarobot_batch_scoring==x.y.z
 
 Features
 --------
@@ -35,6 +35,7 @@ Features
   * Pause/resume
   * Gzip support
   * Custom delimiters
+  * parallel processing
 
 
 Running batch_scoring
@@ -57,7 +58,7 @@ Required arguments:
 ``batch_scoring --host=<host> --user=<user> <project_id> <model_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
 
 Additional recommended arguments
-``[--verbose]  [--keep_cols=<keep_cols>] [--n_samples=<n_samples> | --auto_sample]  [--n_concurrent=<n_concurrent>]``
+``[--verbose]  [--keep_cols=<keep_cols>]  [--n_concurrent=<n_concurrent>]``
 
 Additional optional arguments
 ``[--out=<filepath>] [--api_version=<api_version>] [--pred_name=<string>] [--timeout=<timeout>] [—-create_api_token]  [--n_retry=<n_retry>] [--delimiter=<delimiter>]  [--resume]  [--skip_row_id]  [--output_delimiter=<delimiter>]``
@@ -79,7 +80,7 @@ The following table describes each of the arguments:
  out=<filepath>                Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
  verbose                       Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose) displays very little output.
  keep_cols=<keep_cols>         Specifies the column names to append to the predictions. Enter as a comma-separated list.
- n_samples=<n_samples>         Specifies the number of samples (rows) to use per batch. If not defined the "auto_sample" option will be used.
+ n_samples=<n_samples>         DEPRECATED. Specifies the number of samples (rows) to use per batch. If not defined the "auto_sample" option will be used.
  n_concurrent=<n_concurrent>   Specifies the number of concurrent requests to submit. By default, 4 concurrent requests are submitted. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
  create_api_token              Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
  n_retry=<n_retry>             Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
@@ -92,7 +93,7 @@ The following table describes each of the arguments:
  help                          Show help of usage.
  fast                          Experimental: faster CSV processor. Note: does not support multiline csv.
  stdout                        Send all log messages to stdout.
- auto_sample                   Override "n_samples" and instead use chunks of about 1.5 MB. This can improve throughput.
+ auto_sample                   Override "n_samples" and instead use chunks of about 1.5 MB. This can improve throughput. On by default.
  encoding                      Declare the dataset encoding. If an encoding is not provided the batch_scoring script attempts to detect it. E.g "utf-8", "latin-1" or "iso2022_jp". See the Python docs for a list of valid encodings https://docs.python.org/3/library/codecs.html#standard-encodings
  skip_dialect                  Tell the batch_scoring script to skip csv dialect detection.
 ============================== ===========
@@ -120,7 +121,7 @@ Usage Notes
 ------------
   * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
   * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
-  * The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file, and Windows users will see an additional log file, `datarobot_batch_scoring_batcher.log`.
+  * The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file. Windows users will see two additional log file, `datarobot_batch_scoring_batcher.log` and `datarobot_batch_scoring_writer.log`.
 
 Supported Platforms
 ------------

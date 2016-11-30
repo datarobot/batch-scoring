@@ -106,9 +106,9 @@ def main(argv=sys.argv[1:]):
     conn_gr.add_argument('--n_samples', type=int,
                          nargs='?',
                          default=False,
-                         help='Specifies the number of samples (rows) to use '
-                         'per batch. If not defined the "auto_sample" option '
-                         'will be used.')
+                         help='DEPRECATED. Specifies the number of samples '
+                              '(rows) to use per batch. If not defined the '
+                              '"auto_sample" option will be used.')
     conn_gr.add_argument('--n_concurrent', type=int,
                          nargs='?',
                          default=4,
@@ -118,9 +118,8 @@ def main(argv=sys.argv[1:]):
                          default=3,
                          help='Specifies the number of times DataRobot '
                          'will retry if a request fails. '
-                         'A value of -1, the default, specifies '
-                         'an infinite number of retries.'
-                         '(default: %(default)r)')
+                         'A value of -1 specifies an infinite '
+                         'number of retries. (default: %(default)r)')
     conn_gr.add_argument('--resume', action='store_true',
                          default=False,
                          help='Starts the prediction from the point at which '
