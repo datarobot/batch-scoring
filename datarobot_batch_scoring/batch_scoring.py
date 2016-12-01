@@ -599,13 +599,13 @@ class WorkUnitGenerator(object):
                 if starting_size < self.max_batch_size:
                     if self.compression:
                         data = compress(data)
-                        self._ui.debug('batch {}-{} transmitting {} byte - '
-                                       'space savings {}%'
-                                       ''.format(batch.id, batch.rows,
-                                                 sys.getsizeof(data),
-                                                 "%.2f" % float(1 -
-                                                 (sys.getsizeof(data) /
-                                                  starting_size))))
+                        self._ui.debug(
+                            'batch {}-{} transmitting {} byte - space savings '
+                            '{}%'.format(batch.id, batch.rows,
+                                         sys.getsizeof(data),
+                                         '%.2f' % float(1 -
+                                                        (sys.getsizeof(data) /
+                                                         starting_size))))
                     else:
                         self._ui.debug('batch {}-{} transmitting {} bytes'
                                        .format(batch.id, batch.rows,
