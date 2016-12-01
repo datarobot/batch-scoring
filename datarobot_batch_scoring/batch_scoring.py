@@ -599,13 +599,13 @@ class WorkUnitGenerator(object):
                 if starting_size < self.max_batch_size:
                     if self.compression:
                         data = compress(data)
-
                         self._ui.debug('batch {}-{} transmitting {} byte - '
-                                       'compression ratio {}%'
+                                       'space savings {}%'
                                        ''.format(batch.id, batch.rows,
                                                  sys.getsizeof(data),
-                                                 int(sys.getsizeof(data) /
-                                                     starting_size * 100)))
+                                                 "%.2f" % float(1 -
+                                                 (sys.getsizeof(data) /
+                                                  starting_size))))
                     else:
                         self._ui.debug('batch {}-{} transmitting {} bytes'
                                        .format(batch.id, batch.rows,
@@ -1182,6 +1182,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
             ui.info('dry-run complete | total time elapsed {}s'.format(
                 time() - t1))
+            ctx.scoring_succeeded = True
         else:
             for r in network.perform_requests(work_unit_gen):
                 if r is True:
