@@ -65,7 +65,7 @@ class TargetType(object):
 
 def compress(data):
     buf = io.BytesIO()
-    with GzipFile(fileobj=buf, mode='wb') as f:
+    with GzipFile(fileobj=buf, mode='wb', compresslevel=2) as f:
         f.write(data)
     return buf.getvalue()
 
