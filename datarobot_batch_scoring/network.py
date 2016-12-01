@@ -4,6 +4,8 @@ import textwrap
 from time import sleep
 import requests
 import requests.adapters
+from concurrent.futures import FIRST_COMPLETED
+from concurrent.futures import wait
 
 try:
     from futures import ThreadPoolExecutor
@@ -62,7 +64,7 @@ increase "--timeout" parameter.
                                                               r))
                     break
                 else:
-                    sleep(0.1)
+                    wait(self.futures, return_when=FIRST_COMPLETED)
             yield
         #  wait for all batches to finish before returning
         while self.futures:
@@ -72,11 +74,11 @@ increase "--timeout" parameter.
                 self._ui.debug('Waiting for final requests to finish. '
                                'remaining requests: {}'
                                ''.format(len(self.futures)))
-            sleep(0.1)
+            wait(self.futures, return_when=FIRST_COMPLETED)
         yield True
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._executor.shutdown(wait=False)
+        self._executor.shutdown(wait=True)
