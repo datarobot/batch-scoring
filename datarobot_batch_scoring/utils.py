@@ -89,13 +89,13 @@ class UI(object):
 
         # user logger
         if self.file_name_suffix != 'main':
-            fs = '%(asctime)-15s [%(levelname)s] %(message)s'
+            fs = '%(processName)s %(asctime)-15s [%(levelname)s] %(message)s'
             hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
         elif stdout:
-            fs = '[%(levelname)s] %(message)s'
+            fs = '%(processName)s [%(levelname)s] %(message)s'
             hdlr = logging.StreamHandler(sys.stdout)
         else:
-            fs = '[%(levelname)s] %(message)s'
+            fs = '%(processName)s [%(levelname)s] %(message)s'
             hdlr = logging.StreamHandler()
         dfs = None
         fmt = logging.Formatter(fs, dfs)
@@ -105,7 +105,7 @@ class UI(object):
 
         # root logger
         if stdout is False and self.file_name_suffix == 'main':
-            fs = '%(asctime)-15s [%(levelname)s] %(message)s'
+            fs = '%(processName)s %(asctime)-15s [%(levelname)s] %(message)s'
             hdlr = logging.FileHandler(self.root_logger_filename, 'w+')
             dfs = None
             fmt = logging.Formatter(fs, dfs)
@@ -191,26 +191,26 @@ class UI(object):
         """
         On the Windows platform we want to init a new UI inside each subproc
         This allows us to set the name new log file name after pickling
+        On *NIX we can just write to a single file
         """
-        # if self.get_file_name('main') is not self.root_logger_filename:
-        #     raise SystemError('set_next_UI_name() should not be called in '
-        #                       'non-windows environments.')
         if self.file_name_suffix != 'main':
             #  For now let's only init new UI's from the main process
             self.error('set_next_UI_name() called by "{}" UI instance. This '
                        'should only be called by "main".'
                        ''.format(self.file_name_suffix))
-        self.log_files.append(self.get_file_name(suffix))
-        self._next_suffix = suffix
+        if os.name is 'nt':
+            self._next_suffix = suffix
+            self.log_files.append(self.get_file_name(suffix))
+        else:
+            self._next_suffix = 'main'
+            self.log_files.append(self.get_file_name(self._next_suffix))
+            self.log_files = list(set(self.log_files))  # dedupe list
 
     def __getstate__(self):
         """
         On windows we need to pickle the UI instances or create new
         instances inside the subprocesses since there's no fork.
         """
-        if os.name is not 'nt':
-            raise SystemError('__getstate__() should not be called in '
-                              'non-windows environments.')
         d = self.__dict__.copy()
         #  replace the old file suffix with a separate log file
         d['file_name_suffix'] = self._next_suffix

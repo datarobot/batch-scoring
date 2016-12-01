@@ -17,6 +17,7 @@ from functools import reduce
 from itertools import chain
 from time import time
 import multiprocessing
+import signal
 from six.moves import queue
 from six.moves import zip
 import requests
@@ -48,8 +49,12 @@ Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 SENTINEL = Batch(-1, 0, None, '', -1)
 ERROR_SENTINEL = Batch(-1, 1, None, '', -1)
-
 MAX_BATCH_SIZE = 5 * 1024 ** 2
+
+
+class QueueMsg(object):
+    WARNING = 'WARNING'
+    ERROR = 'ERROR'
 
 
 class TargetType(object):
@@ -231,11 +236,10 @@ class MultiprocessingGeneratorBackedQueue(object):
 
     When the queue is exhausted it repopulates from the generator.
     """
-    def __init__(self, ui, queue, deque, rlock):
+    def __init__(self, ui, queue, deque):
         self.n_consumed = 0
         self.queue = queue
         self.deque = deque
-        self.rlock = rlock
         self._ui = ui
 
     def __iter__(self):
@@ -244,6 +248,7 @@ class MultiprocessingGeneratorBackedQueue(object):
     def __next__(self):
         try:
             r = self.deque.get_nowait()
+            self._ui.debug('Got batch from dequeu: {}'.format(r.id))
             return r
         except queue.Empty:
             try:
@@ -273,15 +278,6 @@ class MultiprocessingGeneratorBackedQueue(object):
             self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
 
-    def has_next(self):
-        with self.rlock:
-            try:
-                item = self.next()
-                self.push(item)
-                return True
-            except StopIteration:
-                return False
-
 
 class Shovel(object):
 
@@ -294,6 +290,7 @@ class Shovel(object):
         self._ui.set_next_UI_name('batcher')
 
     def _shove(self, args, dialect, queue):
+        t2 = time()
         _ui = args[4]
         _ui.info('Shovel process started')
         csv.register_dialect('dataset_dialect', dialect)
@@ -303,6 +300,8 @@ class Shovel(object):
                 _ui.debug('queueing batch {}'.format(batch.id))
                 queue.put(batch)
 
+            _ui.info('shoveling complete | total time elapsed {}s'
+                     ''.format(time() - t2))
             queue.put(SENTINEL)
         except csv.Error:
             queue.put(ERROR_SENTINEL)
@@ -316,33 +315,184 @@ class Shovel(object):
         self.p = multiprocessing.Process(target=self._shove,
                                          args=([self.batch_gen_args,
                                                 self.dialect, self.queue]),
-                                         name='shovel')
+                                         name='Shovel_Proc')
         self.p.start()
 
 
-def process_successful_request(result, batch, ctx, pred_name):
-    """Process a successful request. """
-    predictions = result['predictions']
-    if result['task'] == TargetType.BINARY:
-        sorted_classes = list(
-            sorted(predictions[0]['class_probabilities'].keys()))
-        out_fields = ['row_id'] + sorted_classes
-        if pred_name is not None:
-            sorted_classes = [sorted_classes[-1]]
-            out_fields = ['row_id'] + [pred_name]
-        pred = [[p['row_id'] + batch.id] +
-                [p['class_probabilities'][c] for c in sorted_classes]
-                for p in
-                sorted(predictions, key=operator.itemgetter('row_id'))]
-    elif result['task'] == TargetType.REGRESSION:
-        pred = [[p['row_id'] + batch.id, p['prediction']]
-                for p in
-                sorted(predictions, key=operator.itemgetter('row_id'))]
-        out_fields = ['row_id', pred_name if pred_name else '']
-    else:
-        ValueError('task {} not supported'.format(result['task']))
+def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
+    """
+    This was intended to be a staticmethod of WriterProcess but
+    python 2.7 on Windows can't find it unless it's at module level
 
-    ctx.checkpoint_batch(batch, out_fields, pred)
+    This should only be run in the spawned process to launch the
+    WriterProcess class instance.
+    """
+    if str(multiprocessing.current_process().name) != 'Writer_Proc':
+        _ui.warning('WriterProcess.run_subproc_cls_inst called in '
+                    'process named: "{}"'
+                    ''.format(multiprocessing.current_process().name))
+    if os.name is not 'nt':  # this happens automatically on Windows
+        ctx.open()
+    WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
+
+
+class WriterProcess(object):
+    def __init__(self, ui, ctx, writer_queue, queue, deque):
+            self._ui = ui
+            self.ctx = ctx
+            self.writer_queue = writer_queue
+            self.queue = queue
+            self.deque = deque
+
+    def deque_failed_batch(self, batch):
+        # we retry a batch - decrement retry counter
+        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
+        try:
+            self.deque.put(batch, block=True)
+        except queue.Empty:
+            self._ui.error('Dropping {} due to backfill queue full.'.format(
+                batch))
+
+    def unpack_request_object(self, request, batch):
+        """
+
+        :param request: text of response from request object. contains JSON
+        :param batch: batch NamedTuple
+        :return: deserialize text to JSON and returns JSON as python objects
+        """
+        try:
+            result = json.loads(request['text'])  # replace with r.content
+            elapsed_total_seconds = request['elapsed']
+        except Exception as e:
+            self._ui.warning('{} response error: {} -- retry'
+                             ''.format(batch.id, e))
+            self.deque_failed_batch(batch)
+            return False  # unpack failed for this batch
+        exec_time = result['execution_time']
+        self._ui.debug(('successful response {}-{}: exec time {:.0f}msec | '
+                        'round-trip: {:.0f}msec'
+                        '').format(batch.id, batch.rows, exec_time,
+                                   elapsed_total_seconds * 1000))
+        return result
+
+    def format_result_data(self, result, batch, pred_name):
+        """
+        :param result: JSON data returned from pred server
+        :param batch: batch NamedTuple
+        :param pred_name: name of prediction column
+        :return: out_fields, pred
+
+        Takes the result data and formats it.
+        """
+        predictions = result['predictions']
+        if result['task'] == TargetType.BINARY:
+            sorted_classes = list(
+                sorted(predictions[0]['class_probabilities'].keys()))
+            out_fields = ['row_id'] + sorted_classes
+            if pred_name is not None:
+                sorted_classes = [sorted_classes[-1]]
+                out_fields = ['row_id'] + [pred_name]
+            pred = [[p['row_id'] + batch.id] +
+                    [p['class_probabilities'][c] for c in
+                     sorted_classes]
+                    for p in
+                    sorted(predictions,
+                           key=operator.itemgetter('row_id'))]
+        elif result['task'] == TargetType.REGRESSION:
+            pred = [[p['row_id'] + batch.id, p['prediction']]
+                    for p in
+                    sorted(predictions,
+                           key=operator.itemgetter('row_id'))]
+            out_fields = ['row_id', pred_name if pred_name else '']
+        else:
+            ValueError('task "{}" not supported'
+                       ''.format(result['task']))
+        return (out_fields, pred)
+
+    def sigterm_handler(self, _signo, _stack_frame):
+        self._ui.debug('WriterProcess.sigterm_handler received signal '
+                       '"{}". Exiting 1'.format(_signo))
+        sys.exit(1)
+
+    def process_response(self):
+        """Process a successful request. """
+        signal.signal(signal.SIGTERM, self.sigterm_handler)
+        signal.signal(signal.SIGINT, self.sigterm_handler)
+
+        self._ui.debug('Writer Process started - {}'
+                       ''.format(multiprocessing.current_process().name))
+        success = False
+        try:
+            while True:
+                try:
+                    (request, batch, pred_name) = \
+                        self.writer_queue.get_nowait()
+                except queue.Empty:
+                    (request, batch, pred_name) = self.writer_queue.get()
+
+                if request == QueueMsg.ERROR:
+                    # pred_name is a message if ERROR or WARNING
+                    self._ui.debug('Writer ERROR')
+                    self.ctx.save_error(batch, error=pred_name)
+                    continue
+                if request == QueueMsg.WARNING:
+                    self._ui.debug('Writer WARNING')
+                    self.ctx.save_warning(batch, error=pred_name)
+                    continue
+                if batch.id == SENTINEL.id:
+                    self._ui.debug('Writer received SENTINEL')
+                    break
+                result = self.unpack_request_object(request, batch)
+                if result is False:  # unpack_request_object failed
+                    continue
+
+                (out_fields, pred) = self.format_result_data(result, batch,
+                                                             pred_name)
+
+                self.ctx.checkpoint_batch(batch, out_fields, pred)
+                self._ui.debug('Writer Queue queue length: {}'
+                               ''.format(self.writer_queue.qsize()))
+
+            self._ui.debug('---Writer Exiting---')
+            success = True
+        except Exception as e:
+            # Note this won't catch SystemExit which is raised by
+            # sigterm_handler because it's based on BaseException
+            self._ui.error('Writer Process error: batch={}, error={}'
+                           ''.format(batch.id, e))
+
+        finally:
+            for o in [self.ctx, self.queue, self.writer_queue, self.deque,
+                      self._ui]:
+                if hasattr(o, 'close'):
+                    # On Windows the Queue doesn't have a close attr
+                    o.close()
+            if success:
+                sys.exit(0)
+            else:
+                sys.exit(1)
+
+    def go(self):
+        self._ui.set_next_UI_name('writer')
+        if os.name is not 'nt':  # happens when pickled on Windows
+            self.ctx.close()
+        self.proc = \
+            multiprocessing.Process(target=run_subproc_cls_inst,
+                                    args=([self._ui, self.ctx,
+                                           self.writer_queue,
+                                           self.queue, self.deque]),
+                                    name='Writer_Proc')
+        self.proc.start()
+        return self.proc
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        if hasattr(self, 'proc'):
+            if self.proc.is_alive():
+                self._ui.debug('Terminating Writer')
+                self.writer_queue.put_nowait((None, SENTINEL, None))
 
 
 class WorkUnitGenerator(object):
@@ -354,47 +504,34 @@ class WorkUnitGenerator(object):
     If a submitted async request was not successfull it gets enqueued again.
     """
 
-    def __init__(self, queue, endpoint, headers, user, api_token,
-                 ctx, pred_name, fast_mode, ui, max_batch_size):
+    def __init__(self, queue, endpoint, headers, user, api_token, pred_name,
+                 fast_mode, ui, max_batch_size, writer_queue):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
         self.api_token = api_token
-        self.ctx = ctx
         self.queue = queue
         self.pred_name = pred_name
         self.fast_mode = fast_mode
         self._ui = ui
         self.max_batch_size = max_batch_size
+        self.writer_queue = writer_queue
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
             if r.status_code == 200:
                 try:
-                    try:
-                        result = r.json()
-                    except Exception as e:
-                        self._ui.warning('{} response error: {} -- retry'
-                                         .format(batch.id, e))
-                        self.queue.push(batch)
-                        return
-                    exec_time = result['execution_time']
-                    self._ui.debug(('successful response {}-{}: exec time '
-                                    '{:.0f}msec |'
-                                    ' round-trip: {:.0f}msec').format(
-                                        batch.id,
-                                        batch.rows,
-                                        exec_time,
-                                        r.elapsed.total_seconds() * 1000))
-                    process_successful_request(result, batch, self.ctx,
-                                               self.pred_name)
+                    pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
+                                       'text': r.text}
+                    self.writer_queue.put((pickleable_resp, batch,
+                                           self.pred_name))
+                    return
                 except Exception as e:
                     self._ui.fatal('{} response error: {}'.format(batch.id, e))
-
             elif isinstance(r, FakeResponse):
-                self.queue.push(batch)
                 self._ui.debug('Skipping processing response '
                                'because of FakeResponse')
+                self.queue.push(batch)
             else:
                 try:
                     self._ui.warning('batch {} failed with status: {}'
@@ -408,16 +545,24 @@ class WorkUnitGenerator(object):
                 msg = ('batch {} failed, queued to retry, status_code:{} '
                        'text:{}'.format(batch.id, r.status_code, text))
                 self._ui.error(msg)
-                self.ctx.save_warning(batch, msg)
+                self.send_warning_to_ctx(batch, msg)
                 self.queue.push(batch)
         except Exception as e:
             msg = 'batch {} - dropping due to: {}, {} records lost'.format(
                 batch.id, e, batch.rows)
             self._ui.error(msg)
-            self.ctx.save_error(batch, msg)
+            self.send_error_to_ctx(batch, msg)
 
-    def has_next(self):
-        return self.queue.has_next()
+    def send_warning_to_ctx(self, batch, message):
+        self._ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
+                      'message {}'.format(batch.id, message))
+        self.writer_queue.put((QueueMsg.WARNING, batch, message))
+
+    def send_error_to_ctx(self, batch, message):
+        self._ui.info('WorkUnitGenerator sending ERROR batch_id {} , '
+                      'message {}'.format(batch.id, message))
+
+        self.writer_queue.put((QueueMsg.ERROR, batch, message))
 
     def __iter__(self):
         for batch in self.queue:
@@ -429,7 +574,7 @@ class WorkUnitGenerator(object):
                        'we lost {} records'.format(
                             batch.id, len(batch.data)))
                 self._ui.error(msg)
-                self.ctx.save_error(batch, msg)
+                self.send_error_to_ctx(batch, msg)
                 continue
 
             if self.fast_mode:
@@ -461,14 +606,14 @@ class WorkUnitGenerator(object):
                                'records'.format(batch.id,
                                                 len(batch.data)))
                         self._ui.error(msg)
-                        self.ctx.save_error(batch, msg)
+                        self.send_error_to_ctx(batch, msg)
                         continue
 
                     msg = ('batch {}-{} is too long: {} bytes,'
                            ' splitting'.format(batch.id, batch.rows,
                                                len(data)))
                     self._ui.debug(msg)
-                    self.ctx.save_warning(batch, msg)
+                    self.send_warning_to_ctx(batch, msg)
                     split_point = int(batch.rows/2)
 
                     data1 = batch.data[:split_point]
@@ -495,7 +640,7 @@ class RunContext(object):
 
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
-                 fast_mode, encoding, skip_row_id, output_delimiter, lock):
+                 fast_mode, encoding, skip_row_id, output_delimiter):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -506,7 +651,6 @@ class RunContext(object):
         self.dataset = dataset
         self.pred_name = pred_name
         self.out_stream = None
-        self.lock = lock
         self._ui = ui
         self.file_context = file_context
         self.fast_mode = fast_mode
@@ -517,12 +661,13 @@ class RunContext(object):
         #  investigate_encoding_and_dialect in utils
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
+        self.scoring_succeeded = False  # Removes shelves when True
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
-               fast_mode, encoding, skip_row_id, output_delimiter, lock):
+               fast_mode, encoding, skip_row_id, output_delimiter):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -538,25 +683,27 @@ class RunContext(object):
             is_resume = False
         if is_resume:
             ctx_class = OldRunContext
-
         else:
             ctx_class = NewRunContext
 
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
-                         fast_mode, encoding, skip_row_id, output_delimiter,
-                         lock)
+                         fast_mode, encoding, skip_row_id, output_delimiter)
 
     def __enter__(self):
+        self._ui.debug('ENTER CALLED ON RUNCONTEXT')
         self.db = shelve.open(self.file_context.file_name, writeback=True)
-        self.partitions = []
+        if not hasattr(self, 'partitions'):
+            self.partitions = []
         return self
 
     def __exit__(self, type, value, traceback):
+        self._ui.debug('EXIT CALLED ON RUNCONTEXT: successes={}'
+                       ''.format(self.scoring_succeeded))
         self.db.close()
         if self.out_stream is not None:
             self.out_stream.close()
-        if type is None:
+        if self.scoring_succeeded:
             # success - remove shelve
             self.file_context.clean()
 
@@ -606,32 +753,67 @@ class RunContext(object):
                 written_fields = out_fields[1:]
                 comb = [row[1:] for row in pred]
 
-        with self.lock:
-            # if an error happends during/after the append we
-            # might end up with inconsistent state
-            # TODO write partition files instead of appending
-            #  store checksum of each partition and back-check
-            writer = csv.writer(self.out_stream, dialect=self.writer_dialect)
-            if self.db['first_write']:
-                writer.writerow(written_fields)
-            writer.writerows(comb)
-            self.out_stream.flush()
+        # if an error happends during/after the append we
+        # might end up with inconsistent state
+        # TODO write partition files instead of appending
+        #  store checksum of each partition and back-check
+        writer = csv.writer(self.out_stream, dialect=self.writer_dialect)
+        if self.db['first_write']:
+            writer.writerow(written_fields)
+        writer.writerows(comb)
+        self.out_stream.flush()
 
-            self.db['checkpoints'].append((batch.id, batch.rows))
+        self.db['checkpoints'].append((batch.id, batch.rows))
 
-            self.db['first_write'] = False
-            self._ui.info('batch {}-{} checkpointed'
-                          .format(batch.id, batch.rows))
-            self.db.sync()
+        self.db['first_write'] = False
+        self._ui.info('batch {}-{} checkpointed'
+                      .format(batch.id, batch.rows))
+        self.db.sync()
 
     def save_error(self, batch, error, bucket="errors"):
-        with self.lock:
-            msgs = self.db[bucket].setdefault((batch.id, batch.rows), [])
-            msgs.append(error)
-            self.db.sync()
+        msgs = self.db[bucket].setdefault((batch.id, batch.rows), [])
+        msgs.append(error)
+        self.db.sync()
 
     def save_warning(self, batch, error):
         self.save_error(batch, error, "warnings")
+
+    def __getstate__(self):
+        self.close()
+        self.out_stream = None
+        d = self.__dict__.copy()
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+        self.open()
+
+    def open(self):
+        self._ui.debug('OPEN CALLED ON RUNCONTEXT')
+        csv.register_dialect('dataset_dialect', **self.dialect)
+        csv.register_dialect('writer_dialect', **self.writer_dialect)
+        self.dialect = csv.get_dialect('dataset_dialect')
+        self.writer_dialect = csv.get_dialect('writer_dialect')
+        self.db = shelve.open(self.file_context.file_name, writeback=True)
+        if six.PY2:
+            self.out_stream = open(self.out_file, 'ab')
+        elif six.PY3:
+            self.out_stream = open(self.out_file, 'a', newline='')
+
+    def close(self):
+        self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
+        self.dialect = csv.get_dialect('dataset_dialect')
+        self.writer_dialect = csv.get_dialect('writer_dialect')
+        values = ['delimiter', 'doublequote', 'escapechar', 'lineterminator',
+                  'quotechar', 'quoting', 'skipinitialspace', 'strict']
+        self.dialect = {k: getattr(self.dialect, k) for k in values if
+                        hasattr(self.dialect, k)}
+        self.writer_dialect = {k: getattr(self.writer_dialect, k) for k
+                               in values if hasattr(self.writer_dialect, k)}
+        self.db.sync()
+        self.db.close()
+        if self.out_stream is not None:
+            self.out_stream.close()
 
 
 class ContextFile(object):
@@ -851,9 +1033,8 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
         content = r.content if r is not None else 'NO CONTENT'
         warn_if_redirected(r, ui)
         ui.debug("Failed authorization response \n{!r}".format(content))
-        ui.fatal(('authorization failed -- '
-                  'please check project id and model id permissions: {}')
-                 .format(status))
+        ui.fatal('authorization failed -- please check project id and model '
+                 'id permissions: {}'.format(status))
     else:
         ui.debug('authorization has succeeded')
 
@@ -897,8 +1078,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             conc_manager = multiprocessing
         queue = conc_manager.Queue(queue_size)
         deque = conc_manager.Queue(queue_size)
-        lock = conc_manager.Lock()
-        rlock = conc_manager.RLock()
+        writer_queue = conc_manager.Queue(queue_size)
         if not api_token:
             if not pwd:
                 pwd = ui.getpass()
@@ -939,7 +1119,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             RunContext.create(resume, n_samples, out_file, pid,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
-                              encoding, skip_row_id, output_delimiter, lock))
+                              encoding, skip_row_id, output_delimiter))
         network = stack.enter_context(Network(concurrent, timeout, ui))
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'
@@ -947,25 +1127,24 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         # make the queue twice as big as the
 
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque, rlock)
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque)
         batch_generator_args = ctx.batch_generator_args()
         shovel = Shovel(queue, batch_generator_args, ui)
         ui.info('Shovel go...')
-        t2 = time()
         shovel.go()
-        ui.info('shoveling complete | total time elapsed {}s'
-                .format(time() - t2))
-
+        writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
+                                                   queue, deque))
+        writer_proc = writer.go()
         work_unit_gen = WorkUnitGenerator(MGBQ,
                                           endpoint,
                                           headers=base_headers,
                                           user=user,
                                           api_token=api_token,
-                                          ctx=ctx,
                                           pred_name=pred_name,
                                           fast_mode=fast_mode,
                                           ui=ui,
-                                          max_batch_size=max_batch_size)
+                                          max_batch_size=max_batch_size,
+                                          writer_queue=writer_queue)
         t0 = time()
         i = 0
 
@@ -977,10 +1156,23 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 time() - t1))
         else:
             for r in network.perform_requests(work_unit_gen):
+                if r is True:
+                    ui.debug('Network requests finished')
+                    break
                 i += 1
                 ui.info('{} responses sent | time elapsed {}s'
                         .format(i, time() - t0))
 
+            ui.debug('sending Sentinel to writer process')
+            writer_queue.put((None, SENTINEL, None))
+            writer_proc.join(30)
+            if writer_proc.exitcode is 0:
+                ui.debug('writer process exited successfully')
+            else:
+                ui.debug('writer process did not exit properly: '
+                         'returncode="{}"'.format(writer_proc.exitcode))
+
+            ctx.open()
             ui.debug('list of checkpointed batches: {}'
                      .format(sorted(ctx.db['checkpoints'])))
             n_batches_checkpointed = (len(ctx.db['checkpoints']) -
@@ -1024,3 +1216,5 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
             ui.info('==== Total stats ===='.format(bucket))
             ui.info("done: {} lost: {}".format(total_done, total_lost))
+            if total_lost is 0:
+                ctx.scoring_succeeded = True

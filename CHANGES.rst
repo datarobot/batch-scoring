@@ -1,3 +1,9 @@
+1.9.0 (2016 December 1)
+==================
+
+* added 3rd parallel process which handles post-processing and writing of responses.
+  This should greatly improve performance.
+
 1.8.8 (2016 November 17)
 ==================
 * --output_delimiter flag to set delimiter for output CSV. "tab" can be used 

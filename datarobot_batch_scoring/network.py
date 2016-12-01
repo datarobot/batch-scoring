@@ -73,6 +73,7 @@ increase "--timeout" parameter.
                                'remaining requests: {}'
                                ''.format(len(self.futures)))
             sleep(0.1)
+        yield True
 
     def __enter__(self):
         return self
