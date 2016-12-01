@@ -18,6 +18,7 @@ from itertools import chain
 from time import time
 import multiprocessing
 import signal
+from gzip import GzipFile
 from six.moves import queue
 from six.moves import zip
 import requests
@@ -60,6 +61,13 @@ class QueueMsg(object):
 class TargetType(object):
     REGRESSION = 'Regression'
     BINARY = 'Binary'
+
+
+def compress(data):
+    buf = io.BytesIO()
+    with GzipFile(fileobj=buf, mode='wb', compresslevel=2) as f:
+        f.write(data)
+    return buf.getvalue()
 
 
 def fast_to_csv_chunk(data, header):
@@ -505,7 +513,7 @@ class WorkUnitGenerator(object):
     """
 
     def __init__(self, queue, endpoint, headers, user, api_token, pred_name,
-                 fast_mode, ui, max_batch_size, writer_queue):
+                 fast_mode, ui, max_batch_size, writer_queue, compression):
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -516,6 +524,7 @@ class WorkUnitGenerator(object):
         self._ui = ui
         self.max_batch_size = max_batch_size
         self.writer_queue = writer_queue
+        self.compression = compression
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
@@ -586,10 +595,21 @@ class WorkUnitGenerator(object):
             while todo:
                 batch = todo.pop(0)
                 data = chunk_formatter(batch.data, batch.fieldnames)
-                if len(data) < self.max_batch_size:
-                    self._ui.debug('batch {}-{} transmitting {} bytes'
-                                   .format(batch.id, batch.rows, len(data)))
+                starting_size = sys.getsizeof(data)
+                if starting_size < self.max_batch_size:
+                    if self.compression:
+                        data = compress(data)
 
+                        self._ui.debug('batch {}-{} transmitting {} byte - '
+                                       'compression ratio {}%'
+                                       ''.format(batch.id, batch.rows,
+                                                 sys.getsizeof(data),
+                                                 int(sys.getsizeof(data) /
+                                                     starting_size * 100)))
+                    else:
+                        self._ui.debug('batch {}-{} transmitting {} bytes'
+                                       .format(batch.id, batch.rows,
+                                               starting_size))
                     hook = partial(self._response_callback, batch=batch)
 
                     yield requests.Request(
@@ -971,7 +991,8 @@ def warn_if_redirected(req, ui):
                            ''.format(starting_endpoint, redirect_endpoint))
 
 
-def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
+def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
+              compression=None):
     """Check if user is authorized for the given model and that schema is
     correct.
 
@@ -983,9 +1004,13 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui):
 
     while n_retry:
         ui.debug('request authorization')
+        if compression:
+            data = compress(batch.data)
+        else:
+            data = batch.data
         try:
             r = requests.post(endpoint, headers=base_headers,
-                              data=batch.data,
+                              data=data,
                               auth=(user, api_token))
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
@@ -1049,7 +1074,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           dry_run, encoding, skip_dialect,
                           skip_row_id=False,
                           output_delimiter=None,
-                          max_batch_size=None):
+                          max_batch_size=None, compression=None):
 
     if max_batch_size is None:
         max_batch_size = MAX_BATCH_SIZE
@@ -1087,8 +1112,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                               pwd, create_api_token, ui)
             except Exception as e:
                 ui.fatal(str(e))
-
         base_headers['content-type'] = 'text/csv; charset=utf8'
+        if compression:
+            base_headers['Content-Encoding'] = 'gzip'
         endpoint = base_url + '/'.join((pid, lid, 'predict'))
         encoding = investigate_encoding_and_dialect(
             dataset=dataset,
@@ -1113,7 +1139,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         first_row = first_row._replace(data=first_row_data)
         if not dry_run:
             authorize(user, api_token, n_retry, endpoint, base_headers,
-                      first_row, ui)
+                      first_row, ui, compression=compression)
 
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
@@ -1144,7 +1170,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                           fast_mode=fast_mode,
                                           ui=ui,
                                           max_batch_size=max_batch_size,
-                                          writer_queue=writer_queue)
+                                          writer_queue=writer_queue,
+                                          compression=compression)
         t0 = time()
         i = 0
 
