@@ -1,3 +1,4 @@
+import gzip
 import json
 import threading
 import time
@@ -6,6 +7,8 @@ import os.path
 from glob import glob
 import socket
 import pytest
+import io
+
 try:
     from urllib2 import urlopen, HTTPError
 except ImportError:
@@ -116,6 +119,7 @@ def app():
     app.config['SECRET_KEY'] = '42'
     app.config['PREDICTION_DELAY'] = 0
     app.config['FAIL_AT'] = []
+    app.config['DELAY_AT'] = []
 
     app.request_number = 0
 
@@ -159,19 +163,26 @@ def app():
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
         body = flask.request.data
+
+        if flask.request.content_encoding == "gzip":
+            str_io = io.BytesIO(body)
+            with gzip.GzipFile(fileobj=str_io, mode='rb') as f:
+                body = f.read()
+
         body = body.decode('utf-8').splitlines()
         rows = len(body) - 1
 
         if app.config["PREDICTION_DELAY"]:
             time.sleep(app.config["PREDICTION_DELAY"])
 
-        if app.config["PREDICTION_DELAY"]:
-            time.sleep(app.config["PREDICTION_DELAY"])
-
+        app.request_number += 1
         if app.config["FAIL_AT"]:
-            app.request_number += 1
             if app.request_number in app.config["FAIL_AT"]:
                 raise RuntimeError("Requested failure")
+
+        if app.config["DELAY_AT"]:
+            if app.request_number in app.config["DELAY_AT"]:
+                time.sleep(app.config["DELAY_AT"][app.request_number])
 
         try:
             # for files with row_id as first column
