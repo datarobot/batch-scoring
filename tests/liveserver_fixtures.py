@@ -1,3 +1,4 @@
+import gzip
 import json
 import threading
 import time
@@ -6,6 +7,8 @@ import os.path
 from glob import glob
 import socket
 import pytest
+import io
+
 try:
     from urllib2 import urlopen, HTTPError
 except ImportError:
@@ -159,6 +162,12 @@ def app():
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
         body = flask.request.data
+
+        if flask.request.content_encoding == "gzip":
+            str_io = io.BytesIO(body)
+            with gzip.GzipFile(fileobj=str_io, mode='rb') as f:
+                body = f.read()
+
         body = body.decode('utf-8').splitlines()
         rows = len(body) - 1
 

@@ -146,3 +146,50 @@ def test_request_retry(live_server, tmpdir, monkeypatch):
     assert len(actual.splitlines()) == 101
 
     assert called[0]
+
+
+def test_compression(live_server, tmpdir, monkeypatch):
+    called = [0]
+
+    def log_debug(*args, **kw):
+        if "compression ratio" in args[1]:
+            called[0] = True
+
+    out = tmpdir.join('out.csv')
+    monkeypatch.setattr("datarobot_batch_scoring.utils.UI.debug",
+                        log_debug)
+    with UI(False, 'DEBUG', False) as ui:
+        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=2,
+            resume=False,
+            n_samples=100,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/regression_jp.csv.gz',
+            pred_name=None,
+            timeout=30,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False,
+            compression=True
+        )
+        assert ret is None
+
+    actual = out.read_text('utf-8')
+    assert len(actual.splitlines()) == 1411
+
+    assert called[0]
