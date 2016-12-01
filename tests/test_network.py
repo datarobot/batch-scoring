@@ -240,4 +240,3 @@ def test_wrong_result_order(live_server, tmpdir):
 
     with open('tests/fixtures/regression_output_jp.csv', 'rU') as f:
         assert actual == f.read()
-
