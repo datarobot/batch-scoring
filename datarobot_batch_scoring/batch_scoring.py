@@ -646,6 +646,7 @@ class WorkUnitGenerator(object):
                                    batch.rows - split_point,
                                    batch.fieldnames, data2, batch.rty_cnt)
                     todo.append(batch2)
+                    todo.sort()
 
 
 class RunContext(object):
