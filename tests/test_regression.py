@@ -172,7 +172,8 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
         fast_mode=fast_mode,
         dry_run=False,
         encoding='',
-        skip_dialect=False
+        skip_dialect=False,
+        compression=True
     )
     assert ret is None
 

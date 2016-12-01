@@ -128,6 +128,10 @@ def main(argv=sys.argv[1:]):
                          'to error or network connection issue, you can run '
                          'the same command with all the same '
                          'all arguments plus this resume argument.')
+    conn_gr.add_argument('--compress', action='store_true',
+                         default=False,
+                         help='Compress batch. This can improve throughout '
+                              'when bandwidth is limited.')
     csv_gr = parser.add_argument_group('CVS parameters')
     csv_gr.add_argument('--keep_cols', type=str,
                         nargs='?',
@@ -236,6 +240,7 @@ def main(argv=sys.argv[1:]):
     n_samples = int(parsed_args['n_samples'])
     delimiter = parsed_args.get('delimiter')
     resume = parsed_args['resume']
+    compression = parsed_args['compress']
     out_file = parsed_args['out']
     datarobot_key = parsed_args.get('datarobot_key')
     timeout = int(parsed_args['timeout'])
@@ -311,7 +316,8 @@ def main(argv=sys.argv[1:]):
             dataset=dataset, pred_name=pred_name, timeout=timeout,
             ui=ui, fast_mode=fast_mode, auto_sample=auto_sample,
             dry_run=dry_run, encoding=encoding, skip_dialect=skip_dialect,
-            skip_row_id=skip_row_id, output_delimiter=output_delimiter
+            skip_row_id=skip_row_id, output_delimiter=output_delimiter,
+            compression=compression
         )
     except SystemError:
         pass
