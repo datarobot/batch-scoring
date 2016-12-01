@@ -119,6 +119,7 @@ def app():
     app.config['SECRET_KEY'] = '42'
     app.config['PREDICTION_DELAY'] = 0
     app.config['FAIL_AT'] = []
+    app.config['DELAY_AT'] = []
 
     app.request_number = 0
 
@@ -174,13 +175,14 @@ def app():
         if app.config["PREDICTION_DELAY"]:
             time.sleep(app.config["PREDICTION_DELAY"])
 
-        if app.config["PREDICTION_DELAY"]:
-            time.sleep(app.config["PREDICTION_DELAY"])
-
+        app.request_number += 1
         if app.config["FAIL_AT"]:
-            app.request_number += 1
             if app.request_number in app.config["FAIL_AT"]:
                 raise RuntimeError("Requested failure")
+
+        if app.config["DELAY_AT"]:
+            if app.request_number in app.config["DELAY_AT"]:
+                time.sleep(app.config["DELAY_AT"][app.request_number])
 
         try:
             # for files with row_id as first column

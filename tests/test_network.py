@@ -1,6 +1,7 @@
 import mock
 import textwrap
 
+import pytest
 import requests
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
@@ -193,3 +194,50 @@ def test_compression(live_server, tmpdir, monkeypatch):
     assert len(actual.splitlines()) == 1411
 
     assert called[0]
+
+
+@pytest.mark.xfail(reason="Results are written in response order")
+def test_wrong_result_order(live_server, tmpdir):
+    out = tmpdir.join('out.csv')
+    live_server.app.config["DELAY_AT"] = {
+        8: 3.0,
+        9: 2.0,
+        10: 1.0
+    }
+
+    with UI(False, 'DEBUG', False) as ui:
+        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93e',
+            n_retry=3,
+            concurrent=4,
+            resume=False,
+            n_samples=100,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/regression_jp.csv',
+            pred_name='new_name',
+            timeout=30,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False,
+            compression=True
+        )
+        assert ret is None
+
+    actual = out.read_text('utf-8')
+
+    with open('tests/fixtures/regression_output_jp.csv', 'rU') as f:
+        assert actual == f.read()
+
