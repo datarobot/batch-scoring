@@ -4,6 +4,8 @@
 * added 3rd parallel process which handles post-processing and writing of responses.
   This should greatly improve performance.
 
+* add ability to compress data in transit
+
 1.8.8 (2016 November 17)
 ==================
 * --output_delimiter flag to set delimiter for output CSV. "tab" can be used 
