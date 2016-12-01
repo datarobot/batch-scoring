@@ -45,7 +45,8 @@ def test_without_passed_user_and_passwd(monkeypatch):
             encoding='',
             skip_dialect=False,
             skip_row_id=False,
-            output_delimiter=None
+            output_delimiter=None,
+            compression=False
         )
 
 
@@ -89,7 +90,8 @@ def test_keep_cols(monkeypatch):
             encoding='',
             skip_dialect=False,
             skip_row_id=False,
-            output_delimiter=None
+            output_delimiter=None,
+            compression=False
         )
 
 
@@ -177,7 +179,8 @@ def test_datarobot_key(monkeypatch):
             encoding='',
             skip_dialect=False,
             skip_row_id=False,
-            output_delimiter=None
+            output_delimiter=None,
+            compression=False
         )
 
 
@@ -222,7 +225,8 @@ def test_encoding_options(monkeypatch):
             encoding='utf-8',
             skip_dialect=True,
             skip_row_id=False,
-            output_delimiter=None
+            output_delimiter=None,
+            compression=False
         )
 
 
@@ -306,7 +310,8 @@ def test_output_delimiter(monkeypatch):
             encoding='utf-8',
             skip_dialect=True,
             skip_row_id=False,
-            output_delimiter='\t'
+            output_delimiter='\t',
+            compression=False
         )
 
 
@@ -351,5 +356,6 @@ def test_skip_row_id(monkeypatch):
             encoding='utf-8',
             skip_dialect=True,
             skip_row_id=True,
-            output_delimiter=None
+            output_delimiter=None,
+            compression=False
         )
