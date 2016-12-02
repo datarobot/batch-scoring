@@ -2,8 +2,6 @@
 from __future__ import print_function
 
 import collections
-import csv
-import gzip
 import io
 import json
 import multiprocessing
@@ -12,7 +10,6 @@ import platform
 import sys
 from functools import partial
 from gzip import GzipFile
-from itertools import chain
 from time import time
 
 import requests
@@ -22,8 +19,11 @@ from six.moves import queue
 from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.consts import Batch, SENTINEL, ERROR_SENTINEL
 from datarobot_batch_scoring.network import Network, FakeResponse
-from datarobot_batch_scoring.utils import acquire_api_token, iter_chunks, \
-    auto_sampler, Recoder, investigate_encoding_and_dialect
+from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
+                                            slow_to_csv_chunk, peek_row,
+                                            Shovel, auto_sampler,
+                                            investigate_encoding_and_dialect)
+from datarobot_batch_scoring.utils import acquire_api_token
 from datarobot_batch_scoring.writer import QueueMsg, WriterProcess, RunContext
 
 if six.PY2:  # pragma: no cover
@@ -43,175 +43,6 @@ def compress(data):
     with GzipFile(fileobj=buf, mode='wb', compresslevel=2) as f:
         f.write(data)
     return buf.getvalue()
-
-
-def fast_to_csv_chunk(data, header):
-    """Fast routine to format data for prediction api.
-
-    Returns data in unicode.
-    """
-    header = ','.join(header)
-    chunk = ''.join(chain((header, os.linesep), data))
-    if six.PY3:
-        return chunk.encode('utf-8')
-    else:
-        return chunk
-
-
-def slow_to_csv_chunk(data, header):
-    """Slow routine to format data for prediction api.
-    Returns data in unicode.
-    """
-    if six.PY3:
-        buf = io.StringIO()
-    else:
-        buf = io.BytesIO()
-
-    writer = csv.writer(buf)
-    writer.writerow(header)
-    writer.writerows(data)
-    if six.PY3:
-        return buf.getvalue().encode('utf-8')
-    else:
-        return buf.getvalue()
-
-
-class CSVReader(object):
-    def __init__(self, fd, encoding, ui):
-        self.fd = fd
-        #  dataset_dialect is set by investigate_encoding_and_dialect in utils
-        self.dialect = csv.get_dialect('dataset_dialect')
-        self.encoding = encoding
-        self._ui = ui
-
-    def _create_reader(self):
-        fd = Recoder(self.fd, self.encoding)
-        return csv.reader(fd, self.dialect, delimiter=self.dialect.delimiter)
-
-
-class FastReader(CSVReader):
-    """A reader that only reads the file in text mode but not parses it. """
-
-    def __init__(self, fd, encoding, ui):
-        super(FastReader, self).__init__(fd, encoding, ui)
-        self._check_for_multiline_input()
-        reader = self._create_reader()
-        self.header = next(reader)
-        self.fieldnames = [c.strip() for c in self.header]
-
-    def __iter__(self):
-        fd = Recoder(self.fd, self.encoding)
-        it = iter(fd)
-        next(it)  # skip header
-        return it
-
-    def _check_for_multiline_input(self, peek_size=100):
-        # peek the first `peek_size` records for multiline CSV
-        reader = self._create_reader()
-        i = 0
-        for line in reader:
-            i += 1
-            if i == peek_size:
-                break
-
-        peek_size = min(i, peek_size)
-
-        if reader.line_num != peek_size:
-            self._ui.fatal('Detected multiline CSV format'
-                           ' -- dont use flag `--fast` '
-                           'to force CSV parsing. '
-                           'Note that this will slow down scoring.')
-
-
-class SlowReader(CSVReader):
-    """The slow reader does actual CSV parsing.
-    It supports multiline csv and can be a factor of 50 slower. """
-
-    def __init__(self, fd, encoding, ui):
-        super(SlowReader, self).__init__(fd, encoding, ui)
-        reader = self._create_reader()
-        self.header = next(reader)
-        self.fieldnames = [c.strip() for c in self.header]
-
-    def __iter__(self):
-        self.reader = self._create_reader()
-        for i, row in enumerate(self.reader):
-            if i == 0:
-                # skip header
-                continue
-            yield row
-
-
-class BatchGenerator(object):
-    """Class to chunk a large csv files into a stream
-    of batches of size ``--n_samples``.
-
-    Yields
-    ------
-    batch : Batch
-        The next batch. A batch holds the data to be send already
-        in the form that can be passed to the HTTP request.
-    """
-
-    def __init__(self, dataset, n_samples, n_retry, delimiter, ui,
-                 fast_mode, encoding, already_processed_batches=set()):
-        self.dataset = dataset
-        self.chunksize = n_samples
-        self.rty_cnt = n_retry
-        self._ui = ui
-        self.fast_mode = fast_mode
-        self.encoding = encoding
-        self.already_processed_batches = already_processed_batches
-
-    def csv_input_file_reader(self):
-        if self.dataset.endswith('.gz'):
-            opener = gzip.open
-        else:
-            opener = open
-
-        if six.PY3:
-            fd = opener(self.dataset, 'rt',
-                        encoding=self.encoding)
-        else:
-            fd = opener(self.dataset, 'rb')
-        return fd
-
-    def __iter__(self):
-        if self.fast_mode:
-            reader_factory = FastReader
-        else:
-            reader_factory = SlowReader
-
-        with self.csv_input_file_reader() as csvfile:
-            reader = reader_factory(csvfile, self.encoding, self._ui)
-            fieldnames = reader.fieldnames
-
-            has_content = False
-            t0 = time()
-            rows_read = 0
-            for chunk in iter_chunks(reader, self.chunksize):
-                has_content = True
-                n_rows = len(chunk)
-                if (rows_read, n_rows) not in self.already_processed_batches:
-                    yield Batch(rows_read, n_rows, fieldnames,
-                                chunk, self.rty_cnt)
-                rows_read += n_rows
-            if not has_content:
-                raise ValueError("Input file '{}' is empty.".format(
-                    self.dataset))
-            self._ui.info('chunking {} rows took {}'.format(rows_read,
-                                                            time() - t0))
-
-
-def peek_row(dataset, delimiter, ui, fast_mode, encoding):
-    """Peeks at the first row in `dataset`. """
-    batches = BatchGenerator(dataset, 1, 1, delimiter, ui, fast_mode,
-                             encoding)
-    try:
-        batch = next(iter(batches))
-    except StopIteration:
-        raise ValueError('Cannot peek first row from {}'.format(dataset))
-    return batch
 
 
 class MultiprocessingGeneratorBackedQueue(object):
@@ -260,46 +91,6 @@ class MultiprocessingGeneratorBackedQueue(object):
         except queue.Empty:
             self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
-
-
-class Shovel(object):
-
-    def __init__(self, queue, batch_gen_args, ui):
-        self._ui = ui
-        self.queue = queue
-        self.batch_gen_args = batch_gen_args
-        self.dialect = csv.get_dialect('dataset_dialect')
-        #  The following should only impact Windows
-        self._ui.set_next_UI_name('batcher')
-
-    def _shove(self, args, dialect, queue):
-        t2 = time()
-        _ui = args[4]
-        _ui.info('Shovel process started')
-        csv.register_dialect('dataset_dialect', dialect)
-        batch_generator = BatchGenerator(*args)
-        try:
-            for batch in batch_generator:
-                _ui.debug('queueing batch {}'.format(batch.id))
-                queue.put(batch)
-
-            _ui.info('shoveling complete | total time elapsed {}s'
-                     ''.format(time() - t2))
-            queue.put(SENTINEL)
-        except csv.Error:
-            queue.put(ERROR_SENTINEL)
-            raise
-        finally:
-            queue.put(SENTINEL)
-            if os.name is 'nt':
-                _ui.close()
-
-    def go(self):
-        self.p = multiprocessing.Process(target=self._shove,
-                                         args=([self.batch_gen_args,
-                                                self.dialect, self.queue]),
-                                         name='Shovel_Proc')
-        self.p.start()
 
 
 class WorkUnitGenerator(object):

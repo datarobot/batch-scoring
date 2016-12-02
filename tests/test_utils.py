@@ -3,10 +3,11 @@ import logging
 import mock
 import pytest
 from datarobot_batch_scoring.utils import (verify_objectid, UI,
-                                           iter_chunks, acquire_api_token,
-                                           auto_sampler, parse_host)
-from datarobot_batch_scoring.batch_scoring import \
-    investigate_encoding_and_dialect
+                                           acquire_api_token,
+                                           parse_host)
+from datarobot_batch_scoring.reader import (iter_chunks,
+                                            investigate_encoding_and_dialect,
+                                            auto_sampler)
 from utils import PickableMock
 
 
@@ -175,7 +176,7 @@ def test_investigate_encoding_and_dialect():
 def test_investigate_encoding_and_dialect_submit_encoding():
 
     with UI(None, logging.DEBUG, stdout=False) as ui:
-        with mock.patch('datarobot_batch_scoring.utils.chardet.detect') as cd:
+        with mock.patch('datarobot_batch_scoring.reader.chardet.detect') as cd:
             data = 'tests/fixtures/windows_encoded.csv'
             encoding = investigate_encoding_and_dialect(data, None, ui,
                                                         fast=False,
@@ -188,7 +189,7 @@ def test_investigate_encoding_and_dialect_submit_encoding():
 def test_investigate_encoding_and_dialect_skip_dialect():
 
     with UI(None, logging.DEBUG, stdout=False) as ui:
-        with mock.patch('datarobot_batch_scoring.utils.csv.Sniffer') as sn:
+        with mock.patch('datarobot_batch_scoring.reader.csv.Sniffer') as sn:
             data = 'tests/fixtures/windows_encoded.csv'
             encoding = investigate_encoding_and_dialect(data, None, ui,
                                                         fast=False,
@@ -203,7 +204,7 @@ def test_investigate_encoding_and_dialect_skip_dialect():
 def test_investigate_encoding_and_dialect_substitute_delimiter():
 
     with UI(None, logging.DEBUG, stdout=False) as ui:
-        with mock.patch('datarobot_batch_scoring.utils.csv.Sniffer') as sn:
+        with mock.patch('datarobot_batch_scoring.reader.csv.Sniffer') as sn:
             data = 'tests/fixtures/windows_encoded.csv'
             encoding = investigate_encoding_and_dialect(data, '|', ui,
                                                         fast=False,
