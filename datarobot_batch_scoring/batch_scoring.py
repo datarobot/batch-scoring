@@ -1209,7 +1209,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                           n_batches_checkpointed)
             batches_missing = n_batches_not_checkpointed > 0
             if batches_missing:
-                ui.fatal(('scoring incomplete, {} batches were dropped | '
+                ui.error(('scoring incomplete, {} batches were dropped | '
                           'time elapsed {}s')
                          .format(n_batches_not_checkpointed, time() - t0))
             else:
