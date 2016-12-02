@@ -1102,8 +1102,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         else:
             #  You're on a nix of some sort and don't need a manager process.
             conc_manager = multiprocessing
-        queue = conc_manager.Queue(queue_size)
-        deque = conc_manager.Queue(queue_size)
+        network_queue = conc_manager.Queue(queue_size)
+        network_deque = conc_manager.Queue(queue_size)
         writer_queue = conc_manager.Queue(queue_size)
         if not api_token:
             if not pwd:
@@ -1154,13 +1154,13 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         # make the queue twice as big as the
 
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui, queue, deque)
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui, network_queue, network_deque)
         batch_generator_args = ctx.batch_generator_args()
-        shovel = Shovel(queue, batch_generator_args, ui)
+        shovel = Shovel(network_queue, batch_generator_args, ui)
         ui.info('Shovel go...')
         shovel.go()
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
-                                                   queue, deque))
+                                                   network_queue, network_deque))
         writer_proc = writer.go()
         work_unit_gen = WorkUnitGenerator(MGBQ,
                                           endpoint,
