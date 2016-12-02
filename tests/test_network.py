@@ -153,7 +153,7 @@ def test_compression(live_server, tmpdir, monkeypatch):
     called = [0]
 
     def log_debug(*args, **kw):
-        if "compression ratio" in args[1]:
+        if "space savings" in args[1]:
             called[0] = True
 
     out = tmpdir.join('out.csv')
@@ -242,8 +242,8 @@ def test_wrong_result_order(live_server, tmpdir):
         assert actual == f.read()
 
 
-# @pytest.mark.xfail(reason="Last retries are lost")
-@pytest.skip()
+@pytest.mark.xfail(reason="Last retries are lost")
+#@pytest.skip()
 def test_lost_retry(live_server, tmpdir, monkeypatch):
     out = tmpdir.join('out.csv')
     live_server.app.config["PREDICTION_DELAY"] = 1.0
