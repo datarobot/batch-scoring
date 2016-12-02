@@ -529,14 +529,11 @@ class WorkUnitGenerator(object):
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
             if r.status_code == 200:
-                try:
-                    pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
-                                       'text': r.text}
-                    self.writer_queue.put((pickleable_resp, batch,
-                                           self.pred_name))
-                    return
-                except Exception as e:
-                    self._ui.fatal('{} response error: {}'.format(batch.id, e))
+                pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
+                                   'text': r.text}
+                self.writer_queue.put((pickleable_resp, batch,
+                                       self.pred_name))
+                return
             elif isinstance(r, FakeResponse):
                 self._ui.debug('Skipping processing response '
                                'because of FakeResponse')
