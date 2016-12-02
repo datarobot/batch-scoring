@@ -1,8 +1,10 @@
 import getpass
+import io
 import logging
 import os
 import sys
 from functools import partial
+from gzip import GzipFile
 from os import getcwd
 from os.path import expanduser, isfile, join as path_join
 
@@ -10,6 +12,7 @@ import requests
 import six
 import trafaret as t
 from six.moves.configparser import ConfigParser
+from six.moves import input
 
 if six.PY2:
     from urlparse import urlparse
@@ -18,7 +21,6 @@ elif six.PY3:
 
 OptKey = partial(t.Key, optional=True)
 
-input = six.moves.input
 
 CONFIG_FILENAME = 'batch_scoring.ini'
 
@@ -305,3 +307,100 @@ def parse_host(host, ui):
     base_url = '{}://{}/api/v1/'.format(parsed.scheme, parsed.netloc)
     ui.debug('parse_host return value: {}'.format(base_url))
     return base_url
+
+
+def compress(data):
+    buf = io.BytesIO()
+    with GzipFile(fileobj=buf, mode='wb', compresslevel=2) as f:
+        f.write(data)
+    return buf.getvalue()
+
+
+def warn_if_redirected(req, ui):
+    """
+    test whether a request was redirect.
+    Log a warning to the user if it was redirected
+    """
+    history = req.history
+    if history:
+        first = history[0]
+        if first.is_redirect:
+            starting_endpoint = first.url  # Requested url
+            redirect_endpoint = first.headers.get('Location')  # redirect
+            if str(starting_endpoint) != str(redirect_endpoint):
+                ui.warning('The requested URL:\n\t{}\n\twas redirected '
+                           'by the webserver to:\n\t{}'
+                           ''.format(starting_endpoint, redirect_endpoint))
+
+
+def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
+              compression=None):
+    """Check if user is authorized for the given model and that schema is
+    correct.
+
+    This function will make a sync request to the api endpoint with a single
+    row just to make sure that the schema is correct and the user
+    is authorized.
+    """
+    r = None
+
+    while n_retry:
+        ui.debug('request authorization')
+        if compression:
+            data = compress(batch.data)
+        else:
+            data = batch.data
+        try:
+            r = requests.post(endpoint, headers=base_headers,
+                              data=data,
+                              auth=(user, api_token))
+            ui.debug('authorization request response: {}|{}'
+                     .format(r.status_code, r.text))
+            if r.status_code == 200:
+                # all good
+                break
+
+            warn_if_redirected(r, ui)
+            if r.status_code == 400:
+                # client error -- maybe schema is wrong
+                try:
+                    msg = r.json()['status']
+                except:
+                    msg = r.text
+                ui.fatal('failed with client error: {}'.format(msg))
+            elif r.status_code == 403:
+                #  This is usually a bad API token. E.g.
+                #  {"status": "API token not valid", "code": 403}
+                ui.fatal('Failed with message:\n\t{}'.format(r.text))
+            elif r.status_code == 401:
+                #  This can be caused by having the wrong datarobot_key
+                ui.fatal('failed to authenticate -- '
+                         'please check your: datarobot_key (if required), '
+                         'username/password and/or api token. Contact '
+                         'customer support if the problem persists '
+                         'message:\n{}'
+                         ''.format(r.__dict__.get('_content')))
+            elif r.status_code == 405:
+                ui.fatal('failed to request endpoint -- please check your '
+                         '"--host" argument')
+            elif r.status_code == 502:
+                ui.fatal('problem with the gateway -- please check your '
+                         '"--host" argument and contact customer support'
+                         'if the problem persists.')
+        except requests.exceptions.ConnectionError:
+            ui.error('cannot connect to {}'.format(endpoint))
+        n_retry -= 1
+
+    if n_retry == 0:
+        status = r.text if r is not None else 'UNKNOWN'
+        try:
+            status = r.json()['status']
+        except:
+            pass  # fall back to r.text
+        content = r.content if r is not None else 'NO CONTENT'
+        warn_if_redirected(r, ui)
+        ui.debug("Failed authorization response \n{!r}".format(content))
+        ui.fatal('authorization failed -- please check project id and model '
+                 'id permissions: {}'.format(status))
+    else:
+        ui.debug('authorization has succeeded')

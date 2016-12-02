@@ -2,14 +2,12 @@
 from __future__ import print_function
 
 import collections
-import io
 import json
 import multiprocessing
 import os
 import platform
 import sys
 from functools import partial
-from gzip import GzipFile
 from time import time
 
 import requests
@@ -23,7 +21,8 @@ from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
                                             Shovel, auto_sampler,
                                             investigate_encoding_and_dialect)
-from datarobot_batch_scoring.utils import acquire_api_token
+from datarobot_batch_scoring.utils import (acquire_api_token, authorize,
+                                           compress)
 from datarobot_batch_scoring.writer import QueueMsg, WriterProcess, RunContext
 
 if six.PY2:  # pragma: no cover
@@ -36,13 +35,6 @@ elif six.PY3:  # pragma: no cover
 Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 MAX_BATCH_SIZE = 5 * 1024 ** 2
-
-
-def compress(data):
-    buf = io.BytesIO()
-    with GzipFile(fileobj=buf, mode='wb', compresslevel=2) as f:
-        f.write(data)
-    return buf.getvalue()
 
 
 class MultiprocessingGeneratorBackedQueue(object):
@@ -234,96 +226,6 @@ class WorkUnitGenerator(object):
                                    batch.fieldnames, data2, batch.rty_cnt)
                     todo.append(batch2)
                     todo.sort()
-
-
-def warn_if_redirected(req, ui):
-    """
-    test whether a request was redirect.
-    Log a warning to the user if it was redirected
-    """
-    history = req.history
-    if history:
-        first = history[0]
-        if first.is_redirect:
-            starting_endpoint = first.url  # Requested url
-            redirect_endpoint = first.headers.get('Location')  # redirect
-            if str(starting_endpoint) != str(redirect_endpoint):
-                ui.warning('The requested URL:\n\t{}\n\twas redirected '
-                           'by the webserver to:\n\t{}'
-                           ''.format(starting_endpoint, redirect_endpoint))
-
-
-def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
-              compression=None):
-    """Check if user is authorized for the given model and that schema is
-    correct.
-
-    This function will make a sync request to the api endpoint with a single
-    row just to make sure that the schema is correct and the user
-    is authorized.
-    """
-    r = None
-
-    while n_retry:
-        ui.debug('request authorization')
-        if compression:
-            data = compress(batch.data)
-        else:
-            data = batch.data
-        try:
-            r = requests.post(endpoint, headers=base_headers,
-                              data=data,
-                              auth=(user, api_token))
-            ui.debug('authorization request response: {}|{}'
-                     .format(r.status_code, r.text))
-            if r.status_code == 200:
-                # all good
-                break
-
-            warn_if_redirected(r, ui)
-            if r.status_code == 400:
-                # client error -- maybe schema is wrong
-                try:
-                    msg = r.json()['status']
-                except:
-                    msg = r.text
-                ui.fatal('failed with client error: {}'.format(msg))
-            elif r.status_code == 403:
-                #  This is usually a bad API token. E.g.
-                #  {"status": "API token not valid", "code": 403}
-                ui.fatal('Failed with message:\n\t{}'.format(r.text))
-            elif r.status_code == 401:
-                #  This can be caused by having the wrong datarobot_key
-                ui.fatal('failed to authenticate -- '
-                         'please check your: datarobot_key (if required), '
-                         'username/password and/or api token. Contact '
-                         'customer support if the problem persists '
-                         'message:\n{}'
-                         ''.format(r.__dict__.get('_content')))
-            elif r.status_code == 405:
-                ui.fatal('failed to request endpoint -- please check your '
-                         '"--host" argument')
-            elif r.status_code == 502:
-                ui.fatal('problem with the gateway -- please check your '
-                         '"--host" argument and contact customer support'
-                         'if the problem persists.')
-        except requests.exceptions.ConnectionError:
-            ui.error('cannot connect to {}'.format(endpoint))
-        n_retry -= 1
-
-    if n_retry == 0:
-        status = r.text if r is not None else 'UNKNOWN'
-        try:
-            status = r.json()['status']
-        except:
-            pass  # fall back to r.text
-        content = r.content if r is not None else 'NO CONTENT'
-        warn_if_redirected(r, ui)
-        ui.debug("Failed authorization response \n{!r}".format(content))
-        ui.fatal('authorization failed -- please check project id and model '
-                 'id permissions: {}'.format(status))
-    else:
-        ui.debug('authorization has succeeded')
 
 
 def run_batch_predictions(base_url, base_headers, user, pwd,
