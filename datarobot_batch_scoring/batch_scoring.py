@@ -733,11 +733,6 @@ class RunContext(object):
         input_delimiter = self.dialect.delimiter
         if self.keep_cols:
             # stack columns
-            if self.db['first_write']:
-                if not all(c in batch.fieldnames for c in self.keep_cols):
-                    self._ui.fatal('keep_cols "{}" not in columns {}.'.format(
-                        [c for c in self.keep_cols
-                         if c not in batch.fieldnames], batch.fieldnames))
 
             feature_indices = {col: i for i, col in
                                enumerate(batch.fieldnames)}
@@ -1135,6 +1130,11 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             chunk_formatter = slow_to_csv_chunk
         first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
         first_row = first_row._replace(data=first_row_data)
+        if keep_cols:
+            if not all(c in first_row.fieldnames for c in keep_cols):
+                ui.fatal('keep_cols "{}" not in columns {}.'.format(
+                    [c for c in keep_cols if c not in first_row.fieldnames],
+                    first_row.fieldnames))
         if not dry_run:
             authorize(user, api_token, n_retry, endpoint, base_headers,
                       first_row, ui, compression=compression)

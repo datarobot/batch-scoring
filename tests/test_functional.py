@@ -3,7 +3,12 @@ import os
 import sys
 import subprocess
 import tempfile
+
+import mock
+import pytest
+
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
+from datarobot_batch_scoring.utils import UI
 from utils import (PickableMock, read_logs)
 
 
@@ -135,6 +140,48 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
 
 def test_keep_cols_fast_mode(live_server, tmpdir):
     test_keep_cols(live_server, tmpdir, True)
+
+
+def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui_class = mock.Mock(spec=UI)
+    ui = ui_class.return_value
+    ui.fatal.side_effect = SystemExit
+
+    with pytest.raises(SystemExit):
+        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file=str(out),
+            keep_cols=['not_present', 'x'],
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv',
+            pred_name=None,
+            timeout=30,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=fast_mode,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+
+        assert ret is None
+
+    ui.fatal.assert_called()
 
 
 def test_pred_name_classification(live_server, tmpdir):
