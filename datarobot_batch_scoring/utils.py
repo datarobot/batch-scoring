@@ -174,8 +174,8 @@ class UI(object):
                 if isinstance(h, logging.FileHandler):
                     h.close()
                     l.removeHandler(h)
-                    if hasattr(l, 'shutdown'):
-                        l.shutdown()
+            if hasattr(l, 'shutdown'):
+                l.shutdown()
 
     def get_file_name(self, suffix):
         return os.path.join(os.getcwd(), 'datarobot_batch_scoring_{}.log'
