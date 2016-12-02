@@ -252,7 +252,7 @@ def test_lost_retry(live_server, tmpdir, monkeypatch):
     def sys_exit(code):
         raise RuntimeError
 
-    monkeypatch.setattr("os._exit", sys_exit)
+    monkeypatch.setattr("sys.exit", sys_exit)
 
     with UI(False, 'DEBUG', False) as ui:
         base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())

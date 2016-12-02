@@ -117,7 +117,7 @@ class TestUi(object):
                 with mock.patch(
                         'datarobot_batch_scoring.utils.root_logger') as m_root:
                     with mock.patch(
-                            'datarobot_batch_scoring.utils.os._exit'
+                            'datarobot_batch_scoring.utils.sys.exit'
                             '') as m_exit:
                         msg = ('{}\nIf you need assistance please send the '
                                'log file/s:\n{}to support@datarobot.com.'
@@ -223,7 +223,7 @@ def test_stdout_logging_and_csv_module_fail(capsys):
                   """argument, E.g  --delimiter=','""")
         msg = ('{}\nIf you need assistance please send the output of this '
                'script to support@datarobot.com.').format(exc)
-        with mock.patch('datarobot_batch_scoring.utils.os._exit') as m_exit:
+        with mock.patch('datarobot_batch_scoring.utils.sys.exit') as m_exit:
             with pytest.raises(csv.Error):
                 investigate_encoding_and_dialect(data, None, ui)
             m_exit.assert_called_with(1)

@@ -165,7 +165,7 @@ class UI(object):
             logger.error(msg)
             root_logger.error(msg, exc_info=exc_info)
         self.close()
-        os._exit(1)
+        sys.exit(1)
 
     def close(self):
         for l in [logger, root_logger]:
