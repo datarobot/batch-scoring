@@ -243,7 +243,6 @@ def test_wrong_result_order(live_server, tmpdir):
 
 
 @pytest.mark.xfail(reason="Last retries are lost")
-#@pytest.skip()
 def test_lost_retry(live_server, tmpdir, monkeypatch):
     out = tmpdir.join('out.csv')
     live_server.app.config["PREDICTION_DELAY"] = 1.0

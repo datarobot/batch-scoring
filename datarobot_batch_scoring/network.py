@@ -1,7 +1,6 @@
 import collections
 import logging
 import textwrap
-from time import sleep
 import requests
 import requests.adapters
 from concurrent.futures import FIRST_COMPLETED

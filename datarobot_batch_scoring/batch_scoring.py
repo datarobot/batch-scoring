@@ -1151,13 +1151,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         # make the queue twice as big as the
 
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui, network_queue, network_deque)
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui, network_queue,
+                                                   network_deque)
         batch_generator_args = ctx.batch_generator_args()
         shovel = Shovel(network_queue, batch_generator_args, ui)
         ui.info('Shovel go...')
         shovel.go()
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
-                                                   network_queue, network_deque))
+                                                   network_queue,
+                                                   network_deque))
         writer_proc = writer.go()
         work_unit_gen = WorkUnitGenerator(MGBQ,
                                           endpoint,
