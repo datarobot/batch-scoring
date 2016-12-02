@@ -1,30 +1,28 @@
-DataRobot batch_scoring
+datarobot_batch_scoring
 =======================
 
 A script to score CSV files via DataRobot's prediction API.
 
 .. image:: https://coveralls.io/repos/github/datarobot/batch-scoring/badge.svg?branch=master
-   :target: https://coveralls.io/github/datarobot/batch-scoring?branch=master
+    :target: https://coveralls.io/github/datarobot/batch-scoring?branch=master
 
 .. image:: https://travis-ci.org/datarobot/batch-scoring.svg?branch=master
-   :target: https://travis-ci.org/datarobot/batch-scoring#master
+    :target: https://travis-ci.org/datarobot/batch-scoring#master
 
 .. image:: https://caniusepython3.com/project/datarobot_batch_scoring.svg
 
 .. image:: https://badge.fury.io/py/datarobot_batch_scoring.svg
-   :target: https://badge.fury.io/py/datarobot_batch_scoring.svg
+    :target: https://badge.fury.io/py/datarobot_batch_scoring.svg
 
 
 How to install
 --------------
 
-Install or upgrade to last version:
-::
+Install or upgrade to last version: ::
 
     $ pip install -U datarobot_batch_scoring
 
-How to install particular version:
-::
+How to install particular version: ::
 
     $ pip install datarobot_batch_scoring==x.y.z
 
@@ -100,7 +98,7 @@ The following table describes each of the arguments:
 
 Example::
 
-  batch_scoring --host=https://beta.datarobot.com/ --user="greg@datarobot.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
+    batch_scoring --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 /home/greg/Downloads/diabetes_test.csv
 
 
 Using configuration file
@@ -118,11 +116,14 @@ The format of a `batch_scoring.ini` file is as follows::
 
 
 Usage Notes
-------------
+-----------
   * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
   * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
   * The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file. Windows users will see two additional log file, `datarobot_batch_scoring_batcher.log` and `datarobot_batch_scoring_writer.log`.
 
+
 Supported Platforms
-------------
+-------------------
 The batch_scoring script is tested on Linux and Windows, but it should also work on OS X. Both Python 2.7 and Python 3.x are supported.
+
+
