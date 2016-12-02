@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import collections
 import json
 import multiprocessing
 import os
@@ -32,7 +31,6 @@ elif six.PY3:  # pragma: no cover
     ifilter = filter
     # for successful py2exe dist package
 
-Prediction = collections.namedtuple('Prediction', 'fieldnames data')
 
 MAX_BATCH_SIZE = 5 * 1024 ** 2
 
