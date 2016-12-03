@@ -1,39 +1,28 @@
-from functools import partial
 import getpass
-from os.path import expanduser, isfile, join as path_join
-from os import getcwd
-from time import time
-import codecs
 import io
-import gzip
-import csv
 import logging
 import os
+import sys
+from functools import partial
+from gzip import GzipFile
+from os import getcwd
+from os.path import expanduser, isfile, join as path_join
+
 import requests
 import six
-import sys
 import trafaret as t
 from six.moves.configparser import ConfigParser
-import chardet
+from six.moves import input
 
 if six.PY2:
-    import StringIO
     from urlparse import urlparse
 elif six.PY3:
     from urllib.parse import urlparse
 
 OptKey = partial(t.Key, optional=True)
 
-input = six.moves.input
 
 CONFIG_FILENAME = 'batch_scoring.ini'
-
-DETECT_SAMPLE_SIZE_FAST = int(0.2 * 1024 ** 2)
-DETECT_SAMPLE_SIZE_SLOW = 1024 ** 2
-
-AUTO_SAMPLE_SIZE = int(0.5 * 1024 ** 2)
-AUTO_SMALL_SAMPLES = 500
-AUTO_GOAL_SIZE = int(2.5 * 1024 ** 2)  # size we want per batch
 
 
 def verify_objectid(id_):
@@ -165,7 +154,7 @@ class UI(object):
             logger.error(msg)
             root_logger.error(msg, exc_info=exc_info)
         self.close()
-        os._exit(1)
+        sys.exit(1)
 
     def close(self):
         for l in [logger, root_logger]:
@@ -174,8 +163,8 @@ class UI(object):
                 if isinstance(h, logging.FileHandler):
                     h.close()
                     l.removeHandler(h)
-                    if hasattr(l, 'shutdown'):
-                        l.shutdown()
+            if hasattr(l, 'shutdown'):
+                l.shutdown()
 
     def get_file_name(self, suffix):
         return os.path.join(os.getcwd(), 'datarobot_batch_scoring_{}.log'
@@ -245,32 +234,6 @@ class UI(object):
         self.close()
 
 
-class Recoder:
-    """
-    Iterator that reads an encoded stream and decodes the input to UTF-8
-    for Python 2. In Python 3 the open function decodes the file.
-    """
-    def __init__(self, f, encoding):
-        f.seek(0)
-        if six.PY3:
-            self.reader = f
-        if six.PY2:
-            self.reader = codecs.StreamRecoder(f,
-                                               codecs.getencoder('utf-8'),
-                                               codecs.getdecoder('utf-8'),
-                                               codecs.getreader(encoding),
-                                               codecs.getwriter(encoding))
-
-    def __iter__(self):
-        return self
-
-    def next(self):   # python 3
-        return self.reader.next()
-
-    def __next__(self):  # python 2
-        return self.reader.__next__()
-
-
 def get_config_file():
     """
     Lookup for config file at user home directory or working directory.
@@ -297,17 +260,6 @@ def parse_config_file(file_path):
         return {}
     parsed_dict = dict(config.items('batch_scoring'))
     return config_validator(parsed_dict)
-
-
-def iter_chunks(csvfile, chunk_size):
-    chunk = []
-    for row in csvfile:
-        chunk.append(row)
-        if len(chunk) >= chunk_size:
-            yield chunk
-            chunk = []
-    if chunk:
-        yield chunk
 
 
 def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
@@ -344,162 +296,6 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     return api_token
 
 
-def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
-                                     encoding=None, skip_dialect=False,
-                                     output_delimiter=None):
-    """Try to identify encoding and dialect.
-    Providing a delimiter may help with smaller datasets.
-    Running this is costly so run it once per dataset."""
-    t0 = time()
-    if fast:
-        sample_size = DETECT_SAMPLE_SIZE_FAST
-    else:
-        sample_size = DETECT_SAMPLE_SIZE_SLOW
-
-    if dataset.endswith('.gz'):
-        opener = gzip.open
-    else:
-        opener = open
-    with opener(dataset, 'rb') as dfile:
-        sample = dfile.read(sample_size)
-
-    if not encoding:
-        chardet_result = chardet.detect(sample)
-        ui.debug('investigate_encoding_and_dialect - seconds to detect '
-                 'encoding: {}'.format(time() - t0))
-        encoding = chardet_result['encoding'].lower()
-    else:
-        ui.debug('investigate_encoding_and_dialect - skip encoding detect')
-        encoding = encoding.lower()
-        sample[:1000].decode(encoding)  # Fail here if the encoding is invalid
-    t1 = time()
-    try:
-        if skip_dialect:
-            ui.debug('investigate_encoding_and_dialect - skip dialect detect')
-            if sep:
-                csv.register_dialect('dataset_dialect', csv.excel,
-                                     delimiter=sep)
-            else:
-                csv.register_dialect('dataset_dialect', csv.excel)
-            dialect = csv.get_dialect('dataset_dialect')
-        else:
-            sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(sample.decode(encoding), delimiters=sep)
-            ui.debug('investigate_encoding_and_dialect - seconds to detect '
-                     'csv dialect: {}'.format(time() - t1))
-    except csv.Error:
-        if len(sample) < 10:
-            ui.fatal('Input file "%s" is less than 10 chars long '
-                     'and this is the possible cause of a csv.Error.'
-                     ' Check the file and try again.' % dataset)
-        elif sep is not None:
-            ui.fatal('The csv module failed to detect the CSV '
-                     'dialect. Check that you provided the correct '
-                     'delimiter, or try the script without the '
-                     '--delimiter flag.')
-        else:
-            ui.fatal('The csv module failed to detect the CSV '
-                     'dialect. Try giving hints with the '
-                     '--delimiter argument, E.g  '
-                     """--delimiter=','""")
-        raise
-    #  in Python 2, csv.dialect sometimes returns unicode which the
-    #  PY2 csv.reader cannot handle. This may be from the Recoder
-    if six.PY2:
-        for a in ['delimiter', 'lineterminator', 'quotechar']:
-            if isinstance(getattr(dialect, a, None), type(u'')):
-                recast = str(getattr(dialect, a))
-                setattr(dialect, a, recast)
-    csv.register_dialect('dataset_dialect', dialect)
-    #  the csv writer should use the systems newline char
-    csv.register_dialect('writer_dialect', dialect,
-                         lineterminator=os.linesep,
-                         delimiter=str(output_delimiter or dialect.delimiter))
-    ui.debug('investigate_encoding_and_dialect - total time seconds -'
-             ' {}'.format(time() - t0))
-    ui.debug('investigate_encoding_and_dialect - encoding -'
-             ' {}'.format(encoding))
-    values = ['delimiter', 'doublequote', 'escapechar', 'lineterminator',
-              'quotechar', 'quoting', 'skipinitialspace', 'strict']
-    d_attr = ' '.join(['{}={} '.format(i, repr(getattr(dialect, i))) for i in
-                      values if hasattr(dialect, i)])
-    ui.debug('investigate_encoding_and_dialect - vars(dialect) - {}'
-             ''.format(d_attr))
-    return encoding
-
-
-def auto_sampler(dataset, encoding, ui):
-    """
-    Automatically find an appropriate number of rows to send per batch based
-    on the average row size.
-    :return:
-    """
-
-    t0 = time()
-
-    sample_size = AUTO_SAMPLE_SIZE
-    if dataset.endswith('.gz'):
-        opener = gzip.open
-    else:
-        opener = open
-    with opener(dataset, 'rb') as dfile:
-        sample = dfile.read(sample_size)
-    ingestable_sample = sample.decode(encoding)
-    size_bytes = sys.getsizeof(ingestable_sample.encode('utf-8'))
-
-    if size_bytes < (sample_size * 0.75):
-        #  if dataset is tiny, don't bother auto sampling.
-        ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
-        ui.info('auto_sampler: defaulting to {} samples for small dataset'
-                .format(AUTO_SMALL_SAMPLES))
-        return AUTO_SMALL_SAMPLES
-
-    if six.PY3:
-        buf = io.StringIO()
-        buf.write(ingestable_sample)
-    else:
-        buf = StringIO.StringIO()
-        buf.write(sample)
-    buf.seek(0)
-    file_lines, csv_lines = 0, 0
-    dialect = csv.get_dialect('dataset_dialect')
-    fd = Recoder(buf, encoding)
-    reader = csv.reader(fd, dialect=dialect, delimiter=dialect.delimiter)
-    line_pos = []
-    for _ in buf:
-        file_lines += 1
-        line_pos.append(buf.tell())
-    #  remove the last line since it's probably not fully formed
-    buf.truncate(line_pos[-2])
-    buf.seek(0)
-    file_lines -= 1
-    try:
-        for _ in reader:
-            csv_lines += 1
-    except csv.Error:
-        if buf.tell() in line_pos[-3:]:
-            ui.debug('auto_sampler: caught csv.Error at end of sample. '
-                     'seek_position: {}, csv_line: {}'.format(buf.tell(),
-                                                              line_pos))
-        else:
-            ui.fatal('--auto_sample failed to parse the csv file. Try again '
-                     'without --auto_sample. seek_position: {}, '
-                     'csv_line: {}'.format(buf.tell(), line_pos))
-            raise
-    else:
-        ui.debug('auto_sampler: analyzed {} csv rows'.format(csv_lines))
-
-    buf.close()
-    avg_line = int(size_bytes / csv_lines)
-    chunk_size_goal = AUTO_GOAL_SIZE  # size we want per batch
-    lines_per_sample = int(chunk_size_goal / avg_line) + 1
-    ui.debug('auto_sampler: lines counted: {},  avgerage line size: {}, '
-             'recommended lines per sample: {}'.format(csv_lines, avg_line,
-                                                       lines_per_sample))
-    ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
-    return lines_per_sample
-
-
 def parse_host(host, ui):
     parsed = urlparse(host)
     ui.debug('urlparse.urlparse result: {}'.format(parsed))
@@ -511,3 +307,100 @@ def parse_host(host, ui):
     base_url = '{}://{}/api/v1/'.format(parsed.scheme, parsed.netloc)
     ui.debug('parse_host return value: {}'.format(base_url))
     return base_url
+
+
+def compress(data):
+    buf = io.BytesIO()
+    with GzipFile(fileobj=buf, mode='wb', compresslevel=2) as f:
+        f.write(data)
+    return buf.getvalue()
+
+
+def warn_if_redirected(req, ui):
+    """
+    test whether a request was redirect.
+    Log a warning to the user if it was redirected
+    """
+    history = req.history
+    if history:
+        first = history[0]
+        if first.is_redirect:
+            starting_endpoint = first.url  # Requested url
+            redirect_endpoint = first.headers.get('Location')  # redirect
+            if str(starting_endpoint) != str(redirect_endpoint):
+                ui.warning('The requested URL:\n\t{}\n\twas redirected '
+                           'by the webserver to:\n\t{}'
+                           ''.format(starting_endpoint, redirect_endpoint))
+
+
+def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
+              compression=None):
+    """Check if user is authorized for the given model and that schema is
+    correct.
+
+    This function will make a sync request to the api endpoint with a single
+    row just to make sure that the schema is correct and the user
+    is authorized.
+    """
+    r = None
+
+    while n_retry:
+        ui.debug('request authorization')
+        if compression:
+            data = compress(batch.data)
+        else:
+            data = batch.data
+        try:
+            r = requests.post(endpoint, headers=base_headers,
+                              data=data,
+                              auth=(user, api_token))
+            ui.debug('authorization request response: {}|{}'
+                     .format(r.status_code, r.text))
+            if r.status_code == 200:
+                # all good
+                break
+
+            warn_if_redirected(r, ui)
+            if r.status_code == 400:
+                # client error -- maybe schema is wrong
+                try:
+                    msg = r.json()['status']
+                except:
+                    msg = r.text
+                ui.fatal('failed with client error: {}'.format(msg))
+            elif r.status_code == 403:
+                #  This is usually a bad API token. E.g.
+                #  {"status": "API token not valid", "code": 403}
+                ui.fatal('Failed with message:\n\t{}'.format(r.text))
+            elif r.status_code == 401:
+                #  This can be caused by having the wrong datarobot_key
+                ui.fatal('failed to authenticate -- '
+                         'please check your: datarobot_key (if required), '
+                         'username/password and/or api token. Contact '
+                         'customer support if the problem persists '
+                         'message:\n{}'
+                         ''.format(r.__dict__.get('_content')))
+            elif r.status_code == 405:
+                ui.fatal('failed to request endpoint -- please check your '
+                         '"--host" argument')
+            elif r.status_code == 502:
+                ui.fatal('problem with the gateway -- please check your '
+                         '"--host" argument and contact customer support'
+                         'if the problem persists.')
+        except requests.exceptions.ConnectionError:
+            ui.error('cannot connect to {}'.format(endpoint))
+        n_retry -= 1
+
+    if n_retry == 0:
+        status = r.text if r is not None else 'UNKNOWN'
+        try:
+            status = r.json()['status']
+        except:
+            pass  # fall back to r.text
+        content = r.content if r is not None else 'NO CONTENT'
+        warn_if_redirected(r, ui)
+        ui.debug("Failed authorization response \n{!r}".format(content))
+        ui.fatal('authorization failed -- please check project id and model '
+                 'id permissions: {}'.format(status))
+    else:
+        ui.debug('authorization has succeeded')

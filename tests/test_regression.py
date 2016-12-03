@@ -1,5 +1,4 @@
 import pytest
-import os
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from datarobot_batch_scoring.utils import UI
 from utils import PickableMock
@@ -264,7 +263,7 @@ def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
     def sys_exit(code):
         raise RuntimeError
 
-    monkeypatch.setattr(os, "_exit", sys_exit)
+    monkeypatch.setattr("sys.exit", sys_exit)
     with pytest.raises(RuntimeError):
         test_regression(live_server, tmpdir,
                         in_fixture='tests/fixtures/regression_bad2.csv',
