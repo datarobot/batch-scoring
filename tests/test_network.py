@@ -45,7 +45,7 @@ def test_request_client_timeout(live_server, tmpdir):
             skip_dialect=False
         )
 
-    assert ret is None
+    assert ret is 1
     returned = out.read_text('utf-8')
     assert '' in returned, returned
     ui.warning.assert_called_with(textwrap.dedent("""The server did not send any data

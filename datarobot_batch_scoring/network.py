@@ -4,6 +4,7 @@ import logging
 import sys
 import textwrap
 from functools import partial
+from time import time
 
 import requests
 import requests.adapters
@@ -220,7 +221,36 @@ class WorkUnitGenerator(object):
 
 
 class Network(object):
-    def __init__(self, concurrency, timeout, ui=None):
+    def __init__(self, concurrency, timeout, ui,
+                    network_queue,
+                    network_deque,
+                    writer_queue,
+                    endpoint,
+                    headers,
+                    user,
+                    api_token,
+                    pred_name,
+                    fast_mode,
+                    max_batch_size,
+                    compression
+    ):
+
+        self.concurrency = concurrency
+        self.timeout = timeout
+        self.ui = ui
+        self.network_queue = network_queue
+        self.network_deque = network_deque
+        self.writer_queue = writer_queue
+        self.endpoint = endpoint
+        self.headers = headers
+        self.user = user
+        self.api_token = api_token
+        self.pred_name = pred_name
+        self.fast_mode = fast_mode
+        self.max_batch_size = max_batch_size
+        self.compression = compression
+
+        self.work_unit_gen = None
         self._executor = ThreadPoolExecutor(concurrency)
         self._timeout = timeout
         self._ui = ui or logger
@@ -281,3 +311,38 @@ increase "--timeout" parameter.
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._executor.shutdown(wait=True)
+
+    def go(self, dry_run=False):
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui=self.ui, queue=self.network_queue,
+                                                   deque=self.network_deque)
+        self.work_unit_gen = WorkUnitGenerator(queue=MGBQ,
+                                          endpoint=self.endpoint,
+                                          headers=self.headers,
+                                          user=self.user,
+                                          api_token=self.api_token,
+                                          pred_name=self.pred_name,
+                                          fast_mode=self.fast_mode,
+                                          ui=self.ui,
+                                          max_batch_size=self.max_batch_size,
+                                          writer_queue=self.writer_queue,
+                                          compression=self.compression)
+
+        if dry_run:
+            i = 0
+            for _ in self.work_unit_gen:
+                i += 1
+
+            return i
+
+
+        t0 = time()
+        i = 0
+        r = None
+        for r in self.perform_requests(self.work_unit_gen):
+            i += 1
+            self.ui.info('{} responses sent | time elapsed {}s'
+                    .format(i, time() - t0))
+
+        return r, i, MGBQ.n_consumed
+
+
