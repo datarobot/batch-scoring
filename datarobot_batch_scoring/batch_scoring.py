@@ -117,105 +117,115 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
                               encoding, skip_row_id, output_delimiter))
-        network = stack.enter_context(Network(concurrent, timeout, ui))
+
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'
                  .format(n_batches_checkpointed_init))
 
-        # make the queue twice as big as the
-
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui, network_queue,
-                                                   network_deque)
         batch_generator_args = ctx.batch_generator_args()
-        shovel = Shovel(network_queue, batch_generator_args, ui)
+        shovel = stack.enter_context(Shovel(network_queue,
+                                            batch_generator_args,
+                                            ui))
         ui.info('Shovel go...')
         shovel.go()
-        writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
-                                                   network_queue,
-                                                   network_deque))
-        writer_proc = writer.go()
-        work_unit_gen = WorkUnitGenerator(MGBQ,
-                                          endpoint,
-                                          headers=base_headers,
-                                          user=user,
-                                          api_token=api_token,
-                                          pred_name=pred_name,
-                                          fast_mode=fast_mode,
-                                          ui=ui,
-                                          max_batch_size=max_batch_size,
-                                          writer_queue=writer_queue,
-                                          compression=compression)
+
+        network = stack.enter_context(Network(concurrency=concurrent,
+                                              timeout=timeout,
+                                              ui=ui,
+                                              network_queue=network_queue,
+                                              network_deque=network_deque,
+                                              writer_queue=writer_queue,
+                                              endpoint=endpoint,
+                                              headers=base_headers,
+                                              user=user,
+                                              api_token=api_token,
+                                              pred_name=pred_name,
+                                              fast_mode=fast_mode,
+                                              max_batch_size=max_batch_size,
+                                              compression=compression
+                                              ))
         t0 = time()
-        i = 0
 
         if dry_run:
-            for _ in work_unit_gen:
-                pass
+            network.go(dry_run=True)
             ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
             ui.info('dry-run complete | total time elapsed {}s'.format(
                 time() - t1))
             ctx.scoring_succeeded = True
+            return
+
+        exit_code = None
+        writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
+                                                   network_queue,
+                                                   network_deque))
+        ui.info('Writer go...')
+        writer_proc = writer.go()
+
+        ret, n_requests, n_consumed  = network.go()
+        if ret is True:
+            ui.debug('Network requests successfully finished')
         else:
-            for r in network.perform_requests(work_unit_gen):
-                if r is True:
-                    ui.debug('Network requests finished')
-                    break
-                i += 1
-                ui.info('{} responses sent | time elapsed {}s'
-                        .format(i, time() - t0))
+            exit_code = 1
 
-            ui.debug('sending Sentinel to writer process')
-            writer_queue.put((None, SENTINEL, None))
-            writer_proc.join(30)
-            if writer_proc.exitcode is 0:
-                ui.debug('writer process exited successfully')
-            else:
-                ui.debug('writer process did not exit properly: '
-                         'returncode="{}"'.format(writer_proc.exitcode))
+        ui.debug('sending Sentinel to writer process')
+        writer_queue.put((None, SENTINEL, None))
+        writer_proc.join(30)
+        if writer_proc.exitcode is 0:
+            ui.debug('writer process exited successfully')
+        else:
+            ui.debug('writer process did not exit properly: '
+                     'returncode="{}"'.format(writer_proc.exitcode))
 
-            ctx.open()
-            ui.debug('list of checkpointed batches: {}'
-                     .format(sorted(ctx.db['checkpoints'])))
-            n_batches_checkpointed = (len(ctx.db['checkpoints']) -
-                                      n_batches_checkpointed_init)
-            ui.debug('number of batches checkpointed: {}'
-                     .format(n_batches_checkpointed))
-            n_batches_not_checkpointed = (work_unit_gen.queue.n_consumed -
-                                          n_batches_checkpointed)
-            batches_missing = n_batches_not_checkpointed > 0
-            if batches_missing:
-                ui.error(('scoring incomplete, {} batches were dropped | '
-                          'time elapsed {}s')
-                         .format(n_batches_not_checkpointed, time() - t0))
-            else:
-                ui.info('scoring complete | time elapsed {}s'
-                        .format(time() - t0))
-                ui.info('scoring complete | total time elapsed {}s'
-                        .format(time() - t1))
+        ctx.open()
+        ui.debug('number of batches checkpointed initially: {}'
+             .format(n_batches_checkpointed_init))
+        ui.debug('list of checkpointed batches: {}'
+                 .format(sorted(ctx.db['checkpoints'])))
+        n_batches_checkpointed = (len(ctx.db['checkpoints']) -
+                                  n_batches_checkpointed_init)
+        ui.debug('number of batches checkpointed: {}'
+                 .format(n_batches_checkpointed))
+        n_batches_not_checkpointed = (n_consumed -
+                                      n_batches_checkpointed)
+        batches_missing = n_batches_not_checkpointed > 0
+        if batches_missing:
+            ui.error(('scoring incomplete, {} batches were dropped | '
+                      'time elapsed {}s')
+                     .format(n_batches_not_checkpointed, time() - t0))
+            exit_code = 1
+        else:
+            ui.info('scoring complete | time elapsed {}s'
+                    .format(time() - t0))
+            ui.info('scoring complete | total time elapsed {}s'
+                    .format(time() - t1))
 
-            total_done = 0
-            for _, batch_len in ctx.db["checkpoints"]:
-                total_done += batch_len
+        total_done = 0
+        for _, batch_len in ctx.db["checkpoints"]:
+            total_done += batch_len
 
-            total_lost = 0
-            for bucket in ("warnings", "errors"):
-                ui.info('==== Scoring {} ===='.format(bucket))
-                if ctx.db[bucket]:
-                    msg_data = ctx.db[bucket]
-                    msg_keys = sorted(msg_data.keys())
-                    for batch_id in msg_keys:
-                        first = True
-                        for msg in msg_data[batch_id]:
-                            if first:
-                                first = False
-                                ui.info("{}: {}".format(batch_id, msg))
-                            else:
-                                ui.info("        {}".format(msg))
+        total_lost = 0
+        for bucket in ("warnings", "errors"):
+            ui.info('==== Scoring {} ===='.format(bucket))
+            if ctx.db[bucket]:
+                msg_data = ctx.db[bucket]
+                msg_keys = sorted(msg_data.keys())
+                for batch_id in msg_keys:
+                    first = True
+                    for msg in msg_data[batch_id]:
+                        if first:
+                            first = False
+                            ui.info("{}: {}".format(batch_id, msg))
+                        else:
+                            ui.info("        {}".format(msg))
 
-                        if bucket == "errors":
-                            total_lost += batch_id[1]
+                    if bucket == "errors":
+                        total_lost += batch_id[1]
 
-            ui.info('==== Total stats ===='.format(bucket))
-            ui.info("done: {} lost: {}".format(total_done, total_lost))
-            if total_lost is 0:
-                ctx.scoring_succeeded = True
+        ui.info('==== Total stats ===='.format(bucket))
+        ui.info("done: {} lost: {}".format(total_done, total_lost))
+        if total_lost is 0:
+            ctx.scoring_succeeded = True
+        else:
+            exit_code = 1
+
+        return exit_code
