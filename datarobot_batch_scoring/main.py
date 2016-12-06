@@ -305,9 +305,8 @@ def main(argv=sys.argv[1:]):
     ui.debug('batch_scoring v{}'.format(__version__))
     ui.info('connecting to {}'.format(base_url))
 
-    exit_code = 1
     try:
-        exit_code = run_batch_predictions(
+        run_batch_predictions(
             base_url=base_url, base_headers=base_headers,
             user=user, pwd=pwd,
             api_token=api_token, create_api_token=create_api_token,
@@ -321,22 +320,16 @@ def main(argv=sys.argv[1:]):
             compression=compression
         )
     except SystemError:
-        exit_code = 1
         pass
     except ShelveError as e:
-        exit_code = 1
         ui.error(str(e))
     except KeyboardInterrupt:
-        exit_code = 1
         ui.info('Keyboard interrupt')
     except Exception as e:
-        exit_code = 1
         ui.fatal(str(e))
     finally:
         ui.close()
-        return exit_code
 
 
 if __name__ == '__main__':
-    exit_code = main()  # pragma: no cover
-    sys.exit(exit_code)
+    main()  # pragma: no cover

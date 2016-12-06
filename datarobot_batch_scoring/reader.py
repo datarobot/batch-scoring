@@ -257,13 +257,6 @@ class Shovel(object):
                                          name='Shovel_Proc')
         self.p.start()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.p.is_alive():
-            self.p.terminate()
-
 
 def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
                                      encoding=None, skip_dialect=False,
