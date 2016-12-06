@@ -321,16 +321,12 @@ def main(argv=sys.argv[1:]):
             compression=compression
         )
     except SystemError:
-        exit_code = 1
         pass
     except ShelveError as e:
-        exit_code = 1
         ui.error(str(e))
     except KeyboardInterrupt:
-        exit_code = 1
         ui.info('Keyboard interrupt')
     except Exception as e:
-        exit_code = 1
         ui.fatal(str(e))
     finally:
         ui.close()
