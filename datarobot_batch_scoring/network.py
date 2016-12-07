@@ -230,18 +230,17 @@ class WorkUnitGenerator(object):
 
 class Network(object):
     def __init__(self, concurrency, timeout, ui,
-                    network_queue,
-                    network_deque,
-                    writer_queue,
-                    endpoint,
-                    headers,
-                    user,
-                    api_token,
-                    pred_name,
-                    fast_mode,
-                    max_batch_size,
-                    compression
-    ):
+                 network_queue,
+                 network_deque,
+                 writer_queue,
+                 endpoint,
+                 headers,
+                 user,
+                 api_token,
+                 pred_name,
+                 fast_mode,
+                 max_batch_size,
+                 compression):
 
         self.concurrency = concurrency
         self.timeout = timeout
@@ -321,19 +320,21 @@ increase "--timeout" parameter.
         self._executor.shutdown(wait=True)
 
     def go(self, dry_run=False):
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui=self.ui, queue=self.network_queue,
+        MGBQ = MultiprocessingGeneratorBackedQueue(ui=self.ui,
+                                                   queue=self.network_queue,
                                                    deque=self.network_deque)
-        self.work_unit_gen = WorkUnitGenerator(queue=MGBQ,
-                                          endpoint=self.endpoint,
-                                          headers=self.headers,
-                                          user=self.user,
-                                          api_token=self.api_token,
-                                          pred_name=self.pred_name,
-                                          fast_mode=self.fast_mode,
-                                          ui=self.ui,
-                                          max_batch_size=self.max_batch_size,
-                                          writer_queue=self.writer_queue,
-                                          compression=self.compression)
+        self.work_unit_gen = WorkUnitGenerator(
+            queue=MGBQ,
+            endpoint=self.endpoint,
+            headers=self.headers,
+            user=self.user,
+            api_token=self.api_token,
+            pred_name=self.pred_name,
+            fast_mode=self.fast_mode,
+            ui=self.ui,
+            max_batch_size=self.max_batch_size,
+            writer_queue=self.writer_queue,
+            compression=self.compression)
 
         if dry_run:
             i = 0
@@ -342,15 +343,12 @@ increase "--timeout" parameter.
 
             return i
 
-
         t0 = time()
         i = 0
         r = None
         for r in self.perform_requests(self.work_unit_gen):
             i += 1
             self.ui.info('{} responses sent | time elapsed {}s'
-                    .format(i, time() - t0))
+                         .format(i, time() - t0))
 
         return r, i, MGBQ.n_consumed
-
-

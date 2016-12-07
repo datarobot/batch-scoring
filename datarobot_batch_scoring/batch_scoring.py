@@ -69,7 +69,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         network_queue = conc_manager.Queue(queue_size)
         network_deque = conc_manager.Queue(queue_size)
         writer_queue = conc_manager.Queue(queue_size)
-        progress_queue = conc_manager.Queue()
+        # progress_queue = conc_manager.Queue()
 
         if not api_token:
             if not pwd:
@@ -162,14 +162,14 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         ui.info('Writer go...')
         writer_proc = writer.go()
 
-        ret, n_requests, n_consumed  = network.go()
+        ret, n_requests, n_consumed = network.go()
         if ret is True:
             ui.debug('Network requests successfully finished')
         else:
             exit_code = 1
 
         ui.debug('sending Sentinel to writer process')
-        writer_queue.put((WriterQueueMsg.SENTINEL,{}))
+        writer_queue.put((WriterQueueMsg.SENTINEL, {}))
         writer_proc.join(30)
         if writer_proc.exitcode is 0:
             ui.debug('writer process exited successfully')
@@ -179,7 +179,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         ctx.open()
         ui.debug('number of batches checkpointed initially: {}'
-             .format(n_batches_checkpointed_init))
+                 .format(n_batches_checkpointed_init))
         ui.debug('list of checkpointed batches: {}'
                  .format(sorted(ctx.db['checkpoints'])))
         n_batches_checkpointed = (len(ctx.db['checkpoints']) -

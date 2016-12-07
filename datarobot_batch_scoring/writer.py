@@ -393,7 +393,7 @@ class WriterProcess(object):
             out_fields = ['row_id', pred_name if pred_name else '']
         else:
             raise ValueError('task "{}" not supported'
-                       ''.format(result['task']))
+                             ''.format(result['task']))
 
         if keep_cols:
             # stack columns
@@ -467,7 +467,8 @@ class WriterProcess(object):
                     if result is False:  # unpack_request_object failed
                         continue
 
-                    (written_fields, comb) = self.format_result_data(result, batch)
+                    (written_fields, comb) = self.format_result_data(result,
+                                                                     batch)
 
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
                     self._ui.debug('Writer Queue queue length: {}'
@@ -497,7 +498,7 @@ class WriterProcess(object):
 
     def go(self):
         self._ui.set_next_UI_name('writer')
-        self.ctx.close() # handover it to Writer from top-level
+        self.ctx.close()      # handover it to Writer from top-level
         self.proc = \
             multiprocessing.Process(target=run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
