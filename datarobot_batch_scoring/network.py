@@ -6,6 +6,7 @@ import textwrap
 from functools import partial
 from time import time
 
+import multiprocessing
 import requests
 import requests.adapters
 from concurrent.futures import FIRST_COMPLETED
@@ -13,8 +14,10 @@ from concurrent.futures import wait
 from six.moves import queue
 
 from datarobot_batch_scoring.consts import (SENTINEL, ERROR_SENTINEL,
-                                            WriterQueueMsg, Batch)
-from datarobot_batch_scoring.reader import fast_to_csv_chunk, slow_to_csv_chunk
+                                            WriterQueueMsg, Batch,
+                                            ProgressQueueMsg)
+from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
+                                            slow_to_csv_chunk)
 from datarobot_batch_scoring.utils import compress
 
 try:
@@ -233,6 +236,7 @@ class Network(object):
                  network_queue,
                  network_deque,
                  writer_queue,
+                 progress_queue,
                  endpoint,
                  headers,
                  user,
@@ -244,10 +248,11 @@ class Network(object):
 
         self.concurrency = concurrency
         self.timeout = timeout
-        self.ui = ui
+        self.ui = ui or logger
         self.network_queue = network_queue
         self.network_deque = network_deque
         self.writer_queue = writer_queue
+        self.progress_queue = progress_queue
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -258,24 +263,20 @@ class Network(object):
         self.compression = compression
 
         self.work_unit_gen = None
-        self._executor = ThreadPoolExecutor(concurrency)
         self._timeout = timeout
-        self._ui = ui or logger
         self.futures = []
         self.concurrency = concurrency
 
-        self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=concurrency, pool_maxsize=concurrency)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        self._executor = None
+        self.session = None
+        self.proc = None
 
     def _request(self, request):
         prepared = self.session.prepare_request(request)
         try:
             self.session.send(prepared, timeout=self._timeout)
         except requests.exceptions.ReadTimeout:
-            self._ui.warning(textwrap.dedent("""The server did not send any data
+            self.ui.warning(textwrap.dedent("""The server did not send any data
 in the allotted amount of time.
 You might want to decrease the "--n_concurrent" parameters
 or
@@ -283,7 +284,7 @@ increase "--timeout" parameter.
 """))
 
         except Exception as exc:
-            self._ui.debug('Exception {}: {}'.format(type(exc), exc))
+            self.ui.debug('Exception {}: {}'.format(type(exc), exc))
             try:
                 callback = request.kwargs['hooks']['response']
             except AttributeError:
@@ -307,9 +308,9 @@ increase "--timeout" parameter.
             f_len = len(self.futures)
             self.futures = [i for i in self.futures if not i.done()]
             if f_len != len(self.futures):
-                self._ui.debug('Waiting for final requests to finish. '
-                               'remaining requests: {}'
-                               ''.format(len(self.futures)))
+                self.ui.debug('Waiting for final requests to finish. '
+                              'remaining requests: {}'
+                              ''.format(len(self.futures)))
             wait(self.futures, return_when=FIRST_COMPLETED)
         yield True
 
@@ -317,9 +318,10 @@ increase "--timeout" parameter.
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._executor.shutdown(wait=True)
+        if self.proc and self.proc.is_alive():
+            self.proc.terminate()
 
-    def go(self, dry_run=False):
+    def run(self, dry_run=False):
         MGBQ = MultiprocessingGeneratorBackedQueue(ui=self.ui,
                                                    queue=self.network_queue,
                                                    deque=self.network_deque)
@@ -343,6 +345,13 @@ increase "--timeout" parameter.
 
             return i
 
+        self._executor = ThreadPoolExecutor(self.concurrency)
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=self.concurrency, pool_maxsize=self.concurrency)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+
         t0 = time()
         i = 0
         r = None
@@ -351,4 +360,19 @@ increase "--timeout" parameter.
             self.ui.info('{} responses sent | time elapsed {}s'
                          .format(i, time() - t0))
 
-        return r, i, MGBQ.n_consumed
+        self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
+            "ret": r,
+            "processed": i,
+            "consumed": MGBQ.n_consumed
+        }))
+
+    def go(self, dry_run=False):
+        if dry_run:
+            return self.run(dry_run)
+
+        self.ui.set_next_UI_name('network')
+        self.proc = \
+            multiprocessing.Process(target=self.run,
+                                    name='Writer_Proc')
+        self.proc.start()
+        return self.proc

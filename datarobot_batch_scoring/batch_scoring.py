@@ -9,9 +9,10 @@ from time import time
 
 import requests
 import six
+from six.moves import queue
 
 from datarobot_batch_scoring import __version__
-from datarobot_batch_scoring.consts import WriterQueueMsg
+from datarobot_batch_scoring.consts import WriterQueueMsg, ProgressQueueMsg
 from datarobot_batch_scoring.network import Network
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
@@ -69,7 +70,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         network_queue = conc_manager.Queue(queue_size)
         network_deque = conc_manager.Queue(queue_size)
         writer_queue = conc_manager.Queue(queue_size)
-        # progress_queue = conc_manager.Queue()
+        progress_queue = conc_manager.Queue()
 
         if not api_token:
             if not pwd:
@@ -128,7 +129,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                             batch_generator_args,
                                             ui))
         ui.info('Shovel go...')
-        shovel.go()
+        shovel_proc = shovel.go()
 
         network = stack.enter_context(Network(concurrency=concurrent,
                                               timeout=timeout,
@@ -136,6 +137,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                               network_queue=network_queue,
                                               network_deque=network_deque,
                                               writer_queue=writer_queue,
+                                              progress_queue=progress_queue,
                                               endpoint=endpoint,
                                               headers=base_headers,
                                               user=user,
@@ -162,16 +164,77 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         ui.info('Writer go...')
         writer_proc = writer.go()
 
-        ret, n_requests, n_consumed = network.go()
+        ui.info('Network go...')
+        network_proc = network.go()
+
+        shovel_done_ok = False
+        writer_done_ok = False
+
+        while True:
+            try:
+                msg, args = progress_queue.get(timeout=1)
+                ui.debug("progress: {} args={}".format(msg, args))
+            except queue.Empty:
+                if network_proc is None:
+                    ui.error("network proc finished without posting"
+                             " results, terminating")
+                    ret = False
+                    n_consumed = 0
+                    break
+                if shovel_proc is None and not shovel_done_ok:
+                    ui.error("shovel proc finished without posting"
+                             " results, terminating")
+                    ret = False
+                    n_consumed = 0
+                    break
+                if writer_proc is None and not writer_done_ok:
+                    ui.error("writer proc finished without posting"
+                             " results, terminating")
+                    ret = False
+                    n_consumed = 0
+                    break
+                continue
+
+            if msg == ProgressQueueMsg.NETWORK_DONE:
+                ret = args["ret"]
+                # n_requests = args["processed"]
+                n_consumed = args["consumed"]
+                break
+
+            if msg == ProgressQueueMsg.SHOVEL_DONE:
+                shovel_done_ok = True
+                break
+
+            if shovel_proc and not shovel_proc.is_alive():
+                shovel_exitcode = shovel_proc.exitcode
+                ui.info("shovel proc finished, exit code: {}"
+                        .format(shovel_exitcode))
+                shovel_proc = None
+
+            if network_proc and not network_proc.is_alive():
+                network_exitcode = network_proc.exitcode
+                ui.info("network proc finished, exit code: {}"
+                        .format(network_exitcode))
+                network_proc = None
+
+            if writer_proc and not writer_proc.is_alive():
+                writer_exitcode = writer_proc.exitcode
+                ui.info("writer proc finished, exit code: {}"
+                        .format(writer_exitcode))
+                writer_proc = None
+
         if ret is True:
             ui.debug('Network requests successfully finished')
         else:
             exit_code = 1
 
-        ui.debug('sending Sentinel to writer process')
-        writer_queue.put((WriterQueueMsg.SENTINEL, {}))
-        writer_proc.join(30)
-        if writer_proc.exitcode is 0:
+        if writer_proc:
+            ui.debug('sending Sentinel to writer process')
+            writer_queue.put((WriterQueueMsg.SENTINEL, {}))
+            writer_proc.join(30)
+            writer_exitcode = writer_proc.exitcode
+
+        if writer_exitcode is 0:
             ui.debug('writer process exited successfully')
         else:
             ui.debug('writer process did not exit properly: '

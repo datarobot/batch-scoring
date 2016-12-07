@@ -224,6 +224,7 @@ def test_regression_keep_cols_multi_fast(live_server, tmpdir):
                     fast_mode=True)
 
 
+@pytest.mark.xfail(reason="workers ui is isolated")
 def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir,
                                                    monkeypatch):
     split_called = [False]
@@ -242,6 +243,7 @@ def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir,
     assert split_called[0]
 
 
+@pytest.mark.xfail(reason="workers ui is isolated")
 def test_regression_bad_csv(live_server, tmpdir, monkeypatch):
     error_called = [False]
 

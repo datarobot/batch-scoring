@@ -4,8 +4,7 @@ from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from utils import PickableMock
 
 
-def test_gzipped_csv(live_server):
-    ui = PickableMock()
+def test_gzipped_csv(live_server, ui):
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,

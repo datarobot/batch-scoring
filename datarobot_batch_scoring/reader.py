@@ -256,6 +256,7 @@ class Shovel(object):
                                                 self.dialect, self.queue]),
                                          name='Shovel_Proc')
         self.p.start()
+        return self.p
 
     def __enter__(self):
         return self
