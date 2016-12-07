@@ -102,7 +102,7 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
-    ui = PickableMock()
+    ui = UI(False, 'DEBUG', False)
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,

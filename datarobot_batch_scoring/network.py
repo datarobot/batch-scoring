@@ -13,7 +13,7 @@ from concurrent.futures import wait
 from six.moves import queue
 
 from datarobot_batch_scoring.consts import (SENTINEL, ERROR_SENTINEL,
-                                            QueueMsg, Batch)
+                                            WriterQueueMsg, Batch)
 from datarobot_batch_scoring.reader import fast_to_csv_chunk, slow_to_csv_chunk
 from datarobot_batch_scoring.utils import compress
 
@@ -105,8 +105,10 @@ class WorkUnitGenerator(object):
             if r.status_code == 200:
                 pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
                                    'text': r.text}
-                self.writer_queue.put((pickleable_resp, batch,
-                                       self.pred_name))
+                self.writer_queue.put((WriterQueueMsg.RESPONSE, {
+                    "request": pickleable_resp,
+                    "batch": batch
+                }))
                 return
             elif isinstance(r, FakeResponse):
                 self._ui.debug('Skipping processing response '
@@ -136,13 +138,19 @@ class WorkUnitGenerator(object):
     def send_warning_to_ctx(self, batch, message):
         self._ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
                       'message {}'.format(batch.id, message))
-        self.writer_queue.put((QueueMsg.WARNING, batch, message))
+        self.writer_queue.put((WriterQueueMsg.CTX_WARNING, {
+            "batch": batch,
+            "error": message
+        }))
 
     def send_error_to_ctx(self, batch, message):
         self._ui.info('WorkUnitGenerator sending ERROR batch_id {} , '
                       'message {}'.format(batch.id, message))
 
-        self.writer_queue.put((QueueMsg.ERROR, batch, message))
+        self.writer_queue.put((WriterQueueMsg.CTX_ERROR, {
+            "batch": batch,
+            "error": message
+        }))
 
     def __iter__(self):
         for batch in self.queue:

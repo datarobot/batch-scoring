@@ -11,9 +11,8 @@ import requests
 import six
 
 from datarobot_batch_scoring import __version__
-from datarobot_batch_scoring.consts import SENTINEL
-from datarobot_batch_scoring.network import Network, \
-       MultiprocessingGeneratorBackedQueue, WorkUnitGenerator
+from datarobot_batch_scoring.consts import WriterQueueMsg
+from datarobot_batch_scoring.network import Network
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
                                             Shovel, auto_sampler,
@@ -70,6 +69,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         network_queue = conc_manager.Queue(queue_size)
         network_deque = conc_manager.Queue(queue_size)
         writer_queue = conc_manager.Queue(queue_size)
+        progress_queue = conc_manager.Queue()
+
         if not api_token:
             if not pwd:
                 pwd = ui.getpass()
@@ -168,7 +169,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             exit_code = 1
 
         ui.debug('sending Sentinel to writer process')
-        writer_queue.put((None, SENTINEL, None))
+        writer_queue.put((WriterQueueMsg.SENTINEL,{}))
         writer_proc.join(30)
         if writer_proc.exitcode is 0:
             ui.debug('writer process exited successfully')

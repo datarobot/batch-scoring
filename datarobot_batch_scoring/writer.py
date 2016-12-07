@@ -13,7 +13,7 @@ from functools import reduce
 import six
 from six.moves import queue
 
-from datarobot_batch_scoring.consts import SENTINEL, QueueMsg, TargetType
+from datarobot_batch_scoring.consts import SENTINEL, WriterQueueMsg, TargetType
 
 
 class ShelveError(Exception):
@@ -104,46 +104,11 @@ class RunContext(object):
             # success - remove shelve
             self.file_context.clean()
 
-    def checkpoint_batch(self, batch, out_fields, pred):
+    def checkpoint_batch(self, batch, written_fields, comb):
         """Mark a batch as being processed:
            - write it to the output stream (if necessary pull out columns).
            - put the batch_id into the journal.
         """
-        input_delimiter = self.dialect.delimiter
-        if self.keep_cols:
-            # stack columns
-
-            feature_indices = {col: i for i, col in
-                               enumerate(batch.fieldnames)}
-            indices = [feature_indices[col] for col in self.keep_cols]
-
-            written_fields = []
-
-            if not self.skip_row_id:
-                written_fields.append('row_id')
-
-            written_fields += self.keep_cols + out_fields[1:]
-
-            # first column is row_id
-            comb = []
-            for row, predicted in zip(batch.data, pred):
-                if self.fast_mode:
-                    # row is a full line, we need to cut it into fields
-                    # FIXME this will fail on quoted fields!
-                    row = row.rstrip().split(input_delimiter)
-                keeps = [row[i] for i in indices]
-                output_row = []
-                if not self.skip_row_id:
-                    output_row.append(predicted[0])
-                output_row += keeps + predicted[1:]
-                comb.append(output_row)
-        else:
-            if not self.skip_row_id:
-                comb = pred
-                written_fields = out_fields
-            else:
-                written_fields = out_fields[1:]
-                comb = [row[1:] for row in pred]
 
         # if an error happends during/after the append we
         # might end up with inconsistent state
@@ -390,7 +355,7 @@ class WriterProcess(object):
                                    elapsed_total_seconds * 1000))
         return result
 
-    def format_result_data(self, result, batch, pred_name):
+    def format_result_data(self, result, batch):
         """
         :param result: JSON data returned from pred server
         :param batch: batch NamedTuple
@@ -399,6 +364,13 @@ class WriterProcess(object):
 
         Takes the result data and formats it.
         """
+
+        pred_name = self.ctx.pred_name
+        keep_cols = self.ctx.keep_cols
+        skip_row_id = self.ctx.skip_row_id
+        fast_mode = self.ctx.fast_mode
+        input_delimiter = self.ctx.dialect.delimiter
+
         predictions = result['predictions']
         if result['task'] == TargetType.BINARY:
             sorted_classes = list(
@@ -420,9 +392,45 @@ class WriterProcess(object):
                            key=operator.itemgetter('row_id'))]
             out_fields = ['row_id', pred_name if pred_name else '']
         else:
-            ValueError('task "{}" not supported'
+            raise ValueError('task "{}" not supported'
                        ''.format(result['task']))
-        return (out_fields, pred)
+
+        if keep_cols:
+            # stack columns
+
+            feature_indices = {col: i for i, col in
+                               enumerate(batch.fieldnames)}
+            indices = [feature_indices[col] for col in keep_cols]
+
+            written_fields = []
+
+            if not skip_row_id:
+                written_fields.append('row_id')
+
+            written_fields += keep_cols + out_fields[1:]
+
+            # first column is row_id
+            comb = []
+            for row, predicted in zip(batch.data, pred):
+                if fast_mode:
+                    # row is a full line, we need to cut it into fields
+                    # FIXME this will fail on quoted fields!
+                    row = row.rstrip().split(input_delimiter)
+                keeps = [row[i] for i in indices]
+                output_row = []
+                if not skip_row_id:
+                    output_row.append(predicted[0])
+                output_row += keeps + predicted[1:]
+                comb.append(output_row)
+        else:
+            if not skip_row_id:
+                comb = pred
+                written_fields = out_fields
+            else:
+                written_fields = out_fields[1:]
+                comb = [row[1:] for row in pred]
+
+        return (written_fields, comb)
 
     def sigterm_handler(self, _signo, _stack_frame):
         self._ui.debug('WriterProcess.sigterm_handler received signal '
@@ -439,34 +447,34 @@ class WriterProcess(object):
         success = False
         try:
             while True:
-                try:
-                    (request, batch, pred_name) = \
-                        self.writer_queue.get_nowait()
-                except queue.Empty:
-                    (request, batch, pred_name) = self.writer_queue.get()
+                msg, args = self.writer_queue.get()
 
-                if request == QueueMsg.ERROR:
+                if msg == WriterQueueMsg.CTX_ERROR:
                     # pred_name is a message if ERROR or WARNING
                     self._ui.debug('Writer ERROR')
-                    self.ctx.save_error(batch, error=pred_name)
+                    self.ctx.save_error(args["batch"], error=args["error"])
                     continue
-                if request == QueueMsg.WARNING:
+                elif msg == WriterQueueMsg.CTX_WARNING:
                     self._ui.debug('Writer WARNING')
-                    self.ctx.save_warning(batch, error=pred_name)
+                    self.ctx.save_warning(args["batch"], error=args["error"])
                     continue
-                if batch.id == SENTINEL.id:
+                elif msg == WriterQueueMsg.SENTINEL:
                     self._ui.debug('Writer received SENTINEL')
                     break
-                result = self.unpack_request_object(request, batch)
-                if result is False:  # unpack_request_object failed
-                    continue
+                elif msg == WriterQueueMsg.RESPONSE:
+                    batch = args["batch"]
+                    result = self.unpack_request_object(args["request"], batch)
+                    if result is False:  # unpack_request_object failed
+                        continue
 
-                (out_fields, pred) = self.format_result_data(result, batch,
-                                                             pred_name)
+                    (written_fields, comb) = self.format_result_data(result, batch)
 
-                self.ctx.checkpoint_batch(batch, out_fields, pred)
-                self._ui.debug('Writer Queue queue length: {}'
-                               ''.format(self.writer_queue.qsize()))
+                    self.ctx.checkpoint_batch(batch, written_fields, comb)
+                    self._ui.debug('Writer Queue queue length: {}'
+                                   ''.format(self.writer_queue.qsize()))
+                else:
+                    self._ui.error('Unknown Writer Queue msg: "{}", args={}'
+                                   ''.format(msg, args))
 
             self._ui.debug('---Writer Exiting---')
             success = True
