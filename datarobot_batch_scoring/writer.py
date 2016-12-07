@@ -54,6 +54,7 @@ class RunContext(object):
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
         self.scoring_succeeded = False  # Removes shelves when True
+        self.is_open = False  # Removes shelves when True
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
@@ -83,6 +84,8 @@ class RunContext(object):
                          fast_mode, encoding, skip_row_id, output_delimiter)
 
     def __enter__(self):
+        assert(not self.is_open)
+        self.is_open = True
         self._ui.debug('ENTER CALLED ON RUNCONTEXT')
         self.db = shelve.open(self.file_context.file_name, writeback=True)
         if not hasattr(self, 'partitions'):
@@ -90,6 +93,8 @@ class RunContext(object):
         return self
 
     def __exit__(self, type, value, traceback):
+        assert(self.is_open)
+        self.is_open = False
         self._ui.debug('EXIT CALLED ON RUNCONTEXT: successes={}'
                        ''.format(self.scoring_succeeded))
         self.db.close()
@@ -166,16 +171,19 @@ class RunContext(object):
         self.save_error(batch, error, "warnings")
 
     def __getstate__(self):
-        self.close()
+        assert(not self.is_open)
         self.out_stream = None
         d = self.__dict__.copy()
         return d
 
     def __setstate__(self, d):
+        assert(not self.is_open)
         self.__dict__.update(d)
         self.open()
 
     def open(self):
+        assert(not self.is_open)
+        self.is_open = True
         self._ui.debug('OPEN CALLED ON RUNCONTEXT')
         csv.register_dialect('dataset_dialect', **self.dialect)
         csv.register_dialect('writer_dialect', **self.writer_dialect)
@@ -188,6 +196,8 @@ class RunContext(object):
             self.out_stream = open(self.out_file, 'a', newline='')
 
     def close(self):
+        assert(self.is_open)
+        self.is_open = False
         self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
@@ -479,8 +489,7 @@ class WriterProcess(object):
 
     def go(self):
         self._ui.set_next_UI_name('writer')
-        if os.name is not 'nt':  # happens when pickled on Windows
-            self.ctx.close()
+        self.ctx.close() # handover it to Writer from top-level
         self.proc = \
             multiprocessing.Process(target=run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
@@ -512,6 +521,5 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
         _ui.warning('WriterProcess.run_subproc_cls_inst called in '
                     'process named: "{}"'
                     ''.format(multiprocessing.current_process().name))
-    if os.name is not 'nt':  # this happens automatically on Windows
-        ctx.open()
+    ctx.open()
     WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
