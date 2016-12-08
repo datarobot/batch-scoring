@@ -471,8 +471,8 @@ class WriterProcess(object):
                                                                      batch)
 
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
-                    self._ui.debug('Writer Queue queue length: {}'
-                                   ''.format(self.writer_queue.qsize()))
+                    #self._ui.debug('Writer Queue queue length: {}'
+                    #               ''.format(self.writer_queue.qsize()))
                 else:
                     self._ui.error('Unknown Writer Queue msg: "{}", args={}'
                                    ''.format(msg, args))
