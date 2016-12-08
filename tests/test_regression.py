@@ -3,6 +3,8 @@ from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from datarobot_batch_scoring.utils import UI
 from utils import PickableMock
 
+from utils import read_logs
+
 
 def test_regression(live_server, tmpdir, keep_cols=None,
                     in_fixture='tests/fixtures/regression_predict.csv',
@@ -10,7 +12,8 @@ def test_regression(live_server, tmpdir, keep_cols=None,
                     fast_mode=False, skip_row_id=False, output_delimiter=None,
                     skip_dialect=False,
                     n_samples=500,
-                    max_batch_size=None):
+                    max_batch_size=None,
+                    expected_ret=None):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -45,7 +48,7 @@ def test_regression(live_server, tmpdir, keep_cols=None,
             output_delimiter=output_delimiter,
             max_batch_size=max_batch_size
         )
-        assert ret is None
+        assert ret is expected_ret
 
         if out_fixture:
             actual = out.read_text('utf-8')
@@ -224,41 +227,28 @@ def test_regression_keep_cols_multi_fast(live_server, tmpdir):
                     fast_mode=True)
 
 
-@pytest.mark.xfail(reason="workers ui is isolated")
-def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir,
-                                                   monkeypatch):
-    split_called = [False]
-
-    def debug_call(*args):
-        if args[1].endswith("splitting"):
-            split_called[0] = True
-
-    monkeypatch.setattr("datarobot_batch_scoring.main.UI.debug", debug_call)
+def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir):
     test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx.csv',
                     fast_mode=True,
                     max_batch_size=100)
 
-    assert split_called[0]
+    logs = read_logs()
+    assert "bytes, splitting" in logs
 
 
-@pytest.mark.xfail(reason="workers ui is isolated")
-def test_regression_bad_csv(live_server, tmpdir, monkeypatch):
-    error_called = [False]
+def test_regression_bad_csv(live_server, tmpdir):
 
-    def error_call(*args):
-        if args[1].endswith("check logs for exact error"):
-            error_called[0] = True
-
-    monkeypatch.setattr("datarobot_batch_scoring.main.UI.error",
-                        error_call)
     test_regression(live_server, tmpdir,
                     in_fixture='tests/fixtures/regression_bad.csv',
                     out_fixture=None,
-                    fast_mode=False)
+                    fast_mode=False,
+                    expected_ret=1)
 
-    assert error_called[0]
+    logs = read_logs()
+    assert "Error parsing CSV file after line 1000, error: " \
+           "field larger than field limit (131072), aborting" in logs
 
 
 def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
@@ -270,7 +260,8 @@ def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
         test_regression(live_server, tmpdir,
                         in_fixture='tests/fixtures/regression_bad2.csv',
                         out_fixture=None,
-                        fast_mode=True)
+                        fast_mode=True,
+                        expected_ret=1)
 
 
 def test_regression_keep_cols_wo_row_id(live_server, tmpdir):

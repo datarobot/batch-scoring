@@ -248,9 +248,23 @@ class Shovel(object):
             queue.put(SENTINEL)
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_DONE,
                                      {"produced": n}))
-        except csv.Error:
+        except csv.Error as e:
             queue.put(SENTINEL)
-            self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR, {}))
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
+                                     {
+                                         "batch": batch,
+                                         "error": str(e),
+                                         "produced": n
+                                     }))
+            raise
+        except Exception as e:
+            queue.put(SENTINEL)
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_ERROR,
+                                     {
+                                         "batch": batch,
+                                         "error": str(e),
+                                         "produced": n
+                                     }))
             raise
         finally:
             queue.put(SENTINEL)

@@ -197,9 +197,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         ui.info('Network go...')
         network_proc = network.go()
 
-        shovel_done_ok = False
-        network_done_ok = False
-        writer_done_ok = False
+        shovel_done = False
+        network_done = False
+        writer_done = False
 
         shovel_exitcode = None
         network_exitcode = None
@@ -218,15 +218,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 msg, args = progress_queue.get(timeout=1)
                 ui.debug("got progress: {} args={}".format(msg, args))
             except queue.Empty:
-                if network_proc is None and not network_done_ok:
+                if network_proc is None and not network_done:
                     ui.error("network process finished without posting"
                              " results, terminating")
                     aborting_phase = 1
-                if shovel_proc is None and not shovel_done_ok:
+                if shovel_proc is None and not shovel_done:
                     ui.error("shovel process finished without posting"
                              " results, terminating")
                     aborting_phase = 1
-                if writer_proc is None and not writer_done_ok:
+                if writer_proc is None and not writer_done:
                     ui.error("writer process finished without posting"
                              " results, terminating")
                     aborting_phase = 1
@@ -236,12 +236,36 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 n_ret = args["ret"]
                 n_requests = args["processed"]
                 n_consumed = args["consumed"]
-                network_done_ok = True
-                break
+                network_done = True
+                if writer_proc:
+                    ui.debug('sending Sentinel to writer process')
+                    writer_queue.put((WriterQueueMsg.SENTINEL, {}))
+
+                aborting_phase = 1
 
             elif msg == ProgressQueueMsg.SHOVEL_DONE:
                 s_produced = args["produced"]
-                shovel_done_ok = True
+                shovel_done = "ok"
+
+            elif msg in (ProgressQueueMsg.SHOVEL_CSV_ERROR,
+                         ProgressQueueMsg.SHOVEL_ERROR):
+                batch = args["batch"]
+                error = args["error"]
+                s_produced = args["produced"]
+                exit_code = 1
+
+                if msg == ProgressQueueMsg.SHOVEL_CSV_ERROR:
+                    shovel_done = "with csv format error"
+                    ui.error("Error parsing CSV file after line {},"
+                             " error: {}, aborting".format(
+                                batch.id + batch.rows, error))
+                else:
+                    shovel_done = "with error"
+                    ui.error("Unexpected reader error after line {},"
+                             " error: {}, aborting".format(
+                                batch.id + batch.rows, error))
+
+                aborting_phase = 1
 
             if shovel_proc and not shovel_proc.is_alive():
                 shovel_exitcode = shovel_proc.exitcode
@@ -265,16 +289,18 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     ui.debug('sending Sentinel to writer process')
                     writer_queue.put((WriterQueueMsg.SENTINEL, {}))
 
-        if shovel_done_ok:
-            ui.info("Shovel is done ok. Chunks produced {}"
-                    "".format(s_produced))
+            if aborting_phase == 1:
+                break
 
-        if network_done_ok:
-            ui.info("Network is done ok. Requests {}".format(n_requests))
+        if shovel_done:
+            ui.info("Shovel is finished {}. Chunks produced: {}"
+                    "".format(shovel_done, s_produced))
 
-        if n_ret is True:
-            ui.debug('Network requests successfully finished')
-        else:
+        if network_done:
+            ui.info("Network is finished ok. Requests {}".format(n_requests))
+
+        if n_ret is not True:
+            ui.debug('Network finished with error')
             exit_code = 1
 
         if writer_proc:

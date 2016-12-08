@@ -9,7 +9,7 @@ import pytest
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from datarobot_batch_scoring.utils import UI
-from utils import (PickableMock, read_logs)
+from utils import PickableMock, print_logs
 
 
 def test_args_from_subprocess(live_server):
@@ -46,7 +46,7 @@ def test_args_from_subprocess(live_server):
         spc = subprocess.check_call(arguments.split(' '))
     except subprocess.CalledProcessError as e:
         print(e)
-        read_logs()
+        print_logs()
 
     #  newlines will be '\r\n on windows and \n on linux. using 'rU' should
     #  resolve differences on different platforms

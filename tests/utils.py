@@ -11,7 +11,7 @@ class PickableMock(Mock):
         return (Mock, ())
 
 
-def read_logs():
+def print_logs():
     """
     debug tests by sending the contents of the log files to stdout
     """
@@ -21,3 +21,15 @@ def read_logs():
                 print('>>> {} >>>'.format(file))
                 print(o.read())
                 print('<<< {} <<<'.format(file))
+
+
+def read_logs():
+    """
+    debug tests by sending the contents of the log files to stdout
+    """
+    output = []
+    for file in log_files:
+        if os.path.isfile(file):
+            output.append(open(file, 'r').read())
+
+    return "\n".join(output)
