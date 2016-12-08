@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import platform
 import sys
+import threading
 from time import time
 
 import requests
@@ -72,14 +73,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         writer_queue = conc_manager.Queue(queue_size)
         progress_queue = conc_manager.Queue()
 
-        if not api_token:
-            if not pwd:
-                pwd = ui.getpass()
-            try:
-                api_token = acquire_api_token(base_url, base_headers, user,
-                                              pwd, create_api_token, ui)
-            except Exception as e:
-                ui.fatal(str(e))
         base_headers['content-type'] = 'text/csv; charset=utf8'
         if compression:
             base_headers['Content-Encoding'] = 'gzip'
@@ -105,12 +98,22 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             chunk_formatter = slow_to_csv_chunk
         first_row_data = chunk_formatter(first_row.data, first_row.fieldnames)
         first_row = first_row._replace(data=first_row_data)
+
         if keep_cols:
             if not all(c in first_row.fieldnames for c in keep_cols):
                 ui.fatal('keep_cols "{}" not in columns {}.'.format(
                     [c for c in keep_cols if c not in first_row.fieldnames],
                     first_row.fieldnames))
+
         if not dry_run:
+
+            if not api_token:
+                try:
+                    api_token = acquire_api_token(base_url, base_headers, user,
+                                                  pwd, create_api_token, ui)
+                except Exception as e:
+                    ui.fatal(str(e))
+
             authorize(user, api_token, n_retry, endpoint, base_headers,
                       first_row, ui, compression=compression)
 
@@ -126,6 +129,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         batch_generator_args = ctx.batch_generator_args()
         shovel = stack.enter_context(Shovel(network_queue,
+                                            progress_queue,
                                             batch_generator_args,
                                             ui))
         ui.info('Shovel go...')
@@ -154,13 +158,39 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
             ui.info('dry-run complete | total time elapsed {}s'.format(
                 time() - t1))
+            i = 0
+            while True:
+                if not shovel_proc.is_alive():
+                    break
+
+                if i == 0:
+                    ui.info("Waiting for shovel process exit")
+                elif i == 10:
+                    ui.info("Sending terminate signal to shovel process")
+                    shovel_proc.terminate()
+                elif i == 20:
+                    ui.error("Sending kill signal to shovel process")
+                    os.kill(shovel_proc.pid, 9)
+                elif i == 30:
+                    ui.error("Shovel process was not exited,"
+                             " processing anyway.")
+                    break
+                i += 1
+                try:
+                    msg, args = progress_queue.get(timeout=1)
+                    ui.debug("got progress: {} args: {}".format(msg, args))
+                except queue.Empty:
+                    continue
+
             ctx.scoring_succeeded = True
             return
 
         exit_code = None
+
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
                                                    network_queue,
-                                                   network_deque))
+                                                   network_deque,
+                                                   progress_queue))
         ui.info('Writer go...')
         writer_proc = writer.go()
 
@@ -168,42 +198,50 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         network_proc = network.go()
 
         shovel_done_ok = False
+        network_done_ok = False
         writer_done_ok = False
+
+        shovel_exitcode = None
+        network_exitcode = None
+        writer_exitcode = None
+
+        n_ret = False
+        n_consumed = 0
+        n_requests = 0
+
+        s_produced = 0
+
+        aborting_phase = 0
 
         while True:
             try:
                 msg, args = progress_queue.get(timeout=1)
-                ui.debug("progress: {} args={}".format(msg, args))
+                ui.debug("got progress: {} args={}".format(msg, args))
             except queue.Empty:
-                if network_proc is None:
-                    ui.error("network proc finished without posting"
+                if network_proc is None and not network_done_ok:
+                    ui.error("network process finished without posting"
                              " results, terminating")
-                    ret = False
-                    n_consumed = 0
-                    break
+                    aborting_phase = 1
                 if shovel_proc is None and not shovel_done_ok:
-                    ui.error("shovel proc finished without posting"
+                    ui.error("shovel process finished without posting"
                              " results, terminating")
-                    ret = False
-                    n_consumed = 0
-                    break
+                    aborting_phase = 1
                 if writer_proc is None and not writer_done_ok:
-                    ui.error("writer proc finished without posting"
+                    ui.error("writer process finished without posting"
                              " results, terminating")
-                    ret = False
-                    n_consumed = 0
-                    break
+                    aborting_phase = 1
                 continue
 
             if msg == ProgressQueueMsg.NETWORK_DONE:
-                ret = args["ret"]
-                # n_requests = args["processed"]
+                n_ret = args["ret"]
+                n_requests = args["processed"]
                 n_consumed = args["consumed"]
+                network_done_ok = True
                 break
 
-            if msg == ProgressQueueMsg.SHOVEL_DONE:
+            elif msg == ProgressQueueMsg.SHOVEL_DONE:
+                s_produced = args["produced"]
                 shovel_done_ok = True
-                break
 
             if shovel_proc and not shovel_proc.is_alive():
                 shovel_exitcode = shovel_proc.exitcode
@@ -217,13 +255,24 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                         .format(network_exitcode))
                 network_proc = None
 
-            if writer_proc and not writer_proc.is_alive():
-                writer_exitcode = writer_proc.exitcode
-                ui.info("writer proc finished, exit code: {}"
-                        .format(writer_exitcode))
-                writer_proc = None
+            if writer_proc:
+                if not writer_proc.is_alive():
+                    writer_exitcode = writer_proc.exitcode
+                    ui.info("writer proc finished, exit code: {}"
+                            .format(writer_exitcode))
+                    writer_proc = None
+                elif aborting_phase == 1:
+                    ui.debug('sending Sentinel to writer process')
+                    writer_queue.put((WriterQueueMsg.SENTINEL, {}))
 
-        if ret is True:
+        if shovel_done_ok:
+            ui.info("Shovel is done ok. Chunks produced {}"
+                    "".format(s_produced))
+
+        if network_done_ok:
+            ui.info("Network is done ok. Requests {}".format(n_requests))
+
+        if n_ret is True:
             ui.debug('Network requests successfully finished')
         else:
             exit_code = 1
@@ -240,6 +289,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.debug('writer process did not exit properly: '
                      'returncode="{}"'.format(writer_proc.exitcode))
 
+        ui.info("active threads: {}".format(threading.enumerate()))
         ctx.open()
         ui.debug('number of batches checkpointed initially: {}'
                  .format(n_batches_checkpointed_init))

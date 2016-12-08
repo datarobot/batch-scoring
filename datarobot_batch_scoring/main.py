@@ -227,7 +227,6 @@ def main(argv=sys.argv[1:]):
     ui.info('platform: {} {}'.format(sys.platform, sys.version))
 
     # parse args
-    host = parsed_args['host']
     pid = parsed_args['project_id']
     lid = parsed_args['model_id']
     n_retry = int(parsed_args['n_retry'])
@@ -252,11 +251,6 @@ def main(argv=sys.argv[1:]):
     skip_dialect = parsed_args['skip_dialect']
     skip_row_id = parsed_args['skip_row_id']
     output_delimiter = parsed_args.get('output_delimiter')
-
-    if 'user' not in parsed_args:
-        user = ui.prompt_user()
-    else:
-        user = parsed_args['user'].strip()
 
     if not os.path.exists(parsed_args['dataset']):
         ui.fatal('file {} does not exist.'.format(parsed_args['dataset']))
@@ -292,11 +286,23 @@ def main(argv=sys.argv[1:]):
 
     api_token = parsed_args.get('api_token')
     create_api_token = parsed_args.get('create_api_token')
+    user = parsed_args.get('user')
     pwd = parsed_args.get('password')
+    host = parsed_args.get('host')
     pred_name = parsed_args.get('pred_name')
     dry_run = parsed_args.get('dry_run', False)
+    base_url = ""
 
-    base_url = parse_host(host, ui)
+    if not dry_run:
+        if not user:
+            user = ui.prompt_user()
+        else:
+            user = user.strip()
+
+        if not api_token and not pwd:
+            pwd = ui.getpass()
+
+        base_url = parse_host(host, ui)
 
     base_headers = {}
     if datarobot_key:

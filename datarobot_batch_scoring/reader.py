@@ -10,7 +10,8 @@ from time import time
 import chardet
 import six
 
-from datarobot_batch_scoring.consts import Batch, SENTINEL, ERROR_SENTINEL
+from datarobot_batch_scoring.consts import (Batch, SENTINEL,
+                                            ProgressQueueMsg)
 
 if six.PY2:
     import StringIO
@@ -220,9 +221,10 @@ class BatchGenerator(object):
 
 class Shovel(object):
 
-    def __init__(self, queue, batch_gen_args, ui):
+    def __init__(self, queue, progress_queue, batch_gen_args, ui):
         self._ui = ui
         self.queue = queue
+        self.progress_queue = progress_queue
         self.batch_gen_args = batch_gen_args
         self.dialect = csv.get_dialect('dataset_dialect')
         #  The following should only impact Windows
@@ -235,15 +237,20 @@ class Shovel(object):
         csv.register_dialect('dataset_dialect', dialect)
         batch_generator = BatchGenerator(*args)
         try:
+            n = 0
             for batch in batch_generator:
                 _ui.debug('queueing batch {}'.format(batch.id))
                 queue.put(batch)
+                n += 1
 
             _ui.info('shoveling complete | total time elapsed {}s'
                      ''.format(time() - t2))
             queue.put(SENTINEL)
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_DONE,
+                                     {"produced": n}))
         except csv.Error:
-            queue.put(ERROR_SENTINEL)
+            queue.put(SENTINEL)
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR, {}))
             raise
         finally:
             queue.put(SENTINEL)

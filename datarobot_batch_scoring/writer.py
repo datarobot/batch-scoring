@@ -93,7 +93,10 @@ class RunContext(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        assert(self.is_open)
+        if not self.is_open:
+            self._ui.debug('EXIT CALLED ON CLOSED RUNCONTEXT: successes={}'
+                           ''.format(self.scoring_succeeded))
+            return
         self.is_open = False
         self._ui.debug('EXIT CALLED ON RUNCONTEXT: successes={}'
                        ''.format(self.scoring_succeeded))
@@ -147,7 +150,9 @@ class RunContext(object):
         self.open()
 
     def open(self):
-        assert(not self.is_open)
+        if self.is_open:
+            self._ui.debug('OPEN CALLED ON ALREADY OPEN RUNCONTEXT')
+            return
         self.is_open = True
         self._ui.debug('OPEN CALLED ON RUNCONTEXT')
         csv.register_dialect('dataset_dialect', **self.dialect)
@@ -161,7 +166,9 @@ class RunContext(object):
             self.out_stream = open(self.out_file, 'a', newline='')
 
     def close(self):
-        assert(self.is_open)
+        if not self.is_open:
+            self._ui.debug('CLOSE CALLED ON CLOSED RUNCONTEXT')
+            return
         self.is_open = False
         self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
         self.dialect = csv.get_dialect('dataset_dialect')
@@ -317,12 +324,13 @@ class OldRunContext(RunContext):
 
 
 class WriterProcess(object):
-    def __init__(self, ui, ctx, writer_queue, queue, deque):
+    def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue):
         self._ui = ui
         self.ctx = ctx
         self.writer_queue = writer_queue
         self.queue = queue
         self.deque = deque
+        self.progress_queue = progress_queue
 
     def deque_failed_batch(self, batch):
         # we retry a batch - decrement retry counter
@@ -503,7 +511,9 @@ class WriterProcess(object):
             multiprocessing.Process(target=run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
                                            self.writer_queue,
-                                           self.queue, self.deque]),
+                                           self.queue,
+                                           self.deque,
+                                           self.progress_queue]),
                                     name='Writer_Proc')
         self.proc.start()
         return self.proc
@@ -518,7 +528,8 @@ class WriterProcess(object):
                 self.writer_queue.put_nowait((None, SENTINEL, None))
 
 
-def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
+def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
+                         progress_queue):
     """
     This was intended to be a staticmethod of WriterProcess but
     python 2.7 on Windows can't find it unless it's at module level
@@ -531,4 +542,5 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
                     'process named: "{}"'
                     ''.format(multiprocessing.current_process().name))
     ctx.open()
-    WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
+    WriterProcess(_ui, ctx, writer_queue, queue, deque,
+                  progress_queue).process_response()
