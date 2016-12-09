@@ -247,8 +247,7 @@ def test_regression_bad_csv(live_server, tmpdir):
                     expected_ret=1)
 
     logs = read_logs()
-    assert "Error parsing CSV file after line 1000, error: " \
-           "field larger than field limit (131072), aborting" in logs
+    assert "Error parsing CSV file after line 1000, error: " in logs
 
 
 def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
