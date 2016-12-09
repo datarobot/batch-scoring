@@ -1,8 +1,6 @@
-import mock
 import textwrap
 
 import pytest
-import requests
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 
@@ -10,39 +8,35 @@ from utils import read_logs
 
 
 def test_request_client_timeout(live_server, tmpdir, ui):
+    live_server.app.config['PREDICTION_DELAY'] = 3
     out = tmpdir.join('out.csv')
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-    with mock.patch('datarobot_batch_scoring.'
-                    'network.requests.Session') as nw_mock:
-        nw_mock.return_value.send = mock.Mock(
-            side_effect=requests.exceptions.ReadTimeout)
-
-        ret = run_batch_predictions(
-            base_url=base_url,
-            base_headers={},
-            user='username',
-            pwd='password',
-            api_token=None,
-            create_api_token=False,
-            pid='56dd9570018e213242dfa93c',
-            lid='56dd9570018e213242dfa93d',
-            n_retry=3,
-            concurrent=1,
-            resume=False,
-            n_samples=10,
-            out_file=str(out),
-            keep_cols=None,
-            delimiter=None,
-            dataset='tests/fixtures/temperatura_predict.csv.gz',
-            pred_name=None,
-            timeout=30,
-            ui=ui,
-            auto_sample=False,
-            fast_mode=False,
-            dry_run=False,
-            encoding='',
-            skip_dialect=False
-        )
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93d',
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/temperatura_predict.csv.gz',
+        pred_name=None,
+        timeout=1,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
 
     assert ret is 1
     returned = out.read_text('utf-8')

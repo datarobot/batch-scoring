@@ -3,7 +3,9 @@ from mock import Mock
 
 
 log_files = ['datarobot_batch_scoring_main.log',
-             'datarobot_batch_scoring_batcher.log']
+             'datarobot_batch_scoring_batcher.log',
+             'datarobot_batch_scoring_network.log',
+             'datarobot_batch_scoring_writer.log']
 
 
 class PickableMock(Mock):
