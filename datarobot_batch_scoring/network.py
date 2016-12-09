@@ -373,6 +373,6 @@ increase "--timeout" parameter.
         self.ui.set_next_UI_name('network')
         self.proc = \
             multiprocessing.Process(target=self.run,
-                                    name='Writer_Proc')
+                                    name='Network_Proc')
         self.proc.start()
         return self.proc
