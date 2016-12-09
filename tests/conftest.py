@@ -12,7 +12,9 @@ def session_id():
     return str(uuid.uuid4())
 
 
-@pytest.fixture(scope='session')
+@pytest.yield_fixture(scope='function')
 def ui():
     '''Unique session identifier, random string.'''
-    return UI(True, 'DEBUG', False)
+    ui = UI(True, 'DEBUG', False)
+    yield ui
+    ui.close()

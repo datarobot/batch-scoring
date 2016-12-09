@@ -5,7 +5,6 @@ import pytest
 import requests
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
-from datarobot_batch_scoring.utils import UI
 
 from utils import read_logs
 
@@ -175,7 +174,7 @@ def test_compression(live_server, tmpdir, ui):
 
 
 @pytest.mark.xfail(reason="Results are written in response order")
-def test_wrong_result_order(live_server, tmpdir):
+def test_wrong_result_order(live_server, tmpdir, ui):
     out = tmpdir.join('out.csv')
     live_server.app.config["DELAY_AT"] = {
         8: 3.0,
@@ -183,36 +182,35 @@ def test_wrong_result_order(live_server, tmpdir):
         10: 1.0
     }
 
-    with UI(False, 'DEBUG', False) as ui:
-        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-        ret = run_batch_predictions(
-            base_url=base_url,
-            base_headers={},
-            user='username',
-            pwd='password',
-            api_token=None,
-            create_api_token=False,
-            pid='56dd9570018e213242dfa93c',
-            lid='56dd9570018e213242dfa93e',
-            n_retry=3,
-            concurrent=4,
-            resume=False,
-            n_samples=100,
-            out_file=str(out),
-            keep_cols=None,
-            delimiter=None,
-            dataset='tests/fixtures/regression_jp.csv',
-            pred_name='new_name',
-            timeout=30,
-            ui=ui,
-            auto_sample=False,
-            fast_mode=False,
-            dry_run=False,
-            encoding='',
-            skip_dialect=False,
-            compression=True
-        )
-        assert ret is None
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93e',
+        n_retry=3,
+        concurrent=4,
+        resume=False,
+        n_samples=100,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/regression_jp.csv',
+        pred_name='new_name',
+        timeout=30,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False,
+        compression=True
+    )
+    assert ret is None
 
     actual = out.read_text('utf-8')
 
@@ -221,7 +219,7 @@ def test_wrong_result_order(live_server, tmpdir):
 
 
 @pytest.mark.xfail(reason="Last retries are lost")
-def test_lost_retry(live_server, tmpdir, monkeypatch):
+def test_lost_retry(live_server, tmpdir, monkeypatch, ui):
     out = tmpdir.join('out.csv')
     live_server.app.config["PREDICTION_DELAY"] = 1.0
     live_server.app.config["FAIL_AT"] = [14]
@@ -231,35 +229,34 @@ def test_lost_retry(live_server, tmpdir, monkeypatch):
 
     monkeypatch.setattr("sys.exit", sys_exit)
 
-    with UI(False, 'DEBUG', False) as ui:
-        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-        ret = run_batch_predictions(
-            base_url=base_url,
-            base_headers={},
-            user='username',
-            pwd='password',
-            api_token=None,
-            create_api_token=False,
-            pid='56dd9570018e213242dfa93c',
-            lid='56dd9570018e213242dfa93e',
-            n_retry=3,
-            concurrent=4,
-            resume=False,
-            n_samples=100,
-            out_file=str(out),
-            keep_cols=None,
-            delimiter=None,
-            dataset='tests/fixtures/regression_jp.csv',
-            pred_name='new_name',
-            timeout=30,
-            ui=ui,
-            auto_sample=False,
-            fast_mode=False,
-            dry_run=False,
-            encoding='',
-            skip_dialect=False
-        )
-        assert ret is None
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93e',
+        n_retry=3,
+        concurrent=4,
+        resume=False,
+        n_samples=100,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/regression_jp.csv',
+        pred_name='new_name',
+        timeout=30,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+    assert ret is None
 
     actual = out.read_text('utf-8').splitlines()
     actual.sort()

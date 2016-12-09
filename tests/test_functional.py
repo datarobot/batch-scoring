@@ -98,11 +98,10 @@ def test_simple(live_server, tmpdir):
     assert str(actual) == str(expected)
 
 
-def test_keep_cols(live_server, tmpdir, fast_mode=False):
+def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
-    ui = UI(False, 'DEBUG', False)
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
@@ -138,8 +137,8 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
         assert expected == f.read()
 
 
-def test_keep_cols_fast_mode(live_server, tmpdir):
-    test_keep_cols(live_server, tmpdir, True)
+def test_keep_cols_fast_mode(live_server, tmpdir, ui):
+    test_keep_cols(live_server, tmpdir, ui, True)
 
 
 def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):

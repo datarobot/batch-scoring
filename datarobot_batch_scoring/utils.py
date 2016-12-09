@@ -160,9 +160,9 @@ class UI(object):
         for l in [logger, root_logger]:
             handlers = l.handlers[:]
             for h in handlers:
-                if isinstance(h, logging.FileHandler):
+                if hasattr(h, 'close'):
                     h.close()
-                    l.removeHandler(h)
+                l.removeHandler(h)
             if hasattr(l, 'shutdown'):
                 l.shutdown()
 
