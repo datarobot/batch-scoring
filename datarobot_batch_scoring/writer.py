@@ -145,7 +145,6 @@ class RunContext(object):
         return d
 
     def __setstate__(self, d):
-        assert(not self.is_open)
         self.__dict__.update(d)
         self.open()
 
