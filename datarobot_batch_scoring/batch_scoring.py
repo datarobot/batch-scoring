@@ -13,7 +13,9 @@ import six
 from six.moves import queue
 
 from datarobot_batch_scoring import __version__
-from datarobot_batch_scoring.consts import WriterQueueMsg, ProgressQueueMsg
+from datarobot_batch_scoring.consts import (WriterQueueMsg,
+                                            ProgressQueueMsg,
+                                            SENTINEL)
 from datarobot_batch_scoring.network import Network
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
@@ -73,6 +75,11 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         writer_queue = conc_manager.Queue(queue_size)
         progress_queue = conc_manager.Queue()
 
+        shovel_status = conc_manager.Value('c', b'-')
+        network_status = conc_manager.Value('c', b'-')
+        writer_status = conc_manager.Value('c', b'-')
+        abort_flag = conc_manager.Value('b', 0)
+
         base_headers['content-type'] = 'text/csv; charset=utf8'
         if compression:
             base_headers['Content-Encoding'] = 'gzip'
@@ -130,6 +137,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         batch_generator_args = ctx.batch_generator_args()
         shovel = stack.enter_context(Shovel(network_queue,
                                             progress_queue,
+                                            shovel_status,
+                                            abort_flag,
                                             batch_generator_args,
                                             ui))
         ui.info('Shovel go...')
@@ -142,6 +151,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                               network_deque=network_deque,
                                               writer_queue=writer_queue,
                                               progress_queue=progress_queue,
+                                              abort_flag=abort_flag,
+                                              network_status=network_status,
                                               endpoint=endpoint,
                                               headers=base_headers,
                                               user=user,
@@ -190,7 +201,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
                                                    network_queue,
                                                    network_deque,
-                                                   progress_queue))
+                                                   progress_queue,
+                                                   abort_flag,
+                                                   writer_status))
         ui.info('Writer go...')
         writer_proc = writer.go()
 
@@ -212,60 +225,65 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         s_produced = 0
 
         aborting_phase = 0
+        phase_start = time()
 
         while True:
+            progress_empty = False
             try:
                 msg, args = progress_queue.get(timeout=1)
                 ui.debug("got progress: {} args={}".format(msg, args))
             except queue.Empty:
-                if network_proc is None and not network_done:
-                    ui.error("network process finished without posting"
-                             " results, terminating")
+                progress_empty = True
+                ui.debug("get progress timed out")
+                ui.debug(" shovel_status: {} shovel_done: {} shovel_proc: {}"
+                         "".format(shovel_status.value, shovel_done,
+                                   shovel_proc))
+                ui.debug(" network_status: {} network_done: {} "
+                         "network_proc: {}"
+                         "".format(network_status.value, network_done,
+                                   network_proc))
+                ui.debug(" writer_status: {} writer_done: {} writer_proc: {}"
+                         "".format(writer_status.value, writer_done,
+                                   writer_proc))
+            else:
+                if msg == ProgressQueueMsg.NETWORK_DONE:
+                    n_ret = args["ret"]
+                    n_requests = args["processed"]
+                    n_consumed = args["consumed"]
+                    network_done = "ok"
+
+                elif msg == ProgressQueueMsg.WRITER_DONE:
+                    w_ret = args["ret"]
+                    w_requests = args["processed"]
+                    w_written = args["written"]
+                    writer_done = "ok"
+
+                elif msg == ProgressQueueMsg.SHOVEL_DONE:
+                    s_produced = args["produced"]
+                    shovel_done = "ok"
+
+                elif msg in (ProgressQueueMsg.SHOVEL_CSV_ERROR,
+                             ProgressQueueMsg.SHOVEL_ERROR):
+                    batch = args["batch"]
+                    error = args["error"]
+                    s_produced = args["produced"]
+                    exit_code = 1
+
+                    if msg == ProgressQueueMsg.SHOVEL_CSV_ERROR:
+                        shovel_done = "with csv format error"
+                        ui.error("Error parsing CSV file after line {},"
+                                 " error: {}, aborting".format(
+                                    batch.id + batch.rows, error))
+                    else:
+                        shovel_done = "with error"
+                        ui.error("Unexpected reader error after line {},"
+                                 " error: {}, aborting".format(
+                                    batch.id + batch.rows, error))
+
                     aborting_phase = 1
-                if shovel_proc is None and not shovel_done:
-                    ui.error("shovel process finished without posting"
-                             " results, terminating")
-                    aborting_phase = 1
-                if writer_proc is None and not writer_done:
-                    ui.error("writer process finished without posting"
-                             " results, terminating")
-                    aborting_phase = 1
-                continue
-
-            if msg == ProgressQueueMsg.NETWORK_DONE:
-                n_ret = args["ret"]
-                n_requests = args["processed"]
-                n_consumed = args["consumed"]
-                network_done = True
-                if writer_proc:
-                    ui.debug('sending Sentinel to writer process')
-                    writer_queue.put((WriterQueueMsg.SENTINEL, {}))
-
-                aborting_phase = 1
-
-            elif msg == ProgressQueueMsg.SHOVEL_DONE:
-                s_produced = args["produced"]
-                shovel_done = "ok"
-
-            elif msg in (ProgressQueueMsg.SHOVEL_CSV_ERROR,
-                         ProgressQueueMsg.SHOVEL_ERROR):
-                batch = args["batch"]
-                error = args["error"]
-                s_produced = args["produced"]
-                exit_code = 1
-
-                if msg == ProgressQueueMsg.SHOVEL_CSV_ERROR:
-                    shovel_done = "with csv format error"
-                    ui.error("Error parsing CSV file after line {},"
-                             " error: {}, aborting".format(
-                                batch.id + batch.rows, error))
                 else:
-                    shovel_done = "with error"
-                    ui.error("Unexpected reader error after line {},"
-                             " error: {}, aborting".format(
-                                batch.id + batch.rows, error))
-
-                aborting_phase = 1
+                    ui.error("got unknown progress message: {} args={}"
+                             "".format(msg, args))
 
             if shovel_proc and not shovel_proc.is_alive():
                 shovel_exitcode = shovel_proc.exitcode
@@ -279,41 +297,114 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                         .format(network_exitcode))
                 network_proc = None
 
-            if writer_proc:
-                if not writer_proc.is_alive():
-                    writer_exitcode = writer_proc.exitcode
-                    ui.info("writer proc finished, exit code: {}"
-                            .format(writer_exitcode))
-                    writer_proc = None
-                elif aborting_phase == 1:
-                    ui.debug('sending Sentinel to writer process')
-                    writer_queue.put((WriterQueueMsg.SENTINEL, {}))
+            if writer_proc and not writer_proc.is_alive():
+                writer_exitcode = writer_proc.exitcode
+                ui.info("writer proc finished, exit code: {}"
+                        .format(network_exitcode))
+                writer_proc = None
 
-            if aborting_phase == 1:
-                break
+            if aborting_phase == 0:
+                if progress_empty:
+                    if time() - phase_start > 10:
+                        if network_proc is None and not network_done:
+                            ui.warning("network process finished without "
+                                       "posting results, aborting")
+                            network_done = "exited"
+                            aborting_phase = 1
+                        if shovel_proc is None and not shovel_done:
+                            ui.warning("shovel process finished without "
+                                       "posting results, aborting")
+                            shovel_done = "exited"
+                            aborting_phase = 1
+                        if writer_proc is None and not writer_done:
+                            ui.warning("writer process finished without "
+                                       "posting results, aborting")
+                            writer_done = "exited"
+                            aborting_phase = 1
+                else:
+                    phase_start = time()
+
+                if shovel_done and network_status.value == b"I":
+                    writer_queue.put((WriterQueueMsg.SENTINEL, {}))
+                    ui.info("All requests done, waiting for writer")
+                    if network_proc:
+                        network_queue.put(SENTINEL)
+                    aborting_phase = -1
+                    phase_start = time()
+
+            elif aborting_phase == -1:
+                if not writer_done and time() - phase_start > 60:
+                    ui.info("writer is still active, aborting")
+                    aborting_phase = 1
+                else:
+                    procs = [shovel_proc, network_proc, writer_proc]
+                    if procs == [None, None, None]:
+                        ui.info("all workers exited")
+                        break
+
+            elif aborting_phase == 1:
+                exit_code = 1
+                abort_flag.value = 1
+                aborting_phase = 2
+                phase_start = time()
+                ui.info("abort sequence started, waiting for workers exit")
+
+            elif aborting_phase == 2:
+                procs = [shovel_proc, network_proc, writer_proc]
+                if procs == [None, None, None]:
+                    ui.info("all workers exited")
+                    break
+                elif time() - phase_start > 10:
+                    for proc in procs:
+                        if proc and proc.is_alive():
+                            proc.terminate()
+
+                    aborting_phase = 3
+                    phase_start = time()
+
+            elif aborting_phase == 3:
+                procs = [shovel_proc, network_proc, writer_proc]
+                if procs == [None, None, None]:
+                    ui.info("all workers exited")
+                    break
+                elif time() - phase_start > 10:
+                    for proc in procs:
+                        if proc.is_alive():
+                            os.kill(proc.pid, 9)
+                aborting_phase = 4
+
+            elif aborting_phase == 4:
+                procs = [shovel_proc, network_proc, writer_proc]
+                if procs == [None, None, None]:
+                    ui.info("all workers exited")
+                    break
+                elif time() - phase_start > 10:
+                    ui.error("some workers are not exited, ignoring")
+                    break
 
         if shovel_done:
             ui.info("Shovel is finished {}. Chunks produced: {}"
                     "".format(shovel_done, s_produced))
 
         if network_done:
-            ui.info("Network is finished ok. Requests {}".format(n_requests))
+            ui.info("Network is finished {}. Requests {}"
+                    "".format(network_done, n_requests))
+
+        if writer_done:
+            ui.info("Writer is finished {}. Result: {}"
+                    " Requests: {} Written: {}"
+                    "".format(writer_done, w_ret, w_requests,
+                              w_written))
 
         if n_ret is not True:
             ui.debug('Network finished with error')
             exit_code = 1
 
-        if writer_proc:
-            ui.debug('sending Sentinel to writer process')
-            writer_queue.put((WriterQueueMsg.SENTINEL, {}))
-            writer_proc.join(30)
-            writer_exitcode = writer_proc.exitcode
-
         if writer_exitcode is 0:
             ui.debug('writer process exited successfully')
         else:
             ui.debug('writer process did not exit properly: '
-                     'returncode="{}"'.format(writer_proc.exitcode))
+                     'returncode="{}"'.format(writer_exitcode))
 
         ui.info("active threads: {}".format(threading.enumerate()))
         ctx.open()

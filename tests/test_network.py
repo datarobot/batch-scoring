@@ -212,16 +212,10 @@ def test_wrong_result_order(live_server, tmpdir, ui):
         assert actual == f.read()
 
 
-@pytest.mark.xfail(reason="Last retries are lost")
-def test_lost_retry(live_server, tmpdir, monkeypatch, ui):
+def test_lost_retry(live_server, tmpdir, ui):
     out = tmpdir.join('out.csv')
     live_server.app.config["PREDICTION_DELAY"] = 1.0
     live_server.app.config["FAIL_AT"] = [14]
-
-    def sys_exit(code):
-        raise RuntimeError
-
-    monkeypatch.setattr("sys.exit", sys_exit)
 
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
@@ -256,6 +250,6 @@ def test_lost_retry(live_server, tmpdir, monkeypatch, ui):
     actual.sort()
 
     with open('tests/fixtures/regression_output_jp.csv', 'rU') as f:
-        expected = f.read().decode('utf-8').splitlines()
+        expected = f.read().splitlines()
         expected.sort()
         assert actual == expected

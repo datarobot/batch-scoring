@@ -13,7 +13,8 @@ from functools import reduce
 import six
 from six.moves import queue
 
-from datarobot_batch_scoring.consts import SENTINEL, WriterQueueMsg, TargetType
+from datarobot_batch_scoring.consts import SENTINEL, \
+    WriterQueueMsg, TargetType, ProgressQueueMsg
 
 
 class ShelveError(Exception):
@@ -323,13 +324,17 @@ class OldRunContext(RunContext):
 
 
 class WriterProcess(object):
-    def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue):
+    def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue,
+                 abort_flag, writer_status):
         self._ui = ui
         self.ctx = ctx
         self.writer_queue = writer_queue
         self.queue = queue
         self.deque = deque
         self.progress_queue = progress_queue
+        self.abort_flag = abort_flag
+        self.writer_status = writer_status
+        self.proc = None
 
     def deque_failed_batch(self, batch):
         # we retry a batch - decrement retry counter
@@ -452,9 +457,14 @@ class WriterProcess(object):
         self._ui.debug('Writer Process started - {}'
                        ''.format(multiprocessing.current_process().name))
         success = False
+        processed = 0
+        written = 0
         try:
             while True:
+                self.writer_status.value = b"G"
                 msg, args = self.writer_queue.get()
+                self.writer_status.value = b"W"
+                processed += 1
 
                 if msg == WriterQueueMsg.CTX_ERROR:
                     # pred_name is a message if ERROR or WARNING
@@ -478,6 +488,7 @@ class WriterProcess(object):
                                                                      batch)
 
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
+                    written += 1
                     # self._ui.debug('Writer Queue queue length: {}'
                     #               ''.format(self.writer_queue.qsize()))
                 else:
@@ -493,6 +504,9 @@ class WriterProcess(object):
                            ''.format(batch.id, e))
 
         finally:
+            self.writer_status.value = b"D"
+            self.progress_queue.put((ProgressQueueMsg.WRITER_DONE, {
+                "ret": success, "processed": processed, "written": written}))
             for o in [self.ctx, self.queue, self.writer_queue, self.deque,
                       self._ui]:
                 if hasattr(o, 'close'):
@@ -512,7 +526,9 @@ class WriterProcess(object):
                                            self.writer_queue,
                                            self.queue,
                                            self.deque,
-                                           self.progress_queue]),
+                                           self.progress_queue,
+                                           self.abort_flag,
+                                           self.writer_status]),
                                     name='Writer_Proc')
         self.proc.start()
         return self.proc
@@ -521,14 +537,13 @@ class WriterProcess(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        if hasattr(self, 'proc'):
-            if self.proc.is_alive():
-                self._ui.debug('Terminating Writer')
-                self.writer_queue.put_nowait((None, SENTINEL, None))
+        if self.proc and self.proc.is_alive():
+            self._ui.debug('Terminating Writer')
+            self.writer_queue.put_nowait((None, SENTINEL, None))
 
 
 def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
-                         progress_queue):
+                         progress_queue, abort_flag, writer_status):
     """
     This was intended to be a staticmethod of WriterProcess but
     python 2.7 on Windows can't find it unless it's at module level
@@ -542,4 +557,5 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
                     ''.format(multiprocessing.current_process().name))
     ctx.open()
     WriterProcess(_ui, ctx, writer_queue, queue, deque,
-                  progress_queue).process_response()
+                  progress_queue, abort_flag, writer_status
+                  ).process_response()

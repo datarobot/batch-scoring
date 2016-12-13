@@ -13,7 +13,7 @@ from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import wait
 from six.moves import queue
 
-from datarobot_batch_scoring.consts import (SENTINEL, ERROR_SENTINEL,
+from datarobot_batch_scoring.consts import (SENTINEL,
                                             WriterQueueMsg, Batch,
                                             ProgressQueueMsg)
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
@@ -32,211 +32,14 @@ logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
-class MultiprocessingGeneratorBackedQueue(object):
-    """A queue that is backed by a generator.
-
-    When the queue is exhausted it repopulates from the generator.
-    """
-    def __init__(self, ui, queue, deque):
-        self.n_consumed = 0
-        self.queue = queue
-        self.deque = deque
-        self._ui = ui
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            r = self.deque.get_nowait()
-            self._ui.debug('Got batch from dequeu: {}'.format(r.id))
-            return r
-        except queue.Empty:
-            try:
-                r = self.queue.get()
-                if r.id == SENTINEL.id:
-                    if r.rows == ERROR_SENTINEL.rows:
-                        self._ui.error('Error parsing CSV file, '
-                                       'check logs for exact error')
-                    raise StopIteration
-                self.n_consumed += 1
-                return r
-            except OSError:
-                raise StopIteration
-
-    def __len__(self):
-        return self.queue.qsize() + self.deque.qsize()
-
-    def next(self):
-        return self.__next__()
-
-    def push(self, batch):
-        # we retry a batch - decrement retry counter
-        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
-        try:
-            self.deque.put(batch, block=False)
-        except queue.Empty:
-            self._ui.error('Dropping {} due to backfill queue full.'.format(
-                batch))
-
-
-class WorkUnitGenerator(object):
-    """Generates async requests with completion or retry callbacks.
-
-    It uses a queue backed by a batch generator.
-    It will pop items for the queue and if its exhausted it will populate the
-    queue from the batch generator.
-    If a submitted async request was not successfull it gets enqueued again.
-    """
-
-    def __init__(self, queue, endpoint, headers, user, api_token, pred_name,
-                 fast_mode, ui, max_batch_size, writer_queue, compression):
-        self.endpoint = endpoint
-        self.headers = headers
-        self.user = user
-        self.api_token = api_token
-        self.queue = queue
-        self.pred_name = pred_name
-        self.fast_mode = fast_mode
-        self._ui = ui
-        self.max_batch_size = max_batch_size
-        self.writer_queue = writer_queue
-        self.compression = compression
-
-    def _response_callback(self, r, batch=None, *args, **kw):
-        try:
-            if r.status_code == 200:
-                pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
-                                   'text': r.text}
-                self.writer_queue.put((WriterQueueMsg.RESPONSE, {
-                    "request": pickleable_resp,
-                    "batch": batch
-                }))
-                return
-            elif isinstance(r, FakeResponse):
-                self._ui.debug('Skipping processing response '
-                               'because of FakeResponse')
-                self.queue.push(batch)
-            else:
-                try:
-                    self._ui.warning('batch {} failed with status: {}'
-                                     .format(batch.id,
-                                             json.loads(r.text)['status']))
-                except ValueError:
-                    self._ui.warning('batch {} failed with status code: {}'
-                                     .format(batch.id, r.status_code))
-
-                text = r.text
-                msg = ('batch {} failed, queued to retry, status_code:{} '
-                       'text:{}'.format(batch.id, r.status_code, text))
-                self._ui.error(msg)
-                self.send_warning_to_ctx(batch, msg)
-                self.queue.push(batch)
-        except Exception as e:
-            msg = 'batch {} - dropping due to: {}, {} records lost'.format(
-                batch.id, e, batch.rows)
-            self._ui.error(msg)
-            self.send_error_to_ctx(batch, msg)
-
-    def send_warning_to_ctx(self, batch, message):
-        self._ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
-                      'message {}'.format(batch.id, message))
-        self.writer_queue.put((WriterQueueMsg.CTX_WARNING, {
-            "batch": batch,
-            "error": message
-        }))
-
-    def send_error_to_ctx(self, batch, message):
-        self._ui.info('WorkUnitGenerator sending ERROR batch_id {} , '
-                      'message {}'.format(batch.id, message))
-
-        self.writer_queue.put((WriterQueueMsg.CTX_ERROR, {
-            "batch": batch,
-            "error": message
-        }))
-
-    def __iter__(self):
-        for batch in self.queue:
-            if batch.id == -1:  # sentinel
-                raise StopIteration()
-            # if we exhaused our retries we drop the batch
-            if batch.rty_cnt == 0:
-                msg = ('batch {} exceeded retry limit; '
-                       'we lost {} records'.format(
-                            batch.id, len(batch.data)))
-                self._ui.error(msg)
-                self.send_error_to_ctx(batch, msg)
-                continue
-
-            if self.fast_mode:
-                chunk_formatter = fast_to_csv_chunk
-            else:
-                chunk_formatter = slow_to_csv_chunk
-
-            todo = [batch]
-            while todo:
-                batch = todo.pop(0)
-                data = chunk_formatter(batch.data, batch.fieldnames)
-                starting_size = sys.getsizeof(data)
-                if starting_size < self.max_batch_size:
-                    if self.compression:
-                        data = compress(data)
-                        self._ui.debug(
-                            'batch {}-{} transmitting {} byte - space savings '
-                            '{}%'.format(batch.id, batch.rows,
-                                         sys.getsizeof(data),
-                                         '%.2f' % float(1 -
-                                                        (sys.getsizeof(data) /
-                                                         starting_size))))
-                    else:
-                        self._ui.debug('batch {}-{} transmitting {} bytes'
-                                       .format(batch.id, batch.rows,
-                                               starting_size))
-                    hook = partial(self._response_callback, batch=batch)
-
-                    yield requests.Request(
-                        method='POST',
-                        url=self.endpoint,
-                        headers=self.headers,
-                        data=data,
-                        auth=(self.user, self.api_token),
-                        hooks={'response': hook})
-                else:
-                    if batch.rows < 2:
-                        msg = ('batch {} is single row but bigger '
-                               'than limit, skipping. We lost {} '
-                               'records'.format(batch.id,
-                                                len(batch.data)))
-                        self._ui.error(msg)
-                        self.send_error_to_ctx(batch, msg)
-                        continue
-
-                    msg = ('batch {}-{} is too long: {} bytes,'
-                           ' splitting'.format(batch.id, batch.rows,
-                                               len(data)))
-                    self._ui.debug(msg)
-                    self.send_warning_to_ctx(batch, msg)
-                    split_point = int(batch.rows/2)
-
-                    data1 = batch.data[:split_point]
-                    batch1 = Batch(batch.id, split_point, batch.fieldnames,
-                                   data1, batch.rty_cnt)
-                    todo.append(batch1)
-
-                    data2 = batch.data[split_point:]
-                    batch2 = Batch(batch.id + split_point,
-                                   batch.rows - split_point,
-                                   batch.fieldnames, data2, batch.rty_cnt)
-                    todo.append(batch2)
-                    todo.sort()
-
-
 class Network(object):
     def __init__(self, concurrency, timeout, ui,
                  network_queue,
                  network_deque,
                  writer_queue,
                  progress_queue,
+                 abort_flag,
+                 network_status,
                  endpoint,
                  headers,
                  user,
@@ -253,6 +56,8 @@ class Network(object):
         self.network_deque = network_deque
         self.writer_queue = writer_queue
         self.progress_queue = progress_queue
+        self.abort_flag = abort_flag
+        self.network_status = network_status
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -262,7 +67,6 @@ class Network(object):
         self.max_batch_size = max_batch_size
         self.compression = compression
 
-        self.work_unit_gen = None
         self._timeout = timeout
         self.futures = []
         self.concurrency = concurrency
@@ -271,39 +75,241 @@ class Network(object):
         self.session = None
         self.proc = None
 
+        self.n_consumed = 0
+
+    def send_warning_to_ctx(self, batch, message):
+        self.ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
+                     'message {}'.format(batch.id, message))
+        self.writer_queue.put((WriterQueueMsg.CTX_WARNING, {
+            "batch": batch,
+            "error": message
+        }))
+
+    def send_error_to_ctx(self, batch, message):
+        self.ui.info('WorkUnitGenerator sending ERROR batch_id {} , '
+                     'message {}'.format(batch.id, message))
+
+        self.writer_queue.put((WriterQueueMsg.CTX_ERROR, {
+            "batch": batch,
+            "error": message
+        }))
+
+    def push_retry(self, batch):
+        # we retry a batch - decrement retry counter
+        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
+        try:
+            self.network_deque.put(batch, block=False)
+        except queue.Full:
+            msg = 'Dropping {} due to backfill queue full.'.format(
+                batch)
+            self.ui.error(msg)
+            self.send_error_to_ctx(batch, msg)
+
+    def _response_callback(self, r, batch=None, *args, **kw):
+        try:
+            if r.status_code == 200:
+                pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
+                                   'text': r.text}
+                self.writer_queue.put((WriterQueueMsg.RESPONSE, {
+                    "request": pickleable_resp,
+                    "batch": batch
+                }))
+                return
+            elif isinstance(r, FakeResponse):
+                if r.status_code == 499:
+                    msg = ('batch {} timed out, dropping; '
+                           'we lost {} records'
+                           ''.format(batch.id, len(batch.data)))
+                    self.ui.error(msg)
+                    self.send_error_to_ctx(batch, msg)
+                    return
+
+                self.ui.debug('Skipping processing response '
+                              'because of FakeResponse')
+            else:
+                try:
+                    self.ui.warning('batch {} failed with status: {}'
+                                    ''.format(
+                                         batch.id,
+                                         json.loads(r.text)['status']))
+                except ValueError:
+                    self.ui.warning('batch {} failed with status code: {}'
+                                    ''.format(batch.id, r.status_code))
+
+                text = r.text
+                msg = ('batch {} failed, status_code:{} '
+                       'text:{}'.format(batch.id, r.status_code, text))
+                self.ui.error(msg)
+                self.send_warning_to_ctx(batch, msg)
+
+            if batch.rty_cnt == 1:
+                msg = ('batch {} exceeded retry limit; '
+                       'we lost {} records'
+                       ''.format(batch.id, len(batch.data)))
+                self.ui.error(msg)
+                self.send_error_to_ctx(batch, msg)
+            else:
+                self.ui.warning('respooling batch {}'
+                                .format(batch.id))
+                self.push_retry(batch)
+
+        except Exception as e:
+            msg = 'batch {} - dropping due to: {}, {} records lost'.format(
+                batch.id, e, batch.rows)
+            self.ui.error(msg)
+            self.send_error_to_ctx(batch, msg)
+
     def _request(self, request):
+
         prepared = self.session.prepare_request(request)
         try:
             self.session.send(prepared, timeout=self._timeout)
-        except requests.exceptions.ReadTimeout:
-            self.ui.warning(textwrap.dedent("""The server did not send any data
+        except Exception as exc:
+            code = 400
+            if isinstance(exc, requests.exceptions.ReadTimeout):
+                self.ui.warning(textwrap.dedent("""The server did not send any data
 in the allotted amount of time.
 You might want to decrease the "--n_concurrent" parameters
 or
 increase "--timeout" parameter.
 """))
+                code = 499
+            else:
+                self.ui.debug('Exception {}: {}'.format(type(exc), exc))
+                raise
 
-        except Exception as exc:
-            self.ui.debug('Exception {}: {}'.format(type(exc), exc))
             try:
                 callback = request.kwargs['hooks']['response']
             except AttributeError:
                 callback = request.hooks['response'][0]
-            response = FakeResponse(400, 'No Response')
+            response = FakeResponse(code, 'No Response')
             callback(response)
 
-    def perform_requests(self, requests):
-        for r in requests:
-            while True:
-                self.futures = [i for i in self.futures if not i.done()]
-                if len(self.futures) < self.concurrency:
-                    self.futures.append(self._executor.submit(self._request,
-                                                              r))
+    def get_batch(self):
+        while True:
+            try:
+                r = self.network_deque.get_nowait()
+                self.ui.debug('Got batch from dequeu: {}'.format(r.id))
+                yield r
+            except queue.Empty:
+                try:
+                    r = self.network_queue.get(timeout=1)
+                    if r.id == SENTINEL.id:
+                        break
+                    self.n_consumed += 1
+                    yield r
+                except queue.Empty:
+                    if self.network_status.value == b"E":
+                        self.ui.debug('state: {} -> I'
+                                      ''.format(self.network_status.value))
+                        self.network_status.value = b"I"
+
+                    if self.abort_flag.value:
+                        self.ui.warning('Terminate flag set, exiting')
+                        break
+                except OSError:
+                    self.ui.error('OS Error')
                     break
+
+    def split_batch(self, batch):
+            if self.fast_mode:
+                chunk_formatter = fast_to_csv_chunk
+            else:
+                chunk_formatter = slow_to_csv_chunk
+
+            todo = [batch]
+            while todo:
+                batch = todo.pop(0)
+                data = chunk_formatter(batch.data, batch.fieldnames)
+                starting_size = sys.getsizeof(data)
+                if starting_size < self.max_batch_size:
+                    if self.compression:
+                        data = compress(data)
+                        self.ui.debug(
+                            'batch {}-{} transmitting {} byte - space savings '
+                            '{}%'.format(batch.id, batch.rows,
+                                         sys.getsizeof(data),
+                                         '%.2f' % float(1 -
+                                                        (sys.getsizeof(data) /
+                                                         starting_size))))
+                    else:
+                        self.ui.debug('batch {}-{} transmitting {} bytes'
+                                      ''.format(batch.id, batch.rows,
+                                                starting_size))
+
+                    yield (batch, data)
                 else:
-                    wait(self.futures, return_when=FIRST_COMPLETED)
-            yield
+                    if batch.rows < 2:
+                        msg = ('batch {} is single row but bigger '
+                               'than limit, skipping. We lost {} '
+                               'records'.format(batch.id,
+                                                len(batch.data)))
+                        self.ui.error(msg)
+                        self.send_error_to_ctx(batch, msg)
+                        continue
+
+                    msg = ('batch {}-{} is too long: {} bytes,'
+                           ' splitting'.format(batch.id, batch.rows,
+                                               len(data)))
+                    self.ui.debug(msg)
+                    self.send_warning_to_ctx(batch, msg)
+                    split_point = int(batch.rows/2)
+
+                    data1 = batch.data[:split_point]
+                    batch1 = Batch(batch.id, split_point, batch.fieldnames,
+                                   data1, batch.rty_cnt)
+                    todo.append(batch1)
+
+                    data2 = batch.data[split_point:]
+                    batch2 = Batch(batch.id + split_point,
+                                   batch.rows - split_point,
+                                   batch.fieldnames, data2, batch.rty_cnt)
+                    todo.append(batch2)
+                    todo.sort()
+
+    def request_cb(self, f):
+        futures = [i for i in self.futures if not i.done()]
+        self.ui.debug('cb {}: {}'.format(f, futures))
+
+        if len(futures) == 0:
+            self.ui.debug('state: {} -> E'.format(self.network_status.value))
+            self.network_status.value = b"E"
+
+    def perform_requests(self, dry_run=False):
+        for q_batch in self.get_batch():
+            for (batch, data) in self.split_batch(q_batch):
+
+                if dry_run:
+                    yield
+                    continue
+
+                hook = partial(self._response_callback, batch=batch)
+                r = requests.Request(
+                    method='POST',
+                    url=self.endpoint,
+                    headers=self.headers,
+                    data=data,
+                    auth=(self.user, self.api_token),
+                    hooks={'response': hook})
+
+                while True:
+                    self.futures = [i for i in self.futures if not i.done()]
+                    if len(self.futures) < self.concurrency:
+                        self.ui.debug('state: {} -> R'
+                                      ''.format(self.network_status.value))
+                        self.network_status.value = b"R"
+                        f = self._executor.submit(self._request, r)
+                        f.add_done_callback(self.request_cb)
+                        self.futures.append(f)
+                        break
+                    else:
+                        self.ui.debug('state: {} -> F'
+                                      ''.format(self.network_status.value))
+                        self.network_status.value = b"F"
+                        wait(self.futures, return_when=FIRST_COMPLETED)
+                yield
         #  wait for all batches to finish before returning
+        self.network_status.value = b"W"
         while self.futures:
             f_len = len(self.futures)
             self.futures = [i for i in self.futures if not i.done()]
@@ -312,6 +318,7 @@ increase "--timeout" parameter.
                               'remaining requests: {}'
                               ''.format(len(self.futures)))
             wait(self.futures, return_when=FIRST_COMPLETED)
+        self.network_status.value = b"D"
         yield True
 
     def __enter__(self):
@@ -322,25 +329,9 @@ increase "--timeout" parameter.
             self.proc.terminate()
 
     def run(self, dry_run=False):
-        MGBQ = MultiprocessingGeneratorBackedQueue(ui=self.ui,
-                                                   queue=self.network_queue,
-                                                   deque=self.network_deque)
-        self.work_unit_gen = WorkUnitGenerator(
-            queue=MGBQ,
-            endpoint=self.endpoint,
-            headers=self.headers,
-            user=self.user,
-            api_token=self.api_token,
-            pred_name=self.pred_name,
-            fast_mode=self.fast_mode,
-            ui=self.ui,
-            max_batch_size=self.max_batch_size,
-            writer_queue=self.writer_queue,
-            compression=self.compression)
-
         if dry_run:
             i = 0
-            for _ in self.work_unit_gen:
+            for _ in self.perform_requests(True):
                 i += 1
 
             return i
@@ -355,15 +346,18 @@ increase "--timeout" parameter.
         t0 = time()
         i = 0
         r = None
-        for r in self.perform_requests(self.work_unit_gen):
+        for r in self.perform_requests():
             i += 1
             self.ui.info('{} responses sent | time elapsed {}s'
                          .format(i, time() - t0))
 
+        if r is True:
+            i -= 1
+
         self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
             "ret": r,
             "processed": i,
-            "consumed": MGBQ.n_consumed
+            "consumed": self.n_consumed
         }))
 
     def go(self, dry_run=False):
@@ -373,6 +367,6 @@ increase "--timeout" parameter.
         self.ui.set_next_UI_name('network')
         self.proc = \
             multiprocessing.Process(target=self.run,
-                                    name='Network_Proc')
+                                    name='Netwrk_Proc')
         self.proc.start()
         return self.proc

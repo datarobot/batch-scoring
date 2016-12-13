@@ -10,7 +10,7 @@ from time import time
 import chardet
 import six
 
-from datarobot_batch_scoring.consts import (Batch, SENTINEL,
+from datarobot_batch_scoring.consts import (Batch,
                                             ProgressQueueMsg)
 
 if six.PY2:
@@ -221,10 +221,13 @@ class BatchGenerator(object):
 
 class Shovel(object):
 
-    def __init__(self, queue, progress_queue, batch_gen_args, ui):
+    def __init__(self, queue, progress_queue, shovel_status,
+                 abort_flag, batch_gen_args, ui):
         self._ui = ui
         self.queue = queue
         self.progress_queue = progress_queue
+        self.shovel_status = shovel_status
+        self.abort_flag = abort_flag
         self.batch_gen_args = batch_gen_args
         self.dialect = csv.get_dialect('dataset_dialect')
         #  The following should only impact Windows
@@ -240,16 +243,21 @@ class Shovel(object):
             n = 0
             for batch in batch_generator:
                 _ui.debug('queueing batch {}'.format(batch.id))
+                self.shovel_status.value = b"P"
                 queue.put(batch)
                 n += 1
+                if self.abort_flag.value:
+                    _ui.info('shoveling abort requested')
+                    self.shovel_status.value = b"A"
+                    break
 
+            self.shovel_status.value = b"D"
             _ui.info('shoveling complete | total time elapsed {}s'
                      ''.format(time() - t2))
-            queue.put(SENTINEL)
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_DONE,
                                      {"produced": n}))
         except csv.Error as e:
-            queue.put(SENTINEL)
+            self.shovel_status.value = b"C"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
                                      {
                                          "batch": batch,
@@ -258,7 +266,7 @@ class Shovel(object):
                                      }))
             raise
         except Exception as e:
-            queue.put(SENTINEL)
+            self.shovel_status.value = b"E"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_ERROR,
                                      {
                                          "batch": batch,
@@ -267,7 +275,6 @@ class Shovel(object):
                                      }))
             raise
         finally:
-            queue.put(SENTINEL)
             if os.name is 'nt':
                 _ui.close()
 
