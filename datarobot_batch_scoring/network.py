@@ -200,6 +200,10 @@ increase "--timeout" parameter.
                     yield r
                 except queue.Empty:
                     if self.network_status.value == b"E":
+                        self.ui.debug('state: {} -> e'
+                                      ''.format(self.network_status.value))
+                        self.network_status.value = b"e"
+                    elif self.network_status.value == b"e":
                         self.ui.debug('state: {} -> I'
                                       ''.format(self.network_status.value))
                         self.network_status.value = b"I"
