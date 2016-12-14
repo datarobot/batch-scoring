@@ -375,7 +375,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     break
                 elif time() - phase_start > 10:
                     for proc in procs:
-                        if proc.is_alive():
+                        if proc and proc.is_alive():
                             os.kill(proc.pid, 9)
                 aborting_phase = 4
 
@@ -411,8 +411,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         else:
             ui.debug('writer process did not exit properly: '
                      'returncode="{}"'.format(writer_exitcode))
+            exit_code = 1
 
-        ui.info("active threads: {}".format(threading.enumerate()))
+        ui.debug("active threads: {}".format(threading.enumerate()))
         ctx.open()
         ui.debug('number of batches checkpointed initially: {}'
                  .format(n_batches_checkpointed_init))
