@@ -285,26 +285,30 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     ui.error("got unknown progress message: {} args={}"
                              "".format(msg, args))
 
+            some_worker_exited = False
             if shovel_proc and not shovel_proc.is_alive():
                 shovel_exitcode = shovel_proc.exitcode
                 ui.info("shovel proc finished, exit code: {}"
                         .format(shovel_exitcode))
                 shovel_proc = None
+                some_worker_exited = True
 
             if network_proc and not network_proc.is_alive():
                 network_exitcode = network_proc.exitcode
                 ui.info("network proc finished, exit code: {}"
                         .format(network_exitcode))
                 network_proc = None
+                some_worker_exited = True
 
             if writer_proc and not writer_proc.is_alive():
                 writer_exitcode = writer_proc.exitcode
                 ui.info("writer proc finished, exit code: {}"
                         .format(network_exitcode))
                 writer_proc = None
+                some_worker_exited = True
 
             if aborting_phase == 0:
-                if progress_empty:
+                if progress_empty and not some_worker_exited:
                     if time() - phase_start > 10:
                         if network_proc is None and not network_done:
                             ui.warning("network process finished without "
@@ -321,6 +325,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                        "posting results, aborting")
                             writer_done = "exited"
                             aborting_phase = 1
+
+                        phase_start = time()
                 else:
                     phase_start = time()
 
