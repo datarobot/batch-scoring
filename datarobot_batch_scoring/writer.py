@@ -473,7 +473,6 @@ class WriterProcess(object):
                     continue
                 idle_cycles = 0
                 self.writer_status.value = b"W"
-                processed += 1
 
                 if msg == WriterQueueMsg.CTX_ERROR:
                     # pred_name is a message if ERROR or WARNING
@@ -488,6 +487,7 @@ class WriterProcess(object):
                     self._ui.debug('Writer received SENTINEL')
                     break
                 elif msg == WriterQueueMsg.RESPONSE:
+                    processed += 1
                     batch = args["batch"]
                     result = self.unpack_request_object(args["request"], batch)
                     if result is False:  # unpack_request_object failed

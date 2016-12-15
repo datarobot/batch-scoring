@@ -221,6 +221,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         n_ret = False
         n_consumed = 0
         n_requests = 0
+        n_retried = 0
 
         s_produced = 0
 
@@ -256,6 +257,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 if msg == ProgressQueueMsg.NETWORK_DONE:
                     n_ret = args["ret"]
                     n_requests = args["processed"]
+                    n_retried = args["retried"]
                     n_consumed = args["consumed"]
                     network_done = "ok"
 
@@ -410,12 +412,14 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     "".format(shovel_done, s_produced))
 
         if network_done:
-            ui.info("Network is finished {}. Requests {}"
-                    "".format(network_done, n_requests))
+            ui.info("Network is finished {}. Chunks: {} "
+                    "Requests: {} Retries: {}"
+                    "".format(network_done, n_consumed,
+                              n_requests, n_retried))
 
         if writer_done:
             ui.info("Writer is finished {}. Result: {}"
-                    " Requests: {} Written: {}"
+                    " Results: {} Written: {}"
                     "".format(writer_done, w_ret, w_requests,
                               w_written))
 

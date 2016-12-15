@@ -76,6 +76,8 @@ class Network(object):
         self.proc = None
 
         self.n_consumed = 0
+        self.n_retried = 0
+        self.n_requests = 0
 
     def send_warning_to_ctx(self, batch, message):
         self.ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
@@ -190,6 +192,7 @@ increase "--timeout" parameter.
             try:
                 r = self.network_deque.get_nowait()
                 self.ui.debug('Got batch from dequeu: {}'.format(r.id))
+                self.n_retried += 1
                 yield r
             except queue.Empty:
                 try:
@@ -273,7 +276,7 @@ increase "--timeout" parameter.
 
     def request_cb(self, f):
         futures = [i for i in self.futures if not i.done()]
-        self.ui.debug('cb {}: {}'.format(f, futures))
+        self.ui.debug('cb {}: pending futures: {}'.format(f, len(futures)))
 
         if len(futures) == 0:
             self.ui.debug('state: {} -> E'.format(self.network_status.value))
@@ -295,6 +298,8 @@ increase "--timeout" parameter.
                     data=data,
                     auth=(self.user, self.api_token),
                     hooks={'response': hook})
+
+                self.n_requests += 1
 
                 while True:
                     self.futures = [i for i in self.futures if not i.done()]
@@ -360,7 +365,8 @@ increase "--timeout" parameter.
 
         self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
             "ret": r,
-            "processed": i,
+            "processed": self.n_requests,
+            "retried": self.n_retried,
             "consumed": self.n_consumed
         }))
 
