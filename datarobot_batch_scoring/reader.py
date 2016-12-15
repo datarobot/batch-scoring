@@ -12,6 +12,7 @@ import six
 
 from datarobot_batch_scoring.consts import (Batch,
                                             ProgressQueueMsg)
+from datarobot_batch_scoring.utils import get_rusage
 
 if six.PY2:
     import StringIO
@@ -255,14 +256,18 @@ class Shovel(object):
             _ui.info('shoveling complete | total time elapsed {}s'
                      ''.format(time() - t2))
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_DONE,
-                                     {"produced": n}))
+                                     {
+                                         "produced": n,
+                                         "rusage": get_rusage()
+                                     }))
         except csv.Error as e:
             self.shovel_status.value = b"C"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
                                      {
                                          "batch": batch,
                                          "error": str(e),
-                                         "produced": n
+                                         "produced": n,
+                                         "rusage": get_rusage()
                                      }))
             raise
         except Exception as e:
@@ -271,7 +276,8 @@ class Shovel(object):
                                      {
                                          "batch": batch,
                                          "error": str(e),
-                                         "produced": n
+                                         "produced": n,
+                                         "rusage": get_rusage()
                                      }))
             raise
         finally:

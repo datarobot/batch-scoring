@@ -222,8 +222,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         n_consumed = 0
         n_requests = 0
         n_retried = 0
+        n_rusage = None
 
         s_produced = 0
+        s_rusage = None
+
+        w_ret = 0
+        w_requests = 0
+        w_written = 0
+        w_rusage = None
 
         aborting_phase = 0
         phase_start = time()
@@ -259,16 +266,19 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     n_requests = args["processed"]
                     n_retried = args["retried"]
                     n_consumed = args["consumed"]
+                    n_rusage = args["rusage"]
                     network_done = "ok"
 
                 elif msg == ProgressQueueMsg.WRITER_DONE:
                     w_ret = args["ret"]
                     w_requests = args["processed"]
                     w_written = args["written"]
+                    w_rusage = args["rusage"]
                     writer_done = "ok"
 
                 elif msg == ProgressQueueMsg.SHOVEL_DONE:
                     s_produced = args["produced"]
+                    s_rusage = args["rusage"]
                     shovel_done = "ok"
 
                 elif msg in (ProgressQueueMsg.SHOVEL_CSV_ERROR,
@@ -276,6 +286,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     batch = args["batch"]
                     error = args["error"]
                     s_produced = args["produced"]
+                    s_rusage = args["rusage"]
 
                     if msg == ProgressQueueMsg.SHOVEL_CSV_ERROR:
                         shovel_done = "with csv format error"
@@ -409,19 +420,22 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         if shovel_done:
             ui.info("Shovel is finished {}. Chunks produced: {}"
-                    "".format(shovel_done, s_produced))
+                    " Resource usage: {}"
+                    "".format(shovel_done, s_produced, s_rusage))
 
         if network_done:
-            ui.info("Network is finished {}. Chunks: {} "
-                    "Requests: {} Retries: {}"
+            ui.info("Network is finished {}. Chunks: {}"
+                    " Requests: {} Retries: {} Resource usage: {}"
                     "".format(network_done, n_consumed,
-                              n_requests, n_retried))
+                              n_requests, n_retried,
+                              n_rusage))
 
         if writer_done:
             ui.info("Writer is finished {}. Result: {}"
                     " Results: {} Written: {}"
+                    " Resource usage: {}"
                     "".format(writer_done, w_ret, w_requests,
-                              w_written))
+                              w_written, w_rusage))
 
         if n_ret is not True:
             ui.debug('Network finished with error')

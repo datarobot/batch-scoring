@@ -15,6 +15,7 @@ from six.moves import queue
 
 from datarobot_batch_scoring.consts import SENTINEL, \
     WriterQueueMsg, TargetType, ProgressQueueMsg
+from datarobot_batch_scoring.utils import get_rusage
 
 
 class ShelveError(Exception):
@@ -515,7 +516,11 @@ class WriterProcess(object):
         finally:
             self.writer_status.value = b"D"
             self.progress_queue.put((ProgressQueueMsg.WRITER_DONE, {
-                "ret": success, "processed": processed, "written": written}))
+                "ret": success,
+                "processed": processed,
+                "written": written,
+                "rusage": get_rusage()
+            }))
             for o in [self.ctx, self.queue, self.writer_queue, self.deque,
                       self._ui]:
                 if hasattr(o, 'close'):

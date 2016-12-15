@@ -404,3 +404,18 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
                  'id permissions: {}'.format(status))
     else:
         ui.debug('authorization has succeeded')
+
+try:
+    import resource
+
+    def get_rusage():
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        return {
+            "utime": usage.ru_utime,
+            "stime": usage.ru_stime,
+            "rss": usage.ru_maxrss,
+        }
+
+except ImportError:
+    def get_rusage():
+        return {}

@@ -18,7 +18,7 @@ from datarobot_batch_scoring.consts import (SENTINEL,
                                             ProgressQueueMsg)
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk)
-from datarobot_batch_scoring.utils import compress
+from datarobot_batch_scoring.utils import compress, get_rusage
 
 try:
     from futures import ThreadPoolExecutor
@@ -367,7 +367,8 @@ increase "--timeout" parameter.
             "ret": r,
             "processed": self.n_requests,
             "retried": self.n_retried,
-            "consumed": self.n_consumed
+            "consumed": self.n_consumed,
+            "rusage": get_rusage(),
         }))
 
     def go(self, dry_run=False):
