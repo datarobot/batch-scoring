@@ -16,13 +16,15 @@ from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.consts import (WriterQueueMsg,
                                             ProgressQueueMsg,
                                             SENTINEL)
-from datarobot_batch_scoring.network import Network
+from datarobot_batch_scoring.network import Network, decode_network_state
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
                                             Shovel, auto_sampler,
-                                            investigate_encoding_and_dialect)
+                                            investigate_encoding_and_dialect,
+                                            decode_reader_state)
 from datarobot_batch_scoring.utils import (acquire_api_token, authorize)
-from datarobot_batch_scoring.writer import WriterProcess, RunContext
+from datarobot_batch_scoring.writer import (WriterProcess, RunContext,
+                                            decode_writer_state)
 
 if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
@@ -243,15 +245,18 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             except queue.Empty:
                 progress_empty = True
                 ui.debug("get progress timed out")
-                ui.debug(" shovel_status: {} shovel_done: {} shovel_proc: {}"
-                         "".format(shovel_status.value, shovel_done,
+                ui.debug(" shovel_status: '{}' shovel_done: {} shovel_proc: {}"
+                         "".format(decode_reader_state(shovel_status.value),
+                                   shovel_done,
                                    shovel_proc))
-                ui.debug(" network_status: {} network_done: {} "
+                ui.debug(" network_status: '{}' network_done: {} "
                          "network_proc: {}"
-                         "".format(network_status.value, network_done,
+                         "".format(decode_network_state(network_status.value),
+                                   network_done,
                                    network_proc))
-                ui.debug(" writer_status: {} writer_done: {} writer_proc: {}"
-                         "".format(writer_status.value, writer_done,
+                ui.debug(" writer_status: '{}' writer_done: {} writer_proc: {}"
+                         "".format(decode_writer_state(writer_status.value),
+                                   writer_done,
                                    writer_proc))
             except KeyboardInterrupt:
                 exit_code = 2

@@ -324,6 +324,16 @@ class OldRunContext(RunContext):
         return args
 
 
+def decode_writer_state(ch):
+    return {
+        b"-": "Initial",
+        b"I": "Idle",
+        b"G": "Getting from queue",
+        b"D": "Done",
+        b"W": "Writing",
+    }.get(ch)
+
+
 class WriterProcess(object):
     def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue,
                  abort_flag, writer_status):

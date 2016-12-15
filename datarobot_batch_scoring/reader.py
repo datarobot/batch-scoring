@@ -25,6 +25,17 @@ AUTO_SMALL_SAMPLES = 500
 AUTO_GOAL_SIZE = int(2.5 * 1024 ** 2)  # size we want per batch
 
 
+def decode_reader_state(ch):
+    return {
+        b"-": "Initial",
+        b"P": "Posting to queue",
+        b"A": "Aborted",
+        b"D": "Done",
+        b"C": "CSV Error",
+        b"E": "Error"
+    }.get(ch)
+
+
 def fast_to_csv_chunk(data, header):
     """Fast routine to format data for prediction api.
 

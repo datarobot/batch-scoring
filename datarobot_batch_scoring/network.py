@@ -32,6 +32,18 @@ logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
+def decode_network_state(ch):
+    return {
+        b"-": "Initial",
+        b"I": "Idle",
+        b"e": "PreIdle",
+        b"E": "PrePreIdle",
+        b"R": "Doing Requests",
+        b"F": "Pool is Full",
+        b"W": "Waiting for Finish",
+    }.get(ch)
+
+
 class Network(object):
     def __init__(self, concurrency, timeout, ui,
                  network_queue,
