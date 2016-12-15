@@ -340,9 +340,12 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 else:
                     phase_start = time()
 
-                if shovel_done and network_status.value == b"I":
-                    writer_queue.put((WriterQueueMsg.SENTINEL, {}))
+                if shovel_done and \
+                        network_status.value == b"I" and \
+                        writer_status.value == b"I":
                     ui.info("All requests done, waiting for writer")
+                    if writer_proc:
+                        writer_queue.put((WriterQueueMsg.SENTINEL, {}))
                     if network_proc:
                         network_queue.put(SENTINEL)
                     aborting_phase = -1

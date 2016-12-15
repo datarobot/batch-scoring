@@ -459,10 +459,19 @@ class WriterProcess(object):
         success = False
         processed = 0
         written = 0
+        idle_cycles = 0
         try:
             while True:
-                self.writer_status.value = b"G"
-                msg, args = self.writer_queue.get()
+                try:
+                    if idle_cycles > 2:
+                        self.writer_status.value = b"I"
+                    else:
+                        self.writer_status.value = b"G"
+                    msg, args = self.writer_queue.get(timeout=1)
+                except queue.Empty:
+                    idle_cycles += 1
+                    continue
+                idle_cycles = 0
                 self.writer_status.value = b"W"
                 processed += 1
 
