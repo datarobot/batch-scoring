@@ -245,6 +245,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 ui.debug(" writer_status: {} writer_done: {} writer_proc: {}"
                          "".format(writer_status.value, writer_done,
                                    writer_proc))
+            except KeyboardInterrupt:
+                ui.info("Keyboard Interrupt, terminating")
+                exit_code = 2
+                aborting_phase = 1
             else:
                 if msg == ProgressQueueMsg.NETWORK_DONE:
                     n_ret = args["ret"]
@@ -267,7 +271,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     batch = args["batch"]
                     error = args["error"]
                     s_produced = args["produced"]
-                    exit_code = 1
 
                     if msg == ProgressQueueMsg.SHOVEL_CSV_ERROR:
                         shovel_done = "with csv format error"
@@ -280,6 +283,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                  " error: {}, aborting".format(
                                     batch.id + batch.rows, error))
 
+                    exit_code = 1
                     aborting_phase = 1
                 else:
                     ui.error("got unknown progress message: {} args={}"
@@ -314,16 +318,19 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                             ui.warning("network process finished without "
                                        "posting results, aborting")
                             network_done = "exited"
+                            exit_code = 1
                             aborting_phase = 1
                         if shovel_proc is None and not shovel_done:
                             ui.warning("shovel process finished without "
                                        "posting results, aborting")
                             shovel_done = "exited"
+                            exit_code = 1
                             aborting_phase = 1
                         if writer_proc is None and not writer_done:
                             ui.warning("writer process finished without "
                                        "posting results, aborting")
                             writer_done = "exited"
+                            exit_code = 1
                             aborting_phase = 1
 
                         phase_start = time()
@@ -339,17 +346,17 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     phase_start = time()
 
             elif aborting_phase == -1:
-                if not writer_done and time() - phase_start > 60:
-                    ui.info("writer is still active, aborting")
+                procs = [shovel_proc, network_proc, writer_proc]
+                if procs == [None, None, None]:
+                    ui.info("all workers exited")
+                    break
+                elif time() - phase_start > 30:
+                    ui.info("some of workers are still active, aborting")
+                    if writer_done != "ok":
+                        exit_code = 1
                     aborting_phase = 1
-                else:
-                    procs = [shovel_proc, network_proc, writer_proc]
-                    if procs == [None, None, None]:
-                        ui.info("all workers exited")
-                        break
 
             elif aborting_phase == 1:
-                exit_code = 1
                 abort_flag.value = 1
                 aborting_phase = 2
                 phase_start = time()
@@ -461,7 +468,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         ui.info('==== Total stats ===='.format(bucket))
         ui.info("done: {} lost: {}".format(total_done, total_lost))
-        if total_lost is 0:
+        if exit_code is None and total_lost is 0:
             ctx.scoring_succeeded = True
         else:
             exit_code = 1
