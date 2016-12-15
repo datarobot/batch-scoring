@@ -350,8 +350,12 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
             elif aborting_phase == -1:
                 procs = [shovel_proc, network_proc, writer_proc]
-                if procs == [None, None, None]:
-                    ui.info("all workers exited")
+                not_done = [a is False for a in [shovel_done,
+                                                 network_done,
+                                                 writer_done]]
+                if (procs == [None, None, None] and
+                        not_done == [False, False, False]):
+                    ui.info("all workers exited successfully")
                     break
                 elif time() - phase_start > 30:
                     ui.info("some of workers are still active, aborting")
