@@ -246,9 +246,12 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                          "".format(writer_status.value, writer_done,
                                    writer_proc))
             except KeyboardInterrupt:
-                ui.info("Keyboard Interrupt, terminating")
                 exit_code = 2
-                aborting_phase = 1
+                if aborting_phase == 0:
+                    ui.info("Keyboard Interrupt, abort sequence started")
+                    aborting_phase = 1
+                else:
+                    ui.info("Aborting is already in progress")
             else:
                 if msg == ProgressQueueMsg.NETWORK_DONE:
                     n_ret = args["ret"]
