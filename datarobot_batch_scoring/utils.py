@@ -434,8 +434,8 @@ class Worker(object):
     @state.setter
     def state(self, status):
         self.ui.debug('state: {} -> {}'
-                      ''.format(self.status_value.value, status))
+                      ''.format(self.state_name(), self.state_name(status)))
         self.status_value.value = status
 
-    def state_name(self):
-        return self.state_names[self.state]
+    def state_name(self, s=None):
+        return self.state_names[s or self.state]
