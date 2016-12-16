@@ -288,7 +288,7 @@ increase "--timeout" parameter.
 
     def request_cb(self, f):
         futures = [i for i in self.futures if not i.done()]
-        self.ui.debug('cb {}: pending futures: {}'.format(f, len(futures)))
+        self.ui.debug('request finished, pending futures: {}'.format(len(futures)))
 
         if len(futures) == 0:
             self.state = b'E'
