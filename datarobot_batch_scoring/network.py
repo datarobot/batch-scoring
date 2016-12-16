@@ -1,16 +1,16 @@
 import collections
 import json
 import logging
+import multiprocessing
 import sys
 import textwrap
+from concurrent.futures import FIRST_COMPLETED
+from concurrent.futures import wait
 from functools import partial
 from time import time
 
-import multiprocessing
 import requests
 import requests.adapters
-from concurrent.futures import FIRST_COMPLETED
-from concurrent.futures import wait
 from six.moves import queue
 
 from datarobot_batch_scoring.consts import (SENTINEL,
@@ -18,7 +18,7 @@ from datarobot_batch_scoring.consts import (SENTINEL,
                                             ProgressQueueMsg)
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk)
-from datarobot_batch_scoring.utils import compress, get_rusage
+from datarobot_batch_scoring.utils import compress, get_rusage, Worker
 
 try:
     from futures import ThreadPoolExecutor
@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
-def decode_network_state(ch):
-    return {
+class Network(Worker):
+    state_names = {
         b"-": "Initial",
         b"I": "Idle",
         b"e": "PreIdle",
@@ -41,10 +41,9 @@ def decode_network_state(ch):
         b"R": "Doing Requests",
         b"F": "Pool is Full",
         b"W": "Waiting for Finish",
-    }.get(ch)
+        b"D": "Done"
+    }
 
-
-class Network(object):
     def __init__(self, concurrency, timeout, ui,
                  network_queue,
                  network_deque,
@@ -61,6 +60,8 @@ class Network(object):
                  max_batch_size,
                  compression):
 
+        Worker.__init__(self, network_status)
+
         self.concurrency = concurrency
         self.timeout = timeout
         self.ui = ui or logger
@@ -69,7 +70,6 @@ class Network(object):
         self.writer_queue = writer_queue
         self.progress_queue = progress_queue
         self.abort_flag = abort_flag
-        self.network_status = network_status
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
@@ -199,7 +199,7 @@ increase "--timeout" parameter.
             response = FakeResponse(code, 'No Response')
             callback(response)
 
-    def get_batch(self):
+    def get_batch(self, dry_run=False):
         while True:
             try:
                 r = self.network_deque.get_nowait()
@@ -214,14 +214,14 @@ increase "--timeout" parameter.
                     self.n_consumed += 1
                     yield r
                 except queue.Empty:
-                    if self.network_status.value == b"E":
-                        self.ui.debug('state: {} -> e'
-                                      ''.format(self.network_status.value))
-                        self.network_status.value = b"e"
-                    elif self.network_status.value == b"e":
-                        self.ui.debug('state: {} -> I'
-                                      ''.format(self.network_status.value))
-                        self.network_status.value = b"I"
+                    if dry_run and self.state in (b"-", b"R"):
+                        self.state = b'E'
+                    elif self.state == b"E":
+                        self.state = b'e'
+                    elif self.state == b"e":
+                        self.state = b'I'
+                        if dry_run:
+                            break
 
                     if self.abort_flag.value:
                         self.ui.warning('Terminate flag set, exiting')
@@ -291,14 +291,16 @@ increase "--timeout" parameter.
         self.ui.debug('cb {}: pending futures: {}'.format(f, len(futures)))
 
         if len(futures) == 0:
-            self.ui.debug('state: {} -> E'.format(self.network_status.value))
-            self.network_status.value = b"E"
+            self.state = b'E'
 
     def perform_requests(self, dry_run=False):
-        for q_batch in self.get_batch():
+        self.state = b'E'
+        for q_batch in self.get_batch(dry_run):
             for (batch, data) in self.split_batch(q_batch):
 
                 if dry_run:
+                    if self.state != b"R":
+                        self.state = b'R'
                     yield
                     continue
 
@@ -316,21 +318,17 @@ increase "--timeout" parameter.
                 while True:
                     self.futures = [i for i in self.futures if not i.done()]
                     if len(self.futures) < self.concurrency:
-                        self.ui.debug('state: {} -> R'
-                                      ''.format(self.network_status.value))
-                        self.network_status.value = b"R"
+                        self.state = b'R'
                         f = self._executor.submit(self._request, r)
                         f.add_done_callback(self.request_cb)
                         self.futures.append(f)
                         break
                     else:
-                        self.ui.debug('state: {} -> F'
-                                      ''.format(self.network_status.value))
-                        self.network_status.value = b"F"
+                        self.state = b'F'
                         wait(self.futures, return_when=FIRST_COMPLETED)
                 yield
         #  wait for all batches to finish before returning
-        self.network_status.value = b"W"
+        self.state = b'W'
         while self.futures:
             f_len = len(self.futures)
             self.futures = [i for i in self.futures if not i.done()]
@@ -339,7 +337,7 @@ increase "--timeout" parameter.
                               'remaining requests: {}'
                               ''.format(len(self.futures)))
             wait(self.futures, return_when=FIRST_COMPLETED)
-        self.network_status.value = b"D"
+        self.state = b'D'
         yield True
 
     def __enter__(self):
@@ -368,12 +366,10 @@ increase "--timeout" parameter.
         i = 0
         r = None
         for r in self.perform_requests():
-            i += 1
-            self.ui.info('{} responses sent | time elapsed {}s'
-                         .format(i, time() - t0))
-
-        if r is True:
-            i -= 1
+            if r is not True:
+                i += 1
+                self.ui.info('{} responses sent | time elapsed {}s'
+                             .format(i, time() - t0))
 
         self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
             "ret": r,

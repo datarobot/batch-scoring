@@ -419,3 +419,23 @@ try:
 except ImportError:
     def get_rusage():
         return {}
+
+
+class Worker(object):
+    state_names = {}
+
+    def __init__(self, status_value):
+        self.status_value = status_value
+
+    @property
+    def state(self):
+        return self.status_value.value
+
+    @state.setter
+    def state(self, status):
+        self.ui.debug('state: {} -> {}'
+                      ''.format(self.status_value.value, status))
+        self.status_value.value = status
+
+    def state_name(self):
+        return self.state_names[self.state]

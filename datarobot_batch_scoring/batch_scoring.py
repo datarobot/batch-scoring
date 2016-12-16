@@ -16,7 +16,7 @@ from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.consts import (WriterQueueMsg,
                                             ProgressQueueMsg,
                                             SENTINEL)
-from datarobot_batch_scoring.network import Network, decode_network_state
+from datarobot_batch_scoring.network import Network
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
                                             Shovel, auto_sampler,
@@ -251,7 +251,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                    shovel_proc))
                 ui.debug(" network_status: '{}' network_done: {} "
                          "network_proc: {}"
-                         "".format(decode_network_state(network_status.value),
+                         "".format(network.state_name(),
                                    network_done,
                                    network_proc))
                 ui.debug(" writer_status: '{}' writer_done: {} writer_proc: {}"
