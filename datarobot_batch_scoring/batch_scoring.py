@@ -77,10 +77,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         writer_queue = conc_manager.Queue(queue_size)
         progress_queue = conc_manager.Queue()
 
-        shovel_status = conc_manager.Value('c', b'-')
-        network_status = conc_manager.Value('c', b'-')
-        writer_status = conc_manager.Value('c', b'-')
-        abort_flag = conc_manager.Value('b', 0)
+        shovel_status = conc_manager.Value('c', b'-', lock=False)
+        network_status = conc_manager.Value('c', b'-', lock=False)
+        writer_status = conc_manager.Value('c', b'-', lock=False)
+        abort_flag = conc_manager.Value('b', 0, lock=False)
 
         base_headers['content-type'] = 'text/csv; charset=utf8'
         if compression:
