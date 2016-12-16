@@ -9,6 +9,7 @@ import shelve
 import signal
 import sys
 from functools import reduce
+from time import time
 
 import six
 from six.moves import queue
@@ -471,6 +472,8 @@ class WriterProcess(object):
         processed = 0
         written = 0
         idle_cycles = 0
+        last_report = time()
+
         try:
             while True:
                 try:
@@ -511,6 +514,15 @@ class WriterProcess(object):
                     written += 1
                     # self._ui.debug('Writer Queue queue length: {}'
                     #               ''.format(self.writer_queue.qsize()))
+
+                    if time() - last_report > 10:
+                        self.progress_queue.put((
+                            ProgressQueueMsg.WRITER_PROGRESS, {
+                                "processed": processed,
+                                "written": written,
+                                "rusage": get_rusage()
+                            }))
+                        last_report = time()
                 else:
                     self._ui.error('Unknown Writer Queue msg: "{}", args={}'
                                    ''.format(msg, args))

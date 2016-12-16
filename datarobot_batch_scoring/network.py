@@ -92,7 +92,7 @@ class Network(Worker):
         self.n_requests = 0
 
     def send_warning_to_ctx(self, batch, message):
-        self.ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
+        self.ui.info('CTX WARNING batch_id {} , '
                      'message {}'.format(batch.id, message))
         self.writer_queue.put((WriterQueueMsg.CTX_WARNING, {
             "batch": batch,
@@ -100,7 +100,7 @@ class Network(Worker):
         }))
 
     def send_error_to_ctx(self, batch, message):
-        self.ui.info('WorkUnitGenerator sending ERROR batch_id {} , '
+        self.ui.info('CTX ERROR batch_id {} , '
                      'message {}'.format(batch.id, message))
 
         self.writer_queue.put((WriterQueueMsg.CTX_ERROR, {
@@ -364,6 +364,7 @@ increase "--timeout" parameter.
         self.session.mount('https://', adapter)
 
         t0 = time()
+        last_report = time()
         i = 0
         r = None
         for r in self.perform_requests():
@@ -371,6 +372,16 @@ increase "--timeout" parameter.
                 i += 1
                 self.ui.info('{} responses sent | time elapsed {}s'
                              .format(i, time() - t0))
+
+                if time() - last_report > 10:
+                    self.progress_queue.put((
+                        ProgressQueueMsg.NETWORK_PROGRESS, {
+                            "processed": self.n_requests,
+                            "retried": self.n_retried,
+                            "consumed": self.n_consumed,
+                            "rusage": get_rusage(),
+                        }))
+                    last_report = time()
 
         self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
             "ret": r,

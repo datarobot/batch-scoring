@@ -281,6 +281,27 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     w_rusage = args["rusage"]
                     writer_done = "ok"
 
+                elif msg == ProgressQueueMsg.NETWORK_PROGRESS:
+                    n_requests = args["processed"]
+                    n_retried = args["retried"]
+                    n_consumed = args["consumed"]
+                    n_rusage = args["rusage"]
+                    ui.info("Network progress: Chunks: {}"
+                            " Requests: {} Retries: {} Resource usage: {}"
+                            "".format(n_consumed,
+                                      n_requests, n_retried,
+                                      n_rusage))
+
+                elif msg == ProgressQueueMsg.WRITER_PROGRESS:
+                    w_requests = args["processed"]
+                    w_written = args["written"]
+                    w_rusage = args["rusage"]
+                    ui.info("Writer progress:"
+                            " Results: {} Written: {}"
+                            " Resource usage: {}"
+                            "".format(w_requests,
+                                      w_written, w_rusage))
+
                 elif msg == ProgressQueueMsg.SHOVEL_DONE:
                     s_produced = args["produced"]
                     s_rusage = args["rusage"]
