@@ -454,18 +454,10 @@ class WriterProcess(object):
                 written_fields = out_fields[1:]
                 comb = [row[1:] for row in pred]
 
-        return (written_fields, comb)
-
-    def sigterm_handler(self, _signo, _stack_frame):
-        self._ui.debug('WriterProcess.sigterm_handler received signal '
-                       '"{}". Exiting 1'.format(_signo))
-        sys.exit(1)
+        return written_fields, comb
 
     def process_response(self):
         """Process a successful request. """
-        signal.signal(signal.SIGTERM, self.sigterm_handler)
-        signal.signal(signal.SIGINT, self.sigterm_handler)
-
         self._ui.debug('Writer Process started - {}'
                        ''.format(multiprocessing.current_process().name))
         success = False
