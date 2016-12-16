@@ -6,7 +6,6 @@ import multiprocessing
 import operator
 import os
 import shelve
-import signal
 import sys
 from functools import reduce
 from time import time
