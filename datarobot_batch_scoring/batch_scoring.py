@@ -488,16 +488,20 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 msg_data = ctx.db[bucket]
                 msg_keys = sorted(msg_data.keys())
                 for batch_id in msg_keys:
+                    suffix = ""
+                    if bucket == "errors":
+                        if batch_id not in ctx.db['checkpoints']:
+                            total_lost += batch_id[1]
+                        else:
+                            suffix = " (fixed)"
+
                     first = True
                     for msg in msg_data[batch_id]:
                         if first:
                             first = False
-                            ui.info("{}: {}".format(batch_id, msg))
+                            ui.info("{}: {}{}".format(batch_id, msg, suffix))
                         else:
-                            ui.info("        {}".format(msg))
-
-                    if bucket == "errors":
-                        total_lost += batch_id[1]
+                            ui.info("        {}".format(msg, suffix))
 
         ui.info('==== Total stats ===='.format(bucket))
         ui.info("done: {} lost: {}".format(total_done, total_lost))
