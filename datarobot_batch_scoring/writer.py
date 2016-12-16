@@ -355,6 +355,7 @@ class WriterProcess(object):
         except queue.Empty:
             self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
+            self.ctx.save_error(batch, error="Backfill queue full")
 
     def unpack_request_object(self, request, batch):
         """
