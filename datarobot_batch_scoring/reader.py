@@ -4,6 +4,7 @@ import gzip
 import io
 import multiprocessing
 import os
+import signal
 import sys
 from itertools import chain
 from time import time
@@ -245,7 +246,14 @@ class Shovel(object):
         #  The following should only impact Windows
         self._ui.set_next_UI_name('batcher')
 
+    def exit_fast(self, a, b):
+        self._ui.debug("exit_fast: {} {}".format(a, b))
+        self.shovel_status.value = b"A"
+        os._exit(1)
+
     def _shove(self, args, dialect, queue):
+        signal.signal(signal.SIGINT, self.exit_fast)
+        signal.signal(signal.SIGTERM, self.exit_fast)
         t2 = time()
         _ui = args[4]
         _ui.info('Shovel process started')
@@ -275,7 +283,7 @@ class Shovel(object):
             self.shovel_status.value = b"C"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
                                      {
-                                         "batch": batch,
+                                         "batch": batch._replace("data", []),
                                          "error": str(e),
                                          "produced": n,
                                          "rusage": get_rusage()
@@ -285,7 +293,7 @@ class Shovel(object):
             self.shovel_status.value = b"E"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_ERROR,
                                      {
-                                         "batch": batch,
+                                         "batch": batch._replace("data", []),
                                          "error": str(e),
                                          "produced": n,
                                          "rusage": get_rusage()

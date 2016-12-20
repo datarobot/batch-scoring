@@ -2,6 +2,8 @@ import collections
 import json
 import logging
 import multiprocessing
+import os
+import signal
 import sys
 import textwrap
 from concurrent.futures import FIRST_COMPLETED
@@ -294,7 +296,15 @@ increase "--timeout" parameter.
         if len(futures) == 0:
             self.state = b'E'
 
+    def exit_fast(self, a, b):
+        self.ui.debug("exit_fast: {} {}".format(a, b))
+        self.state = b'D'
+        os._exit(1)
+
     def perform_requests(self, dry_run=False):
+        signal.signal(signal.SIGINT, self.exit_fast)
+        signal.signal(signal.SIGTERM, self.exit_fast)
+
         self.state = b'E'
         for q_batch in self.get_batch(dry_run):
             for (batch, data) in self.split_batch(q_batch):

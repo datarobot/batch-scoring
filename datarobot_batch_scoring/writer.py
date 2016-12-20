@@ -6,6 +6,7 @@ import multiprocessing
 import operator
 import os
 import shelve
+import signal
 import sys
 from functools import reduce
 from time import time
@@ -344,6 +345,7 @@ class WriterProcess(object):
         self.deque = deque
         self.progress_queue = progress_queue
         self.abort_flag = abort_flag
+        self.local_abort_flag = False
         self.writer_status = writer_status
         self.proc = None
 
@@ -456,7 +458,14 @@ class WriterProcess(object):
 
         return written_fields, comb
 
+    def exit_fast(self, a, b):
+        self._ui.debug("exit_fast: {} {}".format(a, b))
+        self.local_abort_flag = True
+
     def process_response(self):
+        signal.signal(signal.SIGINT, self.exit_fast)
+        signal.signal(signal.SIGTERM, self.exit_fast)
+
         """Process a successful request. """
         self._ui.debug('Writer Process started - {}'
                        ''.format(multiprocessing.current_process().name))
@@ -468,6 +477,9 @@ class WriterProcess(object):
 
         try:
             while True:
+                if self.abort_flag.value or self.local_abort_flag:
+                    self._ui.debug('abort requested')
+                    break
                 try:
                     if idle_cycles > 2:
                         self.writer_status.value = b"I"
