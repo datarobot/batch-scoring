@@ -4,6 +4,7 @@ from __future__ import print_function
 import multiprocessing
 import os
 import platform
+import signal
 import sys
 import threading
 from time import time
@@ -237,6 +238,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         aborting_phase = 0
         phase_start = time()
 
+        local_abort_flag = [False]
+
+        def exit_fast(a, b):
+            # ui.debug("exit_fast: {} {}".format(a, b))
+            local_abort_flag[0] = True
+
+        signal.signal(signal.SIGINT, exit_fast)
+        signal.signal(signal.SIGTERM, exit_fast)
+
         while True:
             progress_empty = False
             try:
@@ -245,6 +255,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             except queue.Empty:
                 progress_empty = True
                 ui.debug("get progress timed out")
+                ui.debug(" aborting_phase: {} ({} seconds)".format(
+                    aborting_phase, time() - phase_start))
                 ui.debug(" shovel_status: '{}' shovel_done: {} shovel_proc: {}"
                          "".format(decode_reader_state(shovel_status.value),
                                    shovel_done,
@@ -259,12 +271,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                    writer_done,
                                    writer_proc))
             except KeyboardInterrupt:
-                exit_code = 2
-                if aborting_phase == 0:
-                    ui.info("Keyboard Interrupt, abort sequence started")
-                    aborting_phase = 1
-                else:
-                    ui.info("Aborting is already in progress")
+                local_abort_flag[0] = True
             else:
                 if msg == ProgressQueueMsg.NETWORK_DONE:
                     n_ret = args["ret"]
@@ -330,6 +337,14 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 else:
                     ui.error("got unknown progress message: {} args={}"
                              "".format(msg, args))
+
+            if local_abort_flag[0]:
+                exit_code = 2
+                if aborting_phase == 0:
+                    ui.info("Keyboard Interrupt, abort sequence started")
+                    aborting_phase = 1
+                else:
+                    ui.info("Aborting is already in progress")
 
             some_worker_exited = False
             if shovel_proc and not shovel_proc.is_alive():

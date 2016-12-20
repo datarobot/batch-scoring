@@ -459,7 +459,7 @@ class WriterProcess(object):
         return written_fields, comb
 
     def exit_fast(self, a, b):
-        self._ui.debug("exit_fast: {} {}".format(a, b))
+        # self._ui.debug("exit_fast: {} {}".format(a, b))
         self.local_abort_flag = True
 
     def process_response(self):

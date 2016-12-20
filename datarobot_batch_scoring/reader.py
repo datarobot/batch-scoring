@@ -247,7 +247,7 @@ class Shovel(object):
         self._ui.set_next_UI_name('batcher')
 
     def exit_fast(self, a, b):
-        self._ui.debug("exit_fast: {} {}".format(a, b))
+        # self._ui.debug("exit_fast: {} {}".format(a, b))
         self.shovel_status.value = b"A"
         os._exit(1)
 
@@ -283,7 +283,7 @@ class Shovel(object):
             self.shovel_status.value = b"C"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
                                      {
-                                         "batch": batch._replace("data", []),
+                                         "batch": batch._replace(data=[]),
                                          "error": str(e),
                                          "produced": n,
                                          "rusage": get_rusage()
