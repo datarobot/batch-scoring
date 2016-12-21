@@ -7,6 +7,7 @@ import platform
 import signal
 import sys
 import threading
+from multiprocessing.managers import SyncManager
 from time import time
 
 import requests
@@ -77,7 +78,14 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             #  and queues it creates are proxies for objects that exist within
             #  the manager itself. It does not perform as well so we only
             #  use it when necessary.
-            conc_manager = stack.enter_context(multiprocessing.Manager())
+            def manager_init():
+                signal.signal(signal.SIGINT, signal.SIG_IGN)
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
+            manager = SyncManager()
+            manager.start(initializer=manager_init)
+
+            conc_manager = stack.enter_context(manager)
         else:
             #  You're on a nix of some sort and don't need a manager process.
             conc_manager = multiprocessing
