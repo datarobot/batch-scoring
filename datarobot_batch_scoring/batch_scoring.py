@@ -17,7 +17,8 @@ from six.moves import queue
 from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.consts import (WriterQueueMsg,
                                             ProgressQueueMsg,
-                                            SENTINEL)
+                                            SENTINEL,
+                                            REPORT_INTERVAL)
 from datarobot_batch_scoring.network import Network
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
@@ -417,7 +418,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
             if aborting_phase == 0:
                 if progress_empty and not some_worker_exited:
-                    if time() - phase_start > 10:
+                    if time() - phase_start > REPORT_INTERVAL:
                         if network_proc is None and not network_done:
                             ui.warning("network process finished without "
                                        "posting results, aborting")

@@ -17,6 +17,7 @@ from six.moves import queue
 
 from datarobot_batch_scoring.consts import (SENTINEL,
                                             WriterQueueMsg, Batch,
+                                            REPORT_INTERVAL,
                                             ProgressQueueMsg)
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk)
@@ -383,7 +384,7 @@ increase "--timeout" parameter.
                 self.ui.info('{} responses sent | time elapsed {}s'
                              .format(i, time() - t0))
 
-                if time() - last_report > 10:
+                if time() - last_report > REPORT_INTERVAL:
                     self.progress_queue.put((
                         ProgressQueueMsg.NETWORK_PROGRESS, {
                             "processed": self.n_requests,

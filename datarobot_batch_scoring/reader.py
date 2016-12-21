@@ -13,6 +13,7 @@ import chardet
 import six
 
 from datarobot_batch_scoring.consts import (Batch,
+                                            REPORT_INTERVAL,
                                             ProgressQueueMsg)
 from datarobot_batch_scoring.utils import get_rusage
 
@@ -193,6 +194,8 @@ class BatchGenerator(object):
         self.fast_mode = fast_mode
         self.encoding = encoding
         self.already_processed_batches = already_processed_batches
+        self.n_read = 0
+        self.n_skipped = 0
 
     def csv_input_file_reader(self):
         if self.dataset.endswith('.gz'):
@@ -219,14 +222,21 @@ class BatchGenerator(object):
 
             has_content = False
             t0 = time()
+            last_report = time()
             rows_read = 0
             for chunk in iter_chunks(reader, self.chunksize):
                 has_content = True
                 n_rows = len(chunk)
+                self.n_read += 1
                 if (rows_read, n_rows) not in self.already_processed_batches:
                     yield Batch(rows_read, n_rows, fieldnames,
                                 chunk, self.rty_cnt)
+                else:
+                    self.n_skipped += 1
                 rows_read += n_rows
+                if time() - last_report > REPORT_INTERVAL:
+                    yield
+                    last_report = time()
             if not has_content:
                 raise ValueError("Input file '{}' is empty.".format(
                     self.dataset))
@@ -266,31 +276,34 @@ class Shovel(object):
             n = 0
             self.shovel_status.value = b"R"
             for batch in batch_generator:
-                _ui.debug('queueing batch {}'.format(batch.id))
-                self.shovel_status.value = b"P"
-                while True:
-                    try:
-                        queue.put(batch, timeout=1)
-                        break
-                    except Full:
-                        _ui.debug('put timed out')
-                        if self.abort_flag.value:
-                            _ui.info('shoveling abort requested')
-                            self.exit_fast(None, None)
+                if batch:
+                    _ui.debug('queueing batch {}'.format(batch.id))
+                    self.shovel_status.value = b"P"
+                    while True:
+                        try:
+                            queue.put(batch, timeout=1)
                             break
-                        continue
-                n += 1
+                        except Full:
+                            _ui.debug('put timed out')
+                            if self.abort_flag.value:
+                                _ui.info('shoveling abort requested')
+                                self.exit_fast(None, None)
+                                break
+                            continue
+                    n += 1
                 if self.abort_flag.value:
                     _ui.info('shoveling abort requested')
                     self.exit_fast(None, None)
                     break
 
-                if time() - last_report > 10:
-                    self.progress_queue.put((ProgressQueueMsg.SHOVEL_PROGRESS,
-                                             {
-                                                 "produced": n,
-                                                 "rusage": get_rusage()
-                                             }))
+                if time() - last_report > REPORT_INTERVAL:
+                    self.progress_queue.put((
+                        ProgressQueueMsg.SHOVEL_PROGRESS, {
+                                     "produced": n,
+                                     "read": batch_generator.n_read,
+                                     "skipped": batch_generator.n_skipped,
+                                     "rusage": get_rusage()
+                                 }))
                     last_report = time()
 
                 self.shovel_status.value = b"R"
@@ -301,6 +314,8 @@ class Shovel(object):
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_DONE,
                                      {
                                          "produced": n,
+                                         "read": batch_generator.n_read,
+                                         "skipped": batch_generator.n_skipped,
                                          "rusage": get_rusage()
                                      }))
         except csv.Error as e:
@@ -310,6 +325,8 @@ class Shovel(object):
                                          "batch": batch._replace(data=[]),
                                          "error": str(e),
                                          "produced": n,
+                                         "read": batch_generator.n_read,
+                                         "skipped": batch_generator.n_skipped,
                                          "rusage": get_rusage()
                                      }))
             raise
@@ -320,6 +337,8 @@ class Shovel(object):
                                          "batch": batch._replace("data", []),
                                          "error": str(e),
                                          "produced": n,
+                                         "read": batch_generator.n_read,
+                                         "skipped": batch_generator.n_skipped,
                                          "rusage": get_rusage()
                                      }))
             raise

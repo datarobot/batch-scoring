@@ -15,7 +15,8 @@ import six
 from six.moves import queue
 
 from datarobot_batch_scoring.consts import SENTINEL, \
-    WriterQueueMsg, TargetType, ProgressQueueMsg
+    WriterQueueMsg, TargetType, ProgressQueueMsg, \
+    REPORT_INTERVAL
 from datarobot_batch_scoring.utils import get_rusage
 
 
@@ -519,7 +520,7 @@ class WriterProcess(object):
                     # self._ui.debug('Writer Queue queue length: {}'
                     #               ''.format(self.writer_queue.qsize()))
 
-                    if time() - last_report > 10:
+                    if time() - last_report > REPORT_INTERVAL:
                         self.progress_queue.put((
                             ProgressQueueMsg.WRITER_PROGRESS, {
                                 "processed": processed,
