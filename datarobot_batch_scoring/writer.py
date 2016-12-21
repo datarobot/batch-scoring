@@ -532,7 +532,11 @@ class WriterProcess(object):
                                    ''.format(msg, args))
 
             self._ui.debug('---Writer Exiting---')
+
             success = True
+            if self.local_abort_flag:
+                success = False
+
         except Exception as e:
             # Note this won't catch SystemExit which is raised by
             # sigterm_handler because it's based on BaseException

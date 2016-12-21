@@ -257,19 +257,22 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 ui.debug("get progress timed out")
                 ui.debug(" aborting_phase: {} ({} seconds)".format(
                     aborting_phase, time() - phase_start))
-                ui.debug(" shovel_status: '{}' shovel_done: {} shovel_proc: {}"
+                ui.debug(" shovel_status: '{}' shovel_done: {} shovel_proc: {}({})"
                          "".format(decode_reader_state(shovel_status.value),
                                    shovel_done,
-                                   shovel_proc))
+                                   shovel_proc,
+                                   shovel_proc and shovel_proc.pid))
                 ui.debug(" network_status: '{}' network_done: {} "
-                         "network_proc: {}"
+                         "network_proc: {}({})"
                          "".format(network.state_name(),
                                    network_done,
-                                   network_proc))
-                ui.debug(" writer_status: '{}' writer_done: {} writer_proc: {}"
+                                   network_proc,
+                                   network_proc and network_proc.pid))
+                ui.debug(" writer_status: '{}' writer_done: {} writer_proc: {}({})"
                          "".format(decode_writer_state(writer_status.value),
                                    writer_done,
-                                   writer_proc))
+                                   writer_proc,
+                                   writer_proc and writer_proc.pid))
             except KeyboardInterrupt:
                 local_abort_flag[0] = True
             else:
@@ -280,6 +283,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     n_consumed = args["consumed"]
                     n_rusage = args["rusage"]
                     network_done = "ok"
+                    if not n_ret:
+                        network_done = "with error"
+                        exit_code = 1
+                        aborting_phase = 1
 
                 elif msg == ProgressQueueMsg.WRITER_DONE:
                     w_ret = args["ret"]
@@ -287,6 +294,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     w_written = args["written"]
                     w_rusage = args["rusage"]
                     writer_done = "ok"
+                    if not w_ret:
+                        writer_done = "with error"
+                        exit_code = 1
+                        aborting_phase = 1
 
                 elif msg == ProgressQueueMsg.NETWORK_PROGRESS:
                     n_requests = args["processed"]
@@ -353,6 +364,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                         .format(shovel_exitcode))
                 shovel_proc = None
                 some_worker_exited = True
+                if shovel_exitcode != 0:
+                    exit_code = 1
+                    aborting_phase = 1
 
             if network_proc and not network_proc.is_alive():
                 network_exitcode = network_proc.exitcode
@@ -360,13 +374,19 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                         .format(network_exitcode))
                 network_proc = None
                 some_worker_exited = True
+                if network_exitcode != 0:
+                    exit_code = 1
+                    aborting_phase = 1
 
             if writer_proc and not writer_proc.is_alive():
                 writer_exitcode = writer_proc.exitcode
                 ui.info("writer proc finished, exit code: {}"
-                        .format(network_exitcode))
+                        .format(writer_exitcode))
                 writer_proc = None
                 some_worker_exited = True
+                if writer_exitcode != 0:
+                    exit_code = 1
+                    aborting_phase = 1
 
             if aborting_phase == 0:
                 if progress_empty and not some_worker_exited:

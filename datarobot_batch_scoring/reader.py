@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 from itertools import chain
+from queue import Full
 from time import time
 import chardet
 import six
@@ -29,6 +30,7 @@ AUTO_GOAL_SIZE = int(2.5 * 1024 ** 2)  # size we want per batch
 def decode_reader_state(ch):
     return {
         b"-": "Initial",
+        b"R": "Reading",
         b"P": "Posting to queue",
         b"A": "Aborted",
         b"D": "Done",
@@ -261,15 +263,26 @@ class Shovel(object):
         batch_generator = BatchGenerator(*args)
         try:
             n = 0
+            self.shovel_status.value = b"R"
             for batch in batch_generator:
                 _ui.debug('queueing batch {}'.format(batch.id))
                 self.shovel_status.value = b"P"
-                queue.put(batch)
+                while True:
+                    try:
+                        queue.put(batch, timeout=1)
+                    except Full:
+                        _ui.debug('put timed out')
+                        if self.abort_flag.value:
+                            _ui.info('shoveling abort requested')
+                            self.exit_fast(None, None)
+                            break
+                        continue
                 n += 1
                 if self.abort_flag.value:
                     _ui.info('shoveling abort requested')
-                    self.shovel_status.value = b"A"
+                    self.exit_fast(None, None)
                     break
+                self.shovel_status.value = b"R"
 
             self.shovel_status.value = b"D"
             _ui.info('shoveling complete | total time elapsed {}s'

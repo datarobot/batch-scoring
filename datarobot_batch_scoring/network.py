@@ -203,6 +203,9 @@ increase "--timeout" parameter.
 
     def get_batch(self, dry_run=False):
         while True:
+            if self.abort_flag.value:
+                self.exit_fast(None, None)
+                break
             try:
                 r = self.network_deque.get_nowait()
                 self.ui.debug('Got batch from dequeu: {}'.format(r.id))
@@ -225,9 +228,6 @@ increase "--timeout" parameter.
                         if dry_run:
                             break
 
-                    if self.abort_flag.value:
-                        self.ui.warning('Terminate flag set, exiting')
-                        break
                 except OSError:
                     self.ui.error('OS Error')
                     break
