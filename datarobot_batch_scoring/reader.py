@@ -257,6 +257,7 @@ class Shovel(object):
         signal.signal(signal.SIGINT, self.exit_fast)
         signal.signal(signal.SIGTERM, self.exit_fast)
         t2 = time()
+        last_report = time()
         _ui = args[4]
         _ui.info('Shovel process started')
         csv.register_dialect('dataset_dialect', dialect)
@@ -283,6 +284,15 @@ class Shovel(object):
                     _ui.info('shoveling abort requested')
                     self.exit_fast(None, None)
                     break
+
+                if time() - last_report > 10:
+                    self.progress_queue.put((ProgressQueueMsg.SHOVEL_PROGRESS,
+                                             {
+                                                 "produced": n,
+                                                 "rusage": get_rusage()
+                                             }))
+                    last_report = time()
+
                 self.shovel_status.value = b"R"
 
             self.shovel_status.value = b"D"

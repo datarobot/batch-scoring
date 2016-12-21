@@ -36,6 +36,13 @@ elif six.PY3:  # pragma: no cover
 MAX_BATCH_SIZE = 5 * 1024 ** 2
 
 
+def format_usage(rusage):
+    if not rusage:
+        return ""
+    else:
+        return " User time: {utime:.3f} System time: {stime:.3f} RSS: {rss}".format(**rusage)
+
+
 def run_batch_predictions(base_url, base_headers, user, pwd,
                           api_token, create_api_token,
                           pid, lid, n_retry, concurrent,
@@ -307,20 +314,27 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     n_consumed = args["consumed"]
                     n_rusage = args["rusage"]
                     ui.info("Network progress: Chunks: {}"
-                            " Requests: {} Retries: {} Resource usage: {}"
+                            " Requests: {} Retries: {}{}"
                             "".format(n_consumed,
                                       n_requests, n_retried,
-                                      n_rusage))
+                                      format_usage(n_rusage)))
 
                 elif msg == ProgressQueueMsg.WRITER_PROGRESS:
                     w_requests = args["processed"]
                     w_written = args["written"]
                     w_rusage = args["rusage"]
                     ui.info("Writer progress:"
-                            " Results: {} Written: {}"
-                            " Resource usage: {}"
+                            " Results: {} Written: {}{}"
                             "".format(w_requests,
-                                      w_written, w_rusage))
+                                      w_written,
+                                      format_usage(w_rusage)))
+
+                elif msg == ProgressQueueMsg.SHOVEL_PROGRESS:
+                    s_produced = args["produced"]
+                    s_rusage = args["rusage"]
+                    ui.info("Reader progress: Chunks: {}{}"
+                            "".format(s_produced,
+                                      format_usage(s_rusage)))
 
                 elif msg == ProgressQueueMsg.SHOVEL_DONE:
                     s_produced = args["produced"]
@@ -482,23 +496,22 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     break
 
         if shovel_done:
-            ui.info("Shovel is finished {}. Chunks produced: {}"
-                    " Resource usage: {}"
-                    "".format(shovel_done, s_produced, s_rusage))
+            ui.info("Shovel is finished {}. Chunks produced: {}{}"
+                    "".format(shovel_done, s_produced,
+                              format_usage(s_rusage)))
 
         if network_done:
             ui.info("Network is finished {}. Chunks: {}"
-                    " Requests: {} Retries: {} Resource usage: {}"
+                    " Requests: {} Retries: {}{}"
                     "".format(network_done, n_consumed,
                               n_requests, n_retried,
-                              n_rusage))
+                              format_usage(n_rusage)))
 
         if writer_done:
             ui.info("Writer is finished {}. Result: {}"
-                    " Results: {} Written: {}"
-                    " Resource usage: {}"
+                    " Results: {} Written: {}{}"
                     "".format(writer_done, w_ret, w_requests,
-                              w_written, w_rusage))
+                              w_written, format_usage(w_rusage)))
 
         if n_ret is not True:
             ui.debug('Network finished with error')
