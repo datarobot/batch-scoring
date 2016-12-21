@@ -248,10 +248,13 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         s_produced = 0
         s_rusage = None
+        s_read = 0
+        s_skipped = 0
 
         w_ret = 0
         w_requests = 0
         w_written = 0
+        w_rows = 0
         w_rusage = None
 
         aborting_phase = 0
@@ -313,6 +316,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     w_ret = args["ret"]
                     w_requests = args["processed"]
                     w_written = args["written"]
+                    w_rows = args["rows"]
                     w_rusage = args["rusage"]
                     writer_done = "ok"
                     if not w_ret:
@@ -334,11 +338,14 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 elif msg == ProgressQueueMsg.WRITER_PROGRESS:
                     w_requests = args["processed"]
                     w_written = args["written"]
+                    w_rows = args["rows"]
                     w_rusage = args["rusage"]
                     ui.info("Writer progress:"
-                            " Results: {} Written: {}{}"
+                            " Results: {} Written: {}"
+                            " Rows done: {}{}"
                             "".format(w_requests,
                                       w_written,
+                                      w_rows,
                                       format_usage(w_rusage)))
 
                 elif msg == ProgressQueueMsg.SHOVEL_PROGRESS:
@@ -529,9 +536,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         if writer_done:
             ui.info("Writer is finished {}. Result: {}"
-                    " Results: {} Written: {}{}"
+                    " Results: {} Written: {} Rows done: {}{}"
                     "".format(writer_done, w_ret, w_requests,
-                              w_written, format_usage(w_rusage)))
+                              w_written, w_rows,
+                              format_usage(w_rusage)))
 
         if n_ret is not True:
             ui.debug('Network finished with error')

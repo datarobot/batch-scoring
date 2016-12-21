@@ -470,6 +470,11 @@ class WriterProcess(object):
         """Process a successful request. """
         self._ui.debug('Writer Process started - {}'
                        ''.format(multiprocessing.current_process().name))
+
+        rows_done = 0
+        for _, rows in self.ctx.db['checkpoints']:
+            rows_done += rows
+
         success = False
         processed = 0
         written = 0
@@ -517,6 +522,7 @@ class WriterProcess(object):
 
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
                     written += 1
+                    rows_done += batch.rows
                     # self._ui.debug('Writer Queue queue length: {}'
                     #               ''.format(self.writer_queue.qsize()))
 
@@ -525,6 +531,7 @@ class WriterProcess(object):
                             ProgressQueueMsg.WRITER_PROGRESS, {
                                 "processed": processed,
                                 "written": written,
+                                "rows": rows_done,
                                 "rusage": get_rusage()
                             }))
                         last_report = time()
@@ -550,6 +557,7 @@ class WriterProcess(object):
                 "ret": success,
                 "processed": processed,
                 "written": written,
+                "rows": rows_done,
                 "rusage": get_rusage()
             }))
             for o in [self.ctx, self.queue, self.writer_queue, self.deque,
