@@ -259,7 +259,6 @@ class Shovel(object):
         self._ui.set_next_UI_name('batcher')
 
     def exit_fast(self, a, b):
-        # self._ui.debug("exit_fast: {} {}".format(a, b))
         self.shovel_status.value = b"A"
         os._exit(1)
 

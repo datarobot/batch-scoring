@@ -460,7 +460,6 @@ class WriterProcess(object):
         return written_fields, comb
 
     def exit_fast(self, a, b):
-        # self._ui.debug("exit_fast: {} {}".format(a, b))
         self.local_abort_flag = True
 
     def process_response(self):
@@ -523,8 +522,6 @@ class WriterProcess(object):
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
                     written += 1
                     rows_done += batch.rows
-                    # self._ui.debug('Writer Queue queue length: {}'
-                    #               ''.format(self.writer_queue.qsize()))
 
                     if time() - last_report > REPORT_INTERVAL:
                         self.progress_queue.put((

@@ -263,7 +263,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         local_abort_flag = [False]
 
         def exit_fast(a, b):
-            # ui.debug("exit_fast: {} {}".format(a, b))
             local_abort_flag[0] = True
 
         signal.signal(signal.SIGINT, exit_fast)

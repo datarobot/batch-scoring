@@ -298,7 +298,6 @@ increase "--timeout" parameter.
             self.state = b'E'
 
     def exit_fast(self, a, b):
-        # self.ui.debug("exit_fast: {} {}".format(a, b))
         self.state = b'D'
         os._exit(1)
 
