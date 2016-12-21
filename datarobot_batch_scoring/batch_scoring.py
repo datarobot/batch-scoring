@@ -37,6 +37,11 @@ elif six.PY3:  # pragma: no cover
 MAX_BATCH_SIZE = 5 * 1024 ** 2
 
 
+def manager_init():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
+
 def format_usage(rusage):
     if not rusage:
         return ""
@@ -78,9 +83,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             #  and queues it creates are proxies for objects that exist within
             #  the manager itself. It does not perform as well so we only
             #  use it when necessary.
-            def manager_init():
-                signal.signal(signal.SIGINT, signal.SIG_IGN)
-                signal.signal(signal.SIGTERM, signal.SIG_IGN)
 
             manager = SyncManager()
             manager.start(initializer=manager_init)
