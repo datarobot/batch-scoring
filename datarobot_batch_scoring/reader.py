@@ -7,7 +7,7 @@ import os
 import signal
 import sys
 from itertools import chain
-from queue import Full
+from six.moves.queue import Full
 from time import time
 import chardet
 import six
