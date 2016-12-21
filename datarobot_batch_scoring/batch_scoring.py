@@ -163,7 +163,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                             abort_flag,
                                             batch_generator_args,
                                             ui))
-        ui.info('Shovel go...')
+        ui.info('Reader go...')
         shovel_proc = shovel.go()
 
         network = stack.enter_context(Network(concurrency=concurrent,
@@ -205,7 +205,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     ui.error("Sending kill signal to shovel process")
                     os.kill(shovel_proc.pid, 9)
                 elif i == 30:
-                    ui.error("Shovel process was not exited,"
+                    ui.error("Reader process was not exited,"
                              " processing anyway.")
                     break
                 i += 1
@@ -343,13 +343,18 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
                 elif msg == ProgressQueueMsg.SHOVEL_PROGRESS:
                     s_produced = args["produced"]
+                    s_read = args["read"]
+                    s_skipped = args["skipped"]
                     s_rusage = args["rusage"]
-                    ui.info("Reader progress: Chunks: {}{}"
-                            "".format(s_produced,
+                    ui.info("Reader progress: Read: {} Skipped: {}"
+                            " Produced: {}{}"
+                            "".format(s_read, s_skipped, s_produced,
                                       format_usage(s_rusage)))
 
                 elif msg == ProgressQueueMsg.SHOVEL_DONE:
                     s_produced = args["produced"]
+                    s_read = args["read"]
+                    s_skipped = args["skipped"]
                     s_rusage = args["rusage"]
                     shovel_done = "ok"
 
@@ -358,6 +363,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     batch = args["batch"]
                     error = args["error"]
                     s_produced = args["produced"]
+                    s_read = args["read"]
+                    s_skipped = args["skipped"]
                     s_rusage = args["rusage"]
 
                     if msg == ProgressQueueMsg.SHOVEL_CSV_ERROR:
@@ -508,8 +515,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     break
 
         if shovel_done:
-            ui.info("Shovel is finished {}. Chunks produced: {}{}"
-                    "".format(shovel_done, s_produced,
+            ui.info("Reader is finished: Read: {} Skipped: {}"
+                    " Produced: {}{}"
+                    "".format(s_read, s_skipped, s_produced,
                               format_usage(s_rusage)))
 
         if network_done:
