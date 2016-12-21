@@ -257,7 +257,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 ui.debug("get progress timed out")
                 ui.debug(" aborting_phase: {} ({} seconds)".format(
                     aborting_phase, time() - phase_start))
-                ui.debug(" shovel_status: '{}' shovel_done: {} shovel_proc: {}({})"
+                ui.debug(" shovel_status: '{}' shovel_done: {} "
+                         "shovel_proc: {}({})"
                          "".format(decode_reader_state(shovel_status.value),
                                    shovel_done,
                                    shovel_proc,
@@ -268,7 +269,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                    network_done,
                                    network_proc,
                                    network_proc and network_proc.pid))
-                ui.debug(" writer_status: '{}' writer_done: {} writer_proc: {}({})"
+                ui.debug(" writer_status: '{}' writer_done: {} "
+                         "writer_proc: {}({})"
                          "".format(decode_writer_state(writer_status.value),
                                    writer_done,
                                    writer_proc,
