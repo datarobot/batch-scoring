@@ -270,6 +270,7 @@ class Shovel(object):
                 while True:
                     try:
                         queue.put(batch, timeout=1)
+                        break
                     except Full:
                         _ui.debug('put timed out')
                         if self.abort_flag.value:
