@@ -40,7 +40,8 @@ def format_usage(rusage):
     if not rusage:
         return ""
     else:
-        return " User time: {utime:.3f} System time: {stime:.3f} RSS: {rss}".format(**rusage)
+        return " User time: {utime:.3f} System time: {stime:.3f} " \
+               "RSS: {rss}".format(**rusage)
 
 
 def run_batch_predictions(base_url, base_headers, user, pwd,
