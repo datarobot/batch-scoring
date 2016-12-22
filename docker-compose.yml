@@ -14,10 +14,32 @@ services:
         dockerfile: Dockerfile-2.7
      volumes:
         - .:/opt/project
+  python33:
+     image: batch-scoring-3.3
+     build:
+        context: .
+        dockerfile: Dockerfile-3.3
+     volumes:
+        - .:/opt/project
+  python34:
+     image: batch-scoring-3.4
+     build:
+        context: .
+        dockerfile: Dockerfile-3.4
+     volumes:
+        - .:/opt/project
   python35:
      image: batch-scoring-3.5
      build:
         context: .
         dockerfile: Dockerfile-3.5
+     volumes:
+        - .:/opt/project
+  python27-dbg:
+     image: batch-scoring-2.7-dbg
+     privileged: true
+     build:
+        context: .
+        dockerfile: Dockerfile-2.7-dbg
      volumes:
         - .:/opt/project

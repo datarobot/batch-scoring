@@ -1,58 +1,59 @@
 import pytest
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
-from datarobot_batch_scoring.utils import UI
 from utils import PickableMock
 
+from utils import read_logs
 
-def test_regression(live_server, tmpdir, keep_cols=None,
+
+def test_regression(live_server, tmpdir, ui, keep_cols=None,
                     in_fixture='tests/fixtures/regression_predict.csv',
                     out_fixture='tests/fixtures/regression_output.csv',
                     fast_mode=False, skip_row_id=False, output_delimiter=None,
                     skip_dialect=False,
                     n_samples=500,
-                    max_batch_size=None):
+                    max_batch_size=None,
+                    expected_ret=None):
     # train one model in project
     out = tmpdir.join('out.csv')
 
-    with UI(False, 'DEBUG', False) as ui:
-        base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
-        ret = run_batch_predictions(
-            base_url=base_url,
-            base_headers={},
-            user='username',
-            pwd='password',
-            api_token=None,
-            create_api_token=False,
-            pid='56dd9570018e213242dfa93c',
-            lid='56dd9570018e213242dfa93e',
-            n_retry=3,
-            concurrent=1,
-            resume=False,
-            n_samples=n_samples,
-            out_file=str(out),
-            keep_cols=keep_cols,
-            delimiter=None,
-            dataset=in_fixture,
-            pred_name=None,
-            timeout=30,
-            ui=ui,
-            auto_sample=False,
-            fast_mode=fast_mode,
-            dry_run=False,
-            encoding='',
-            skip_dialect=skip_dialect,
-            skip_row_id=skip_row_id,
-            output_delimiter=output_delimiter,
-            max_batch_size=max_batch_size
-        )
-        assert ret is None
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93e',
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=n_samples,
+        out_file=str(out),
+        keep_cols=keep_cols,
+        delimiter=None,
+        dataset=in_fixture,
+        pred_name=None,
+        timeout=30,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=fast_mode,
+        dry_run=False,
+        encoding='',
+        skip_dialect=skip_dialect,
+        skip_row_id=skip_row_id,
+        output_delimiter=output_delimiter,
+        max_batch_size=max_batch_size
+    )
+    assert ret is expected_ret
 
-        if out_fixture:
-            actual = out.read_text('utf-8')
-            with open(out_fixture, 'rU') as f:
-                expected = f.read()
-                print(len(actual), len(expected))
-                assert actual == expected
+    if out_fixture:
+        actual = out.read_text('utf-8')
+        with open(out_fixture, 'rU') as f:
+            expected = f.read()
+            print(len(actual), len(expected))
+            assert actual == expected
 
 
 def test_regression_rename(live_server, tmpdir):
@@ -198,145 +199,135 @@ def test_wo_fast_mode_gzipped_regression_jp(live_server, tmpdir):
     check_regression_jp(live_server, tmpdir, False, True)
 
 
-def test_regression_keep_cols(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['x'],
+def test_regression_keep_cols(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_x.csv')
 
 
-def test_regression_keep_cols_multi(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
+def test_regression_keep_cols_multi(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx.csv')
 
 
-def test_regression_keep_cols_fast(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['x'],
+def test_regression_keep_cols_fast(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_x.csv',
                     fast_mode=True)
 
 
-def test_regression_keep_cols_multi_fast(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
+def test_regression_keep_cols_multi_fast(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx.csv',
                     fast_mode=True)
 
 
-def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir,
-                                                   monkeypatch):
-    split_called = [False]
-
-    def debug_call(*args):
-        if args[1].endswith("splitting"):
-            split_called[0] = True
-
-    monkeypatch.setattr("datarobot_batch_scoring.main.UI.debug", debug_call)
-    test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
+def test_regression_keep_cols_multi_fast_max_batch(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx.csv',
                     fast_mode=True,
                     max_batch_size=100)
 
-    assert split_called[0]
+    logs = read_logs()
+    assert "bytes, splitting" in logs
 
 
-def test_regression_bad_csv(live_server, tmpdir, monkeypatch):
-    error_called = [False]
+def test_regression_bad_csv(live_server, tmpdir, ui):
 
-    def error_call(*args):
-        if args[1].endswith("check logs for exact error"):
-            error_called[0] = True
-
-    monkeypatch.setattr("datarobot_batch_scoring.main.UI.error",
-                        error_call)
-    test_regression(live_server, tmpdir,
+    test_regression(live_server, tmpdir, ui,
                     in_fixture='tests/fixtures/regression_bad.csv',
                     out_fixture=None,
-                    fast_mode=False)
+                    fast_mode=False,
+                    expected_ret=1)
 
-    assert error_called[0]
+    logs = read_logs()
+    assert "Error parsing CSV file after line 1000, error: " in logs
 
 
-def test_regression_bad2_csv(live_server, tmpdir, monkeypatch):
+def test_regression_bad2_csv(live_server, tmpdir, monkeypatch, ui):
     def sys_exit(code):
         raise RuntimeError
 
     monkeypatch.setattr("sys.exit", sys_exit)
     with pytest.raises(RuntimeError):
-        test_regression(live_server, tmpdir,
+        test_regression(live_server, tmpdir, ui,
                         in_fixture='tests/fixtures/regression_bad2.csv',
                         out_fixture=None,
-                        fast_mode=True)
+                        fast_mode=True,
+                        expected_ret=1)
 
 
-def test_regression_keep_cols_wo_row_id(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['x'],
+def test_regression_keep_cols_wo_row_id(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_x_rid.csv',
                     skip_row_id=True)
 
 
-def test_regression_keep_cols_multi_wo_row_id(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
+def test_regression_keep_cols_multi_wo_row_id(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx_rid.csv',
                     skip_row_id=True)
 
 
-def test_regression_keep_cols_fast_wo_row_id(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['x'],
+def test_regression_keep_cols_fast_wo_row_id(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_x_rid.csv',
                     fast_mode=True,
                     skip_row_id=True)
 
 
-def test_regression_keep_cols_multi_fast_wo_row_id(live_server, tmpdir):
-    test_regression(live_server, tmpdir, keep_cols=['y', 'x'],
+def test_regression_keep_cols_multi_fast_wo_row_id(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui, keep_cols=['y', 'x'],
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_yx_rid.csv',
                     fast_mode=True,
                     skip_row_id=True)
 
 
-def test_regression_fast_wo_row_id(live_server, tmpdir):
-    test_regression(live_server, tmpdir,
+def test_regression_fast_wo_row_id(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui,
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_rid.csv',
                     fast_mode=True,
                     skip_row_id=True)
 
 
-def test_regression_wo_row_id(live_server, tmpdir):
-    test_regression(live_server, tmpdir,
+def test_regression_wo_row_id(live_server, tmpdir, ui):
+    test_regression(live_server, tmpdir, ui,
                     in_fixture='tests/fixtures/regression.csv',
                     out_fixture='tests/fixtures/regression_output_rid.csv',
                     fast_mode=False,
                     skip_row_id=True)
 
 
-def test_regression_keep_cols_multi_output(live_server, tmpdir):
+def test_regression_keep_cols_multi_output(live_server, tmpdir, ui):
     test_regression(
-        live_server, tmpdir, keep_cols=['y', 'x'],
+        live_server, tmpdir, ui, keep_cols=['y', 'x'],
         in_fixture='tests/fixtures/regression.csv',
         out_fixture='tests/fixtures/regression_output_yx_output.csv',
         output_delimiter='|')
 
 
-def test_regression_keep_cols_multi_output_skip_dialect(live_server, tmpdir):
+def test_regression_keep_cols_multi_output_skip_dialect(live_server,
+                                                        tmpdir, ui):
     test_regression(
-        live_server, tmpdir, keep_cols=['y', 'x'],
+        live_server, tmpdir, ui, keep_cols=['y', 'x'],
         skip_dialect=True,
         in_fixture='tests/fixtures/regression.csv',
         out_fixture='tests/fixtures/regression_output_yx_output.csv',
         output_delimiter='|')
 
 
-def test_regression_keep_cols_multi_skip_dialect(live_server, tmpdir):
+def test_regression_keep_cols_multi_skip_dialect(live_server, tmpdir, ui):
     test_regression(
-        live_server, tmpdir, keep_cols=['y', 'x'],
+        live_server, tmpdir, ui, keep_cols=['y', 'x'],
         skip_dialect=True,
         in_fixture='tests/fixtures/regression.csv',
         out_fixture='tests/fixtures/regression_output_yx.csv')

@@ -9,11 +9,15 @@ import shelve
 import signal
 import sys
 from functools import reduce
+from time import time
 
 import six
 from six.moves import queue
 
-from datarobot_batch_scoring.consts import SENTINEL, QueueMsg, TargetType
+from datarobot_batch_scoring.consts import SENTINEL, \
+    WriterQueueMsg, TargetType, ProgressQueueMsg, \
+    REPORT_INTERVAL
+from datarobot_batch_scoring.utils import get_rusage
 
 
 class ShelveError(Exception):
@@ -54,6 +58,7 @@ class RunContext(object):
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
         self.scoring_succeeded = False  # Removes shelves when True
+        self.is_open = False  # Removes shelves when True
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
@@ -83,6 +88,8 @@ class RunContext(object):
                          fast_mode, encoding, skip_row_id, output_delimiter)
 
     def __enter__(self):
+        assert(not self.is_open)
+        self.is_open = True
         self._ui.debug('ENTER CALLED ON RUNCONTEXT')
         self.db = shelve.open(self.file_context.file_name, writeback=True)
         if not hasattr(self, 'partitions'):
@@ -90,6 +97,11 @@ class RunContext(object):
         return self
 
     def __exit__(self, type, value, traceback):
+        if not self.is_open:
+            self._ui.debug('EXIT CALLED ON CLOSED RUNCONTEXT: successes={}'
+                           ''.format(self.scoring_succeeded))
+            return
+        self.is_open = False
         self._ui.debug('EXIT CALLED ON RUNCONTEXT: successes={}'
                        ''.format(self.scoring_succeeded))
         self.db.close()
@@ -99,46 +111,11 @@ class RunContext(object):
             # success - remove shelve
             self.file_context.clean()
 
-    def checkpoint_batch(self, batch, out_fields, pred):
+    def checkpoint_batch(self, batch, written_fields, comb):
         """Mark a batch as being processed:
            - write it to the output stream (if necessary pull out columns).
            - put the batch_id into the journal.
         """
-        input_delimiter = self.dialect.delimiter
-        if self.keep_cols:
-            # stack columns
-
-            feature_indices = {col: i for i, col in
-                               enumerate(batch.fieldnames)}
-            indices = [feature_indices[col] for col in self.keep_cols]
-
-            written_fields = []
-
-            if not self.skip_row_id:
-                written_fields.append('row_id')
-
-            written_fields += self.keep_cols + out_fields[1:]
-
-            # first column is row_id
-            comb = []
-            for row, predicted in zip(batch.data, pred):
-                if self.fast_mode:
-                    # row is a full line, we need to cut it into fields
-                    # FIXME this will fail on quoted fields!
-                    row = row.rstrip().split(input_delimiter)
-                keeps = [row[i] for i in indices]
-                output_row = []
-                if not self.skip_row_id:
-                    output_row.append(predicted[0])
-                output_row += keeps + predicted[1:]
-                comb.append(output_row)
-        else:
-            if not self.skip_row_id:
-                comb = pred
-                written_fields = out_fields
-            else:
-                written_fields = out_fields[1:]
-                comb = [row[1:] for row in pred]
 
         # if an error happends during/after the append we
         # might end up with inconsistent state
@@ -166,7 +143,7 @@ class RunContext(object):
         self.save_error(batch, error, "warnings")
 
     def __getstate__(self):
-        self.close()
+        assert(not self.is_open)
         self.out_stream = None
         d = self.__dict__.copy()
         return d
@@ -176,6 +153,10 @@ class RunContext(object):
         self.open()
 
     def open(self):
+        if self.is_open:
+            self._ui.debug('OPEN CALLED ON ALREADY OPEN RUNCONTEXT')
+            return
+        self.is_open = True
         self._ui.debug('OPEN CALLED ON RUNCONTEXT')
         csv.register_dialect('dataset_dialect', **self.dialect)
         csv.register_dialect('writer_dialect', **self.writer_dialect)
@@ -188,6 +169,10 @@ class RunContext(object):
             self.out_stream = open(self.out_file, 'a', newline='')
 
     def close(self):
+        if not self.is_open:
+            self._ui.debug('CLOSE CALLED ON CLOSED RUNCONTEXT')
+            return
+        self.is_open = False
         self._ui.debug('CLOSE CALLED ON RUNCONTEXT')
         self.dialect = csv.get_dialect('dataset_dialect')
         self.writer_dialect = csv.get_dialect('writer_dialect')
@@ -341,13 +326,29 @@ class OldRunContext(RunContext):
         return args
 
 
+def decode_writer_state(ch):
+    return {
+        b"-": "Initial",
+        b"I": "Idle",
+        b"G": "Getting from queue",
+        b"D": "Done",
+        b"W": "Writing",
+    }.get(ch)
+
+
 class WriterProcess(object):
-    def __init__(self, ui, ctx, writer_queue, queue, deque):
+    def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue,
+                 abort_flag, writer_status):
         self._ui = ui
         self.ctx = ctx
         self.writer_queue = writer_queue
         self.queue = queue
         self.deque = deque
+        self.progress_queue = progress_queue
+        self.abort_flag = abort_flag
+        self.local_abort_flag = False
+        self.writer_status = writer_status
+        self.proc = None
 
     def deque_failed_batch(self, batch):
         # we retry a batch - decrement retry counter
@@ -357,6 +358,7 @@ class WriterProcess(object):
         except queue.Empty:
             self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
+            self.ctx.save_error(batch, error="Backfill queue full")
 
     def unpack_request_object(self, request, batch):
         """
@@ -380,7 +382,7 @@ class WriterProcess(object):
                                    elapsed_total_seconds * 1000))
         return result
 
-    def format_result_data(self, result, batch, pred_name):
+    def format_result_data(self, result, batch):
         """
         :param result: JSON data returned from pred server
         :param batch: batch NamedTuple
@@ -389,6 +391,13 @@ class WriterProcess(object):
 
         Takes the result data and formats it.
         """
+
+        pred_name = self.ctx.pred_name
+        keep_cols = self.ctx.keep_cols
+        skip_row_id = self.ctx.skip_row_id
+        fast_mode = self.ctx.fast_mode
+        input_delimiter = self.ctx.dialect.delimiter
+
         predictions = result['predictions']
         if result['task'] == TargetType.BINARY:
             sorted_classes = list(
@@ -410,56 +419,129 @@ class WriterProcess(object):
                            key=operator.itemgetter('row_id'))]
             out_fields = ['row_id', pred_name if pred_name else '']
         else:
-            ValueError('task "{}" not supported'
-                       ''.format(result['task']))
-        return (out_fields, pred)
+            raise ValueError('task "{}" not supported'
+                             ''.format(result['task']))
 
-    def sigterm_handler(self, _signo, _stack_frame):
-        self._ui.debug('WriterProcess.sigterm_handler received signal '
-                       '"{}". Exiting 1'.format(_signo))
-        sys.exit(1)
+        if keep_cols:
+            # stack columns
+
+            feature_indices = {col: i for i, col in
+                               enumerate(batch.fieldnames)}
+            indices = [feature_indices[col] for col in keep_cols]
+
+            written_fields = []
+
+            if not skip_row_id:
+                written_fields.append('row_id')
+
+            written_fields += keep_cols + out_fields[1:]
+
+            # first column is row_id
+            comb = []
+            for row, predicted in zip(batch.data, pred):
+                if fast_mode:
+                    # row is a full line, we need to cut it into fields
+                    # FIXME this will fail on quoted fields!
+                    row = row.rstrip().split(input_delimiter)
+                keeps = [row[i] for i in indices]
+                output_row = []
+                if not skip_row_id:
+                    output_row.append(predicted[0])
+                output_row += keeps + predicted[1:]
+                comb.append(output_row)
+        else:
+            if not skip_row_id:
+                comb = pred
+                written_fields = out_fields
+            else:
+                written_fields = out_fields[1:]
+                comb = [row[1:] for row in pred]
+
+        return written_fields, comb
+
+    def exit_fast(self, a, b):
+        self.local_abort_flag = True
 
     def process_response(self):
-        """Process a successful request. """
-        signal.signal(signal.SIGTERM, self.sigterm_handler)
-        signal.signal(signal.SIGINT, self.sigterm_handler)
+        signal.signal(signal.SIGINT, self.exit_fast)
+        signal.signal(signal.SIGTERM, self.exit_fast)
 
+        """Process a successful request. """
         self._ui.debug('Writer Process started - {}'
                        ''.format(multiprocessing.current_process().name))
+
+        rows_done = 0
+        for _, rows in self.ctx.db['checkpoints']:
+            rows_done += rows
+
         success = False
+        processed = 0
+        written = 0
+        idle_cycles = 0
+        last_report = time()
+
         try:
             while True:
+                if self.abort_flag.value or self.local_abort_flag:
+                    self._ui.debug('abort requested')
+                    break
                 try:
-                    (request, batch, pred_name) = \
-                        self.writer_queue.get_nowait()
+                    if idle_cycles > 2:
+                        self.writer_status.value = b"I"
+                    else:
+                        self.writer_status.value = b"G"
+                    msg, args = self.writer_queue.get(timeout=1)
                 except queue.Empty:
-                    (request, batch, pred_name) = self.writer_queue.get()
+                    idle_cycles += 1
+                    continue
+                idle_cycles = 0
+                self.writer_status.value = b"W"
 
-                if request == QueueMsg.ERROR:
+                if msg == WriterQueueMsg.CTX_ERROR:
                     # pred_name is a message if ERROR or WARNING
                     self._ui.debug('Writer ERROR')
-                    self.ctx.save_error(batch, error=pred_name)
+                    self.ctx.save_error(args["batch"], error=args["error"])
                     continue
-                if request == QueueMsg.WARNING:
+                elif msg == WriterQueueMsg.CTX_WARNING:
                     self._ui.debug('Writer WARNING')
-                    self.ctx.save_warning(batch, error=pred_name)
+                    self.ctx.save_warning(args["batch"], error=args["error"])
                     continue
-                if batch.id == SENTINEL.id:
+                elif msg == WriterQueueMsg.SENTINEL:
                     self._ui.debug('Writer received SENTINEL')
                     break
-                result = self.unpack_request_object(request, batch)
-                if result is False:  # unpack_request_object failed
-                    continue
+                elif msg == WriterQueueMsg.RESPONSE:
+                    processed += 1
+                    batch = args["batch"]
+                    result = self.unpack_request_object(args["request"], batch)
+                    if result is False:  # unpack_request_object failed
+                        continue
 
-                (out_fields, pred) = self.format_result_data(result, batch,
-                                                             pred_name)
+                    (written_fields, comb) = self.format_result_data(result,
+                                                                     batch)
 
-                self.ctx.checkpoint_batch(batch, out_fields, pred)
-                self._ui.debug('Writer Queue queue length: {}'
-                               ''.format(self.writer_queue.qsize()))
+                    self.ctx.checkpoint_batch(batch, written_fields, comb)
+                    written += 1
+                    rows_done += batch.rows
+
+                    if time() - last_report > REPORT_INTERVAL:
+                        self.progress_queue.put((
+                            ProgressQueueMsg.WRITER_PROGRESS, {
+                                "processed": processed,
+                                "written": written,
+                                "rows": rows_done,
+                                "rusage": get_rusage()
+                            }))
+                        last_report = time()
+                else:
+                    self._ui.error('Unknown Writer Queue msg: "{}", args={}'
+                                   ''.format(msg, args))
 
             self._ui.debug('---Writer Exiting---')
+
             success = True
+            if self.local_abort_flag:
+                success = False
+
         except Exception as e:
             # Note this won't catch SystemExit which is raised by
             # sigterm_handler because it's based on BaseException
@@ -467,6 +549,14 @@ class WriterProcess(object):
                            ''.format(batch.id, e))
 
         finally:
+            self.writer_status.value = b"D"
+            self.progress_queue.put((ProgressQueueMsg.WRITER_DONE, {
+                "ret": success,
+                "processed": processed,
+                "written": written,
+                "rows": rows_done,
+                "rusage": get_rusage()
+            }))
             for o in [self.ctx, self.queue, self.writer_queue, self.deque,
                       self._ui]:
                 if hasattr(o, 'close'):
@@ -479,13 +569,16 @@ class WriterProcess(object):
 
     def go(self):
         self._ui.set_next_UI_name('writer')
-        if os.name is not 'nt':  # happens when pickled on Windows
-            self.ctx.close()
+        self.ctx.close()      # handover it to Writer from top-level
         self.proc = \
             multiprocessing.Process(target=run_subproc_cls_inst,
                                     args=([self._ui, self.ctx,
                                            self.writer_queue,
-                                           self.queue, self.deque]),
+                                           self.queue,
+                                           self.deque,
+                                           self.progress_queue,
+                                           self.abort_flag,
+                                           self.writer_status]),
                                     name='Writer_Proc')
         self.proc.start()
         return self.proc
@@ -494,13 +587,13 @@ class WriterProcess(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        if hasattr(self, 'proc'):
-            if self.proc.is_alive():
-                self._ui.debug('Terminating Writer')
-                self.writer_queue.put_nowait((None, SENTINEL, None))
+        if self.proc and self.proc.is_alive():
+            self._ui.debug('Terminating Writer')
+            self.writer_queue.put_nowait((None, SENTINEL, None))
 
 
-def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
+def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
+                         progress_queue, abort_flag, writer_status):
     """
     This was intended to be a staticmethod of WriterProcess but
     python 2.7 on Windows can't find it unless it's at module level
@@ -512,6 +605,7 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque):
         _ui.warning('WriterProcess.run_subproc_cls_inst called in '
                     'process named: "{}"'
                     ''.format(multiprocessing.current_process().name))
-    if os.name is not 'nt':  # this happens automatically on Windows
-        ctx.open()
-    WriterProcess(_ui, ctx, writer_queue, queue, deque).process_response()
+    ctx.open()
+    WriterProcess(_ui, ctx, writer_queue, queue, deque,
+                  progress_queue, abort_flag, writer_status
+                  ).process_response()

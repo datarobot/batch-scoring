@@ -4,13 +4,18 @@ import gzip
 import io
 import multiprocessing
 import os
+import signal
 import sys
 from itertools import chain
+from six.moves.queue import Full
 from time import time
 import chardet
 import six
 
-from datarobot_batch_scoring.consts import Batch, SENTINEL, ERROR_SENTINEL
+from datarobot_batch_scoring.consts import (Batch,
+                                            REPORT_INTERVAL,
+                                            ProgressQueueMsg)
+from datarobot_batch_scoring.utils import get_rusage
 
 if six.PY2:
     import StringIO
@@ -21,6 +26,18 @@ DETECT_SAMPLE_SIZE_SLOW = 1024 ** 2
 AUTO_SAMPLE_SIZE = int(0.5 * 1024 ** 2)
 AUTO_SMALL_SAMPLES = 500
 AUTO_GOAL_SIZE = int(2.5 * 1024 ** 2)  # size we want per batch
+
+
+def decode_reader_state(ch):
+    return {
+        b"-": "Initial",
+        b"R": "Reading",
+        b"P": "Posting to queue",
+        b"A": "Aborted",
+        b"D": "Done",
+        b"C": "CSV Error",
+        b"E": "Error"
+    }.get(ch)
 
 
 def fast_to_csv_chunk(data, header):
@@ -177,6 +194,8 @@ class BatchGenerator(object):
         self.fast_mode = fast_mode
         self.encoding = encoding
         self.already_processed_batches = already_processed_batches
+        self.n_read = 0
+        self.n_skipped = 0
 
     def csv_input_file_reader(self):
         if self.dataset.endswith('.gz'):
@@ -203,14 +222,21 @@ class BatchGenerator(object):
 
             has_content = False
             t0 = time()
+            last_report = time()
             rows_read = 0
             for chunk in iter_chunks(reader, self.chunksize):
                 has_content = True
                 n_rows = len(chunk)
+                self.n_read += 1
                 if (rows_read, n_rows) not in self.already_processed_batches:
                     yield Batch(rows_read, n_rows, fieldnames,
                                 chunk, self.rty_cnt)
+                else:
+                    self.n_skipped += 1
                 rows_read += n_rows
+                if time() - last_report > REPORT_INTERVAL:
+                    yield
+                    last_report = time()
             if not has_content:
                 raise ValueError("Input file '{}' is empty.".format(
                     self.dataset))
@@ -220,33 +246,102 @@ class BatchGenerator(object):
 
 class Shovel(object):
 
-    def __init__(self, queue, batch_gen_args, ui):
+    def __init__(self, queue, progress_queue, shovel_status,
+                 abort_flag, batch_gen_args, ui):
         self._ui = ui
         self.queue = queue
+        self.progress_queue = progress_queue
+        self.shovel_status = shovel_status
+        self.abort_flag = abort_flag
         self.batch_gen_args = batch_gen_args
         self.dialect = csv.get_dialect('dataset_dialect')
         #  The following should only impact Windows
         self._ui.set_next_UI_name('batcher')
 
+    def exit_fast(self, a, b):
+        self.shovel_status.value = b"A"
+        os._exit(1)
+
     def _shove(self, args, dialect, queue):
+        signal.signal(signal.SIGINT, self.exit_fast)
+        signal.signal(signal.SIGTERM, self.exit_fast)
         t2 = time()
+        last_report = time()
         _ui = args[4]
         _ui.info('Shovel process started')
         csv.register_dialect('dataset_dialect', dialect)
         batch_generator = BatchGenerator(*args)
         try:
+            n = 0
+            self.shovel_status.value = b"R"
             for batch in batch_generator:
-                _ui.debug('queueing batch {}'.format(batch.id))
-                queue.put(batch)
+                if batch:
+                    _ui.debug('queueing batch {}'.format(batch.id))
+                    self.shovel_status.value = b"P"
+                    while True:
+                        try:
+                            queue.put(batch, timeout=1)
+                            break
+                        except Full:
+                            _ui.debug('put timed out')
+                            if self.abort_flag.value:
+                                _ui.info('shoveling abort requested')
+                                self.exit_fast(None, None)
+                                break
+                            continue
+                    n += 1
+                if self.abort_flag.value:
+                    _ui.info('shoveling abort requested')
+                    self.exit_fast(None, None)
+                    break
 
+                if time() - last_report > REPORT_INTERVAL:
+                    self.progress_queue.put((
+                        ProgressQueueMsg.SHOVEL_PROGRESS, {
+                                     "produced": n,
+                                     "read": batch_generator.n_read,
+                                     "skipped": batch_generator.n_skipped,
+                                     "rusage": get_rusage()
+                                 }))
+                    last_report = time()
+
+                self.shovel_status.value = b"R"
+
+            self.shovel_status.value = b"D"
             _ui.info('shoveling complete | total time elapsed {}s'
                      ''.format(time() - t2))
-            queue.put(SENTINEL)
-        except csv.Error:
-            queue.put(ERROR_SENTINEL)
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_DONE,
+                                     {
+                                         "produced": n,
+                                         "read": batch_generator.n_read,
+                                         "skipped": batch_generator.n_skipped,
+                                         "rusage": get_rusage()
+                                     }))
+        except csv.Error as e:
+            self.shovel_status.value = b"C"
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
+                                     {
+                                         "batch": batch._replace(data=[]),
+                                         "error": str(e),
+                                         "produced": n,
+                                         "read": batch_generator.n_read,
+                                         "skipped": batch_generator.n_skipped,
+                                         "rusage": get_rusage()
+                                     }))
+            raise
+        except Exception as e:
+            self.shovel_status.value = b"E"
+            self.progress_queue.put((ProgressQueueMsg.SHOVEL_ERROR,
+                                     {
+                                         "batch": batch._replace("data", []),
+                                         "error": str(e),
+                                         "produced": n,
+                                         "read": batch_generator.n_read,
+                                         "skipped": batch_generator.n_skipped,
+                                         "rusage": get_rusage()
+                                     }))
             raise
         finally:
-            queue.put(SENTINEL)
             if os.name is 'nt':
                 _ui.close()
 
@@ -256,6 +351,14 @@ class Shovel(object):
                                                 self.dialect, self.queue]),
                                          name='Shovel_Proc')
         self.p.start()
+        return self.p
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.p.is_alive():
+            self.p.terminate()
 
 
 def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,

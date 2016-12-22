@@ -160,9 +160,9 @@ class UI(object):
         for l in [logger, root_logger]:
             handlers = l.handlers[:]
             for h in handlers:
-                if isinstance(h, logging.FileHandler):
+                if hasattr(h, 'close'):
                     h.close()
-                    l.removeHandler(h)
+                l.removeHandler(h)
             if hasattr(l, 'shutdown'):
                 l.shutdown()
 
@@ -404,3 +404,38 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
                  'id permissions: {}'.format(status))
     else:
         ui.debug('authorization has succeeded')
+
+try:
+    import resource
+
+    def get_rusage():
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        return {
+            "utime": usage.ru_utime,
+            "stime": usage.ru_stime,
+            "rss": usage.ru_maxrss,
+        }
+
+except ImportError:
+    def get_rusage():
+        return {}
+
+
+class Worker(object):
+    state_names = {}
+
+    def __init__(self, status_value):
+        self.status_value = status_value
+
+    @property
+    def state(self):
+        return self.status_value.value
+
+    @state.setter
+    def state(self, status):
+        self.ui.debug('state: {} -> {}'
+                      ''.format(self.state_name(), self.state_name(status)))
+        self.status_value.value = status
+
+    def state_name(self, s=None):
+        return self.state_names[s or self.state]

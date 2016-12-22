@@ -9,7 +9,7 @@ import pytest
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from datarobot_batch_scoring.utils import UI
-from utils import (PickableMock, read_logs)
+from utils import PickableMock, print_logs
 
 
 def test_args_from_subprocess(live_server):
@@ -46,7 +46,7 @@ def test_args_from_subprocess(live_server):
         spc = subprocess.check_call(arguments.split(' '))
     except subprocess.CalledProcessError as e:
         print(e)
-        read_logs()
+        print_logs()
 
     #  newlines will be '\r\n on windows and \n on linux. using 'rU' should
     #  resolve differences on different platforms
@@ -98,11 +98,10 @@ def test_simple(live_server, tmpdir):
     assert str(actual) == str(expected)
 
 
-def test_keep_cols(live_server, tmpdir, fast_mode=False):
+def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
-    ui = PickableMock()
     base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
@@ -138,8 +137,8 @@ def test_keep_cols(live_server, tmpdir, fast_mode=False):
         assert expected == f.read()
 
 
-def test_keep_cols_fast_mode(live_server, tmpdir):
-    test_keep_cols(live_server, tmpdir, True)
+def test_keep_cols_fast_mode(live_server, tmpdir, ui):
+    test_keep_cols(live_server, tmpdir, ui, True)
 
 
 def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):

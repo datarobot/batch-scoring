@@ -1,20 +1,27 @@
 import collections
 import json
 import logging
+import multiprocessing
+import os
+import signal
 import sys
 import textwrap
+from concurrent.futures import FIRST_COMPLETED
+from concurrent.futures import wait
 from functools import partial
+from time import time
 
 import requests
 import requests.adapters
-from concurrent.futures import FIRST_COMPLETED
-from concurrent.futures import wait
 from six.moves import queue
 
-from datarobot_batch_scoring.consts import (SENTINEL, ERROR_SENTINEL,
-                                            QueueMsg, Batch)
-from datarobot_batch_scoring.reader import fast_to_csv_chunk, slow_to_csv_chunk
-from datarobot_batch_scoring.utils import compress
+from datarobot_batch_scoring.consts import (SENTINEL,
+                                            WriterQueueMsg, Batch,
+                                            REPORT_INTERVAL,
+                                            ProgressQueueMsg)
+from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
+                                            slow_to_csv_chunk)
+from datarobot_batch_scoring.utils import compress, get_rusage, Worker
 
 try:
     from futures import ThreadPoolExecutor
@@ -28,134 +35,205 @@ logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
-class MultiprocessingGeneratorBackedQueue(object):
-    """A queue that is backed by a generator.
+class Network(Worker):
+    state_names = {
+        b"-": "Initial",
+        b"I": "Idle",
+        b"e": "PreIdle",
+        b"E": "PrePreIdle",
+        b"R": "Doing Requests",
+        b"F": "Pool is Full",
+        b"W": "Waiting for Finish",
+        b"D": "Done"
+    }
 
-    When the queue is exhausted it repopulates from the generator.
-    """
-    def __init__(self, ui, queue, deque):
-        self.n_consumed = 0
-        self.queue = queue
-        self.deque = deque
-        self._ui = ui
+    def __init__(self, concurrency, timeout, ui,
+                 network_queue,
+                 network_deque,
+                 writer_queue,
+                 progress_queue,
+                 abort_flag,
+                 network_status,
+                 endpoint,
+                 headers,
+                 user,
+                 api_token,
+                 pred_name,
+                 fast_mode,
+                 max_batch_size,
+                 compression):
 
-    def __iter__(self):
-        return self
+        Worker.__init__(self, network_status)
 
-    def __next__(self):
-        try:
-            r = self.deque.get_nowait()
-            self._ui.debug('Got batch from dequeu: {}'.format(r.id))
-            return r
-        except queue.Empty:
-            try:
-                r = self.queue.get()
-                if r.id == SENTINEL.id:
-                    if r.rows == ERROR_SENTINEL.rows:
-                        self._ui.error('Error parsing CSV file, '
-                                       'check logs for exact error')
-                    raise StopIteration
-                self.n_consumed += 1
-                return r
-            except OSError:
-                raise StopIteration
-
-    def __len__(self):
-        return self.queue.qsize() + self.deque.qsize()
-
-    def next(self):
-        return self.__next__()
-
-    def push(self, batch):
-        # we retry a batch - decrement retry counter
-        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
-        try:
-            self.deque.put(batch, block=False)
-        except queue.Empty:
-            self._ui.error('Dropping {} due to backfill queue full.'.format(
-                batch))
-
-
-class WorkUnitGenerator(object):
-    """Generates async requests with completion or retry callbacks.
-
-    It uses a queue backed by a batch generator.
-    It will pop items for the queue and if its exhausted it will populate the
-    queue from the batch generator.
-    If a submitted async request was not successfull it gets enqueued again.
-    """
-
-    def __init__(self, queue, endpoint, headers, user, api_token, pred_name,
-                 fast_mode, ui, max_batch_size, writer_queue, compression):
+        self.concurrency = concurrency
+        self.timeout = timeout
+        self.ui = ui or logger
+        self.network_queue = network_queue
+        self.network_deque = network_deque
+        self.writer_queue = writer_queue
+        self.progress_queue = progress_queue
+        self.abort_flag = abort_flag
         self.endpoint = endpoint
         self.headers = headers
         self.user = user
         self.api_token = api_token
-        self.queue = queue
         self.pred_name = pred_name
         self.fast_mode = fast_mode
-        self._ui = ui
         self.max_batch_size = max_batch_size
-        self.writer_queue = writer_queue
         self.compression = compression
+
+        self._timeout = timeout
+        self.futures = []
+        self.concurrency = concurrency
+
+        self._executor = None
+        self.session = None
+        self.proc = None
+
+        self.n_consumed = 0
+        self.n_retried = 0
+        self.n_requests = 0
+
+    def send_warning_to_ctx(self, batch, message):
+        self.ui.info('CTX WARNING batch_id {} , '
+                     'message {}'.format(batch.id, message))
+        self.writer_queue.put((WriterQueueMsg.CTX_WARNING, {
+            "batch": batch,
+            "error": message
+        }))
+
+    def send_error_to_ctx(self, batch, message):
+        self.ui.info('CTX ERROR batch_id {} , '
+                     'message {}'.format(batch.id, message))
+
+        self.writer_queue.put((WriterQueueMsg.CTX_ERROR, {
+            "batch": batch,
+            "error": message
+        }))
+
+    def push_retry(self, batch):
+        # we retry a batch - decrement retry counter
+        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
+        try:
+            self.network_deque.put(batch, block=False)
+        except queue.Full:
+            msg = 'Dropping {} due to backfill queue full.'.format(
+                batch)
+            self.ui.error(msg)
+            self.send_error_to_ctx(batch, msg)
 
     def _response_callback(self, r, batch=None, *args, **kw):
         try:
             if r.status_code == 200:
                 pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
                                    'text': r.text}
-                self.writer_queue.put((pickleable_resp, batch,
-                                       self.pred_name))
+                self.writer_queue.put((WriterQueueMsg.RESPONSE, {
+                    "request": pickleable_resp,
+                    "batch": batch
+                }))
                 return
             elif isinstance(r, FakeResponse):
-                self._ui.debug('Skipping processing response '
-                               'because of FakeResponse')
-                self.queue.push(batch)
+                if r.status_code == 499:
+                    msg = ('batch {} timed out, dropping; '
+                           'we lost {} records'
+                           ''.format(batch.id, len(batch.data)))
+                    self.ui.error(msg)
+                    self.send_error_to_ctx(batch, msg)
+                    return
+
+                self.ui.debug('Skipping processing response '
+                              'because of FakeResponse')
             else:
                 try:
-                    self._ui.warning('batch {} failed with status: {}'
-                                     .format(batch.id,
-                                             json.loads(r.text)['status']))
+                    self.ui.warning('batch {} failed with status: {}'
+                                    ''.format(
+                                         batch.id,
+                                         json.loads(r.text)['status']))
                 except ValueError:
-                    self._ui.warning('batch {} failed with status code: {}'
-                                     .format(batch.id, r.status_code))
+                    self.ui.warning('batch {} failed with status code: {}'
+                                    ''.format(batch.id, r.status_code))
 
                 text = r.text
-                msg = ('batch {} failed, queued to retry, status_code:{} '
+                msg = ('batch {} failed, status_code:{} '
                        'text:{}'.format(batch.id, r.status_code, text))
-                self._ui.error(msg)
+                self.ui.error(msg)
                 self.send_warning_to_ctx(batch, msg)
-                self.queue.push(batch)
+
+            if batch.rty_cnt == 1:
+                msg = ('batch {} exceeded retry limit; '
+                       'we lost {} records'
+                       ''.format(batch.id, len(batch.data)))
+                self.ui.error(msg)
+                self.send_error_to_ctx(batch, msg)
+            else:
+                self.ui.warning('respooling batch {}'
+                                .format(batch.id))
+                self.push_retry(batch)
+
         except Exception as e:
             msg = 'batch {} - dropping due to: {}, {} records lost'.format(
                 batch.id, e, batch.rows)
-            self._ui.error(msg)
+            self.ui.error(msg)
             self.send_error_to_ctx(batch, msg)
 
-    def send_warning_to_ctx(self, batch, message):
-        self._ui.info('WorkUnitGenerator sending WARNING batch_id {} , '
-                      'message {}'.format(batch.id, message))
-        self.writer_queue.put((QueueMsg.WARNING, batch, message))
+    def _request(self, request):
 
-    def send_error_to_ctx(self, batch, message):
-        self._ui.info('WorkUnitGenerator sending ERROR batch_id {} , '
-                      'message {}'.format(batch.id, message))
+        prepared = self.session.prepare_request(request)
+        try:
+            self.session.send(prepared, timeout=self._timeout)
+        except Exception as exc:
+            code = 400
+            if isinstance(exc, requests.exceptions.ReadTimeout):
+                self.ui.warning(textwrap.dedent("""The server did not send any data
+in the allotted amount of time.
+You might want to decrease the "--n_concurrent" parameters
+or
+increase "--timeout" parameter.
+"""))
+                code = 499
+            else:
+                self.ui.debug('Exception {}: {}'.format(type(exc), exc))
+                raise
 
-        self.writer_queue.put((QueueMsg.ERROR, batch, message))
+            try:
+                callback = request.kwargs['hooks']['response']
+            except AttributeError:
+                callback = request.hooks['response'][0]
+            response = FakeResponse(code, 'No Response')
+            callback(response)
 
-    def __iter__(self):
-        for batch in self.queue:
-            if batch.id == -1:  # sentinel
-                raise StopIteration()
-            # if we exhaused our retries we drop the batch
-            if batch.rty_cnt == 0:
-                msg = ('batch {} exceeded retry limit; '
-                       'we lost {} records'.format(
-                            batch.id, len(batch.data)))
-                self._ui.error(msg)
-                self.send_error_to_ctx(batch, msg)
-                continue
+    def get_batch(self, dry_run=False):
+        while True:
+            if self.abort_flag.value:
+                self.exit_fast(None, None)
+                break
+            try:
+                r = self.network_deque.get_nowait()
+                self.ui.debug('Got batch from dequeu: {}'.format(r.id))
+                self.n_retried += 1
+                yield r
+            except queue.Empty:
+                try:
+                    r = self.network_queue.get(timeout=1)
+                    if r.id == SENTINEL.id:
+                        break
+                    self.n_consumed += 1
+                    yield r
+                except queue.Empty:
+                    if dry_run and self.state in (b"-", b"R"):
+                        self.state = b'E'
+                    elif self.state == b"E":
+                        self.state = b'e'
+                    elif self.state == b"e":
+                        self.state = b'I'
+                        if dry_run:
+                            break
 
+                except OSError:
+                    self.ui.error('OS Error')
+                    break
+
+    def split_batch(self, batch):
             if self.fast_mode:
                 chunk_formatter = fast_to_csv_chunk
             else:
@@ -169,7 +247,7 @@ class WorkUnitGenerator(object):
                 if starting_size < self.max_batch_size:
                     if self.compression:
                         data = compress(data)
-                        self._ui.debug(
+                        self.ui.debug(
                             'batch {}-{} transmitting {} byte - space savings '
                             '{}%'.format(batch.id, batch.rows,
                                          sys.getsizeof(data),
@@ -177,32 +255,25 @@ class WorkUnitGenerator(object):
                                                         (sys.getsizeof(data) /
                                                          starting_size))))
                     else:
-                        self._ui.debug('batch {}-{} transmitting {} bytes'
-                                       .format(batch.id, batch.rows,
-                                               starting_size))
-                    hook = partial(self._response_callback, batch=batch)
+                        self.ui.debug('batch {}-{} transmitting {} bytes'
+                                      ''.format(batch.id, batch.rows,
+                                                starting_size))
 
-                    yield requests.Request(
-                        method='POST',
-                        url=self.endpoint,
-                        headers=self.headers,
-                        data=data,
-                        auth=(self.user, self.api_token),
-                        hooks={'response': hook})
+                    yield (batch, data)
                 else:
                     if batch.rows < 2:
                         msg = ('batch {} is single row but bigger '
                                'than limit, skipping. We lost {} '
                                'records'.format(batch.id,
                                                 len(batch.data)))
-                        self._ui.error(msg)
+                        self.ui.error(msg)
                         self.send_error_to_ctx(batch, msg)
                         continue
 
                     msg = ('batch {}-{} is too long: {} bytes,'
                            ' splitting'.format(batch.id, batch.rows,
                                                len(data)))
-                    self._ui.debug(msg)
+                    self.ui.debug(msg)
                     self.send_warning_to_ctx(batch, msg)
                     split_point = int(batch.rows/2)
 
@@ -218,66 +289,125 @@ class WorkUnitGenerator(object):
                     todo.append(batch2)
                     todo.sort()
 
+    def request_cb(self, f):
+        futures = [i for i in self.futures if not i.done()]
+        self.ui.debug('request finished, pending futures: {}'
+                      ''.format(len(futures)))
 
-class Network(object):
-    def __init__(self, concurrency, timeout, ui=None):
-        self._executor = ThreadPoolExecutor(concurrency)
-        self._timeout = timeout
-        self._ui = ui or logger
-        self.futures = []
-        self.concurrency = concurrency
+        if len(futures) == 0:
+            self.state = b'E'
 
-        self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=concurrency, pool_maxsize=concurrency)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+    def exit_fast(self, a, b):
+        self.state = b'D'
+        os._exit(1)
 
-    def _request(self, request):
-        prepared = self.session.prepare_request(request)
-        try:
-            self.session.send(prepared, timeout=self._timeout)
-        except requests.exceptions.ReadTimeout:
-            self._ui.warning(textwrap.dedent("""The server did not send any data
-in the allotted amount of time.
-You might want to decrease the "--n_concurrent" parameters
-or
-increase "--timeout" parameter.
-"""))
+    def perform_requests(self, dry_run=False):
+        signal.signal(signal.SIGINT, self.exit_fast)
+        signal.signal(signal.SIGTERM, self.exit_fast)
 
-        except Exception as exc:
-            self._ui.debug('Exception {}: {}'.format(type(exc), exc))
-            try:
-                callback = request.kwargs['hooks']['response']
-            except AttributeError:
-                callback = request.hooks['response'][0]
-            response = FakeResponse(400, 'No Response')
-            callback(response)
+        self.state = b'E'
+        for q_batch in self.get_batch(dry_run):
+            for (batch, data) in self.split_batch(q_batch):
 
-    def perform_requests(self, requests):
-        for r in requests:
-            while True:
-                self.futures = [i for i in self.futures if not i.done()]
-                if len(self.futures) < self.concurrency:
-                    self.futures.append(self._executor.submit(self._request,
-                                                              r))
-                    break
-                else:
-                    wait(self.futures, return_when=FIRST_COMPLETED)
-            yield
+                if dry_run:
+                    if self.state != b"R":
+                        self.state = b'R'
+                    yield
+                    continue
+
+                hook = partial(self._response_callback, batch=batch)
+                r = requests.Request(
+                    method='POST',
+                    url=self.endpoint,
+                    headers=self.headers,
+                    data=data,
+                    auth=(self.user, self.api_token),
+                    hooks={'response': hook})
+
+                self.n_requests += 1
+
+                while True:
+                    self.futures = [i for i in self.futures if not i.done()]
+                    if len(self.futures) < self.concurrency:
+                        self.state = b'R'
+                        f = self._executor.submit(self._request, r)
+                        f.add_done_callback(self.request_cb)
+                        self.futures.append(f)
+                        break
+                    else:
+                        self.state = b'F'
+                        wait(self.futures, return_when=FIRST_COMPLETED)
+                yield
         #  wait for all batches to finish before returning
+        self.state = b'W'
         while self.futures:
             f_len = len(self.futures)
             self.futures = [i for i in self.futures if not i.done()]
             if f_len != len(self.futures):
-                self._ui.debug('Waiting for final requests to finish. '
-                               'remaining requests: {}'
-                               ''.format(len(self.futures)))
+                self.ui.debug('Waiting for final requests to finish. '
+                              'remaining requests: {}'
+                              ''.format(len(self.futures)))
             wait(self.futures, return_when=FIRST_COMPLETED)
+        self.state = b'D'
         yield True
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._executor.shutdown(wait=True)
+        if self.proc and self.proc.is_alive():
+            self.proc.terminate()
+
+    def run(self, dry_run=False):
+        if dry_run:
+            i = 0
+            for _ in self.perform_requests(True):
+                i += 1
+
+            return i
+
+        self._executor = ThreadPoolExecutor(self.concurrency)
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=self.concurrency, pool_maxsize=self.concurrency)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+
+        t0 = time()
+        last_report = time()
+        i = 0
+        r = None
+        for r in self.perform_requests():
+            if r is not True:
+                i += 1
+                self.ui.info('{} responses sent | time elapsed {}s'
+                             .format(i, time() - t0))
+
+                if time() - last_report > REPORT_INTERVAL:
+                    self.progress_queue.put((
+                        ProgressQueueMsg.NETWORK_PROGRESS, {
+                            "processed": self.n_requests,
+                            "retried": self.n_retried,
+                            "consumed": self.n_consumed,
+                            "rusage": get_rusage(),
+                        }))
+                    last_report = time()
+
+        self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
+            "ret": r,
+            "processed": self.n_requests,
+            "retried": self.n_retried,
+            "consumed": self.n_consumed,
+            "rusage": get_rusage(),
+        }))
+
+    def go(self, dry_run=False):
+        if dry_run:
+            return self.run(dry_run)
+
+        self.ui.set_next_UI_name('network')
+        self.proc = \
+            multiprocessing.Process(target=self.run,
+                                    name='Netwrk_Proc')
+        self.proc.start()
+        return self.proc

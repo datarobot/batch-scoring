@@ -1,3 +1,11 @@
+X.X.X
+==================
+
+* switched to supervisor + workers architecture, improving handling of errors and
+  subprocess lifecycle control.
+
+* Source code split into more mostly isolated modules.
+
 1.9.0 (2016 December 1)
 ==================
 
