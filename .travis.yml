@@ -1,21 +1,45 @@
-sudo: false
-language: python
-
-python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
+matrix:
+  include:
+    - language: generic
+      python: 2.7
+      os: osx
+      env: pyver=2.7 pydist=macpython
+      sudo: required
+    - language: generic
+      python: 3.4
+      os: osx
+      env: pyver=3.4 pydist=macpython
+      sudo: required
+    - language: generic
+      python: 3.5
+      os: osx
+      env: pyver=3.5 pydist=macpython
+      sudo: required
+    - language: python
+      python: 2.7
+      os: linux
+    - language: python
+      python: 3.3
+      os: linux
+    - language: python
+      python: 3.4
+      os: linux
+    - language: python
+      python: 3.5
+      os: linux
 
 install:
+  - if [ $TRAVIS_OS_NAME == 'osx' ]; then git clone https://github.com/MacPython/terryfy; source terryfy/travis_tools.sh; get_python_environment  $pydist $pyver; fi
   - pip install -U pip wheel
   - pip install -Ur requirements.txt
+  - pip install -Ur requirements-test.txt
   - pip install coveralls
 
 
 script:
+  - if [ $TRAVIS_OS_NAME == 'osx' ]; then ulimit -n 2048; fi
   - make cov
-  - python setup.py check -rms
+  - if [ $TRAVIS_OS_NAME != 'osx' ]; then python setup.py check -rms; fi
 
 cache:
   directories:
