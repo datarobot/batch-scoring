@@ -82,17 +82,17 @@ The following table describes each of the arguments:
  n_concurrent=<n_concurrent>   Specifies the number of concurrent requests to submit. By default, 4 concurrent requests are submitted. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
  create_api_token              Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
  n_retry=<n_retry>             Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
- pred_name=<pred_name>         Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank. For binary predictions assumes last class in lexical order as positive.
+ pred_name=<pred_name>         Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank. For binary predictions, only positive class columns are included in the output. The last class (in lexical order) is used as the name of the prediction column.
  skip_row_id                   Skip the row_id column in output.
  output_delimiter=<delimiter>  Specifies delimiter for output CSV. The special keyword "tab" can be used to indicate a tab delimited csv.
- timeout=<timeout>             The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring command) closes the connection and retries, up to number of times. The default value is 30 seconds.
- delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file. E.g. "--delimiter=,". If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab delimited csv.
- resume                        Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same all arguments plus this ``resume`` argument. In that case, the prediction will resume from the point at which it stopped. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
- help                          Show help of usage.
- fast                          Experimental: faster CSV processor. Note: does not support multiline csv.
+ timeout=<timeout>             The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring command) closes the connection and retries, up to the number of times defined by the value of ``<n_retry>``. The default value is 30 seconds.
+ delimiter=<delimiter>         Specifies the delimiter to recognize in the input .csv file (e.g., "--delimiter=,"). If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab-delimited csv.
+ resume                        Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same arguments plus this ``resume`` argument. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
+ help                          Show usage help for the command.
+ fast                          *Experimental*: Uses a faster csv processor. Note that this method does not support multiline csv.
  stdout                        Send all log messages to stdout.
- auto_sample                   Override "n_samples" and instead use chunks of about 1.5 MB. This can improve throughput. On by default.
- encoding                      Declare the dataset encoding. If an encoding is not provided the batch_scoring script attempts to detect it. E.g "utf-8", "latin-1" or "iso2022_jp". See the Python docs for a list of valid encodings https://docs.python.org/3/library/codecs.html#standard-encodings
+ auto_sample                   Override the ``<n_samples>`` value and instead use chunks of roughly 1.5 MB to improve throughput. On by default.
+ encoding                      Declare the dataset encoding. If an encoding is not provided, the batch_scoring script attempts to detect it (e.g., "utf-8", "latin-1", or "iso2022_jp"). `See the Python docs for a list of valid encodings <https://docs.python.org/3/library/codecs.html#standard-encodings>`_.
  skip_dialect                  Tell the batch_scoring script to skip csv dialect detection.
 ============================== ===========
 
@@ -101,9 +101,9 @@ Example::
     batch_scoring --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 /home/greg/Downloads/diabetes_test.csv
 
 
-Using configuration file
-------------------------
-The `batch_scoring` command check for the existence of a batch_scoring.ini file at the location `$HOME/batch_scoring.ini` (your home directory) and directory where you running the script (working directory). If this file exists, the command uses the same arguments that described above.
+Using the configuration file
+----------------------------
+The `batch_scoring` command checks for the existence of a batch_scoring.ini file at the location `$HOME/batch_scoring.ini` (your home directory) and the directory where you are running the script (working directory). If this file exists, the command uses the same arguments as those described above. If the file does not exist, the command proceeds normally with the command line arguments. The command line arguments have higher priority than the file arguments (that is, you can override file arguments using the command line).
 
 The format of a `batch_scoring.ini` file is as follows::
 
