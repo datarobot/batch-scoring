@@ -25,16 +25,19 @@ OptKey = partial(t.Key, optional=True)
 CONFIG_FILENAME = 'batch_scoring.ini'
 
 
-def verify_objectid(id_):
+def verify_objectid(value):
     """Verify if id_ is a proper ObjectId. """
-    if not len(id_) == 24:
-        raise ValueError('id {} not a valid project/model id'.format(id_))
+    try:
+        t.contrib.object_id.MongoId().check(value)
+    except t.DataError:
+        raise ValueError('id {} not a valid project/model id'.format(value))
 
 
 config_validator = t.Dict({
     OptKey('host'): t.String,
     OptKey('project_id'): t.contrib.object_id.MongoId >> str,
     OptKey('model_id'): t.contrib.object_id.MongoId >> str,
+    OptKey('import_id'): t.String,
     OptKey('n_retry'): t.Int,
     OptKey('keep_cols'): t.String,
     OptKey('n_concurrent'): t.Int,

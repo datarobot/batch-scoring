@@ -18,7 +18,7 @@ VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
 
 DESCRIPTION = """
 Batch score DATASET by submitting prediction requests against HOST
-using PROJECT_ID and MODEL_ID.
+using PROJECT_ID and MODEL_ID (or IMPORT_ID in case of standalone predictions).
 
 It optimizes prediction throughput by sending data in batches of 1.5mb.
 
@@ -58,10 +58,15 @@ def main(argv=sys.argv[1:]):
                                  'hostname of the prediction API endpoint. '
                                  'E.g. "https://example.orm.datarobot.com"')
     dataset_gr.add_argument('project_id', type=str,
+                            nargs='?',
                             help='Specifies the project '
                             'identification string.')
     dataset_gr.add_argument('model_id', type=str,
+                            nargs='?',
                             help='Specifies the model identification string.')
+    dataset_gr.add_argument('import_id', type=str,
+                            nargs='?',
+                            help='Specifies the imported model identification string.')
     dataset_gr.add_argument('dataset', type=str,
                             help='Specifies the .csv input file that '
                             'the script scores.')
@@ -204,7 +209,7 @@ def main(argv=sys.argv[1:]):
         'stdout': False,
         'auto_sample': False,
     }
-
+    exit_code = 1
     conf_file = get_config_file()
     if conf_file:
         file_args = parse_config_file(conf_file)
@@ -227,8 +232,10 @@ def main(argv=sys.argv[1:]):
     ui.info('platform: {} {}'.format(sys.platform, sys.version))
 
     # parse args
-    pid = parsed_args['project_id']
-    lid = parsed_args['model_id']
+    pid = parsed_args.get('project_id')
+    lid = parsed_args.get('model_id')
+    import_id = parsed_args.get('import_id')
+
     n_retry = int(parsed_args['n_retry'])
     if parsed_args.get('keep_cols'):
         keep_cols = [s.strip() for s in parsed_args['keep_cols'].split(',')]
@@ -252,12 +259,18 @@ def main(argv=sys.argv[1:]):
     skip_row_id = parsed_args['skip_row_id']
     output_delimiter = parsed_args.get('output_delimiter')
 
+    if pid and not (lid and import_id):
+        import_id = pid
+        pid = None  # validation save
+    elif import_id and pid and lid:
+        ui.fatal('import_id should not be used with project_id and model_id')
+
     if not os.path.exists(parsed_args['dataset']):
         ui.fatal('file {} does not exist.'.format(parsed_args['dataset']))
 
     try:
-        verify_objectid(pid)
-        verify_objectid(lid)
+        pid and verify_objectid(pid)
+        lid and verify_objectid(lid)
     except ValueError as e:
         ui.fatal(str(e))
 
@@ -293,7 +306,7 @@ def main(argv=sys.argv[1:]):
     dry_run = parsed_args.get('dry_run', False)
     base_url = ""
 
-    if not dry_run:
+    if not (dry_run or import_id):
         if not user:
             user = ui.prompt_user()
         else:
@@ -302,6 +315,7 @@ def main(argv=sys.argv[1:]):
         if not api_token and not pwd:
             pwd = ui.getpass()
 
+    if not dry_run:
         base_url = parse_host(host, ui)
 
     base_headers = {}
@@ -311,14 +325,13 @@ def main(argv=sys.argv[1:]):
     ui.debug('batch_scoring v{}'.format(__version__))
     ui.info('connecting to {}'.format(base_url))
 
-    exit_code = 1
     try:
         exit_code = run_batch_predictions(
             base_url=base_url, base_headers=base_headers,
             user=user, pwd=pwd,
             api_token=api_token, create_api_token=create_api_token,
-            pid=pid, lid=lid, n_retry=n_retry, concurrent=concurrent,
-            resume=resume, n_samples=n_samples,
+            pid=pid, lid=lid, import_id=import_id,  n_retry=n_retry,
+            concurrent=concurrent, resume=resume, n_samples=n_samples,
             out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
             dataset=dataset, pred_name=pred_name, timeout=timeout,
             ui=ui, fast_mode=fast_mode, auto_sample=auto_sample,

@@ -53,7 +53,7 @@ def format_usage(rusage):
 
 def run_batch_predictions(base_url, base_headers, user, pwd,
                           api_token, create_api_token,
-                          pid, lid, n_retry, concurrent,
+                          pid, lid, import_id, n_retry, concurrent,
                           resume, n_samples,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
@@ -105,7 +105,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         base_headers['content-type'] = 'text/csv; charset=utf8'
         if compression:
             base_headers['Content-Encoding'] = 'gzip'
-        endpoint = base_url + '/'.join((pid, lid, 'predict'))
+        if import_id:
+            endpoint = base_url + '/'.join((import_id, 'predict'))
+        else:
+            endpoint = base_url + '/'.join((pid, lid, 'predict'))
         encoding = investigate_encoding_and_dialect(
             dataset=dataset,
             sep=delimiter, ui=ui,
@@ -134,7 +137,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     [c for c in keep_cols if c not in first_row.fieldnames],
                     first_row.fieldnames))
 
-        if not dry_run:
+        if not (dry_run or import_id):
 
             if not api_token:
                 try:
