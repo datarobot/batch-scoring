@@ -66,7 +66,8 @@ def main(argv=sys.argv[1:]):
                             help='Specifies the model identification string.')
     dataset_gr.add_argument('import_id', type=str,
                             nargs='?',
-                            help='Specifies the imported model identification string.')
+                            help='Specifies the imported model '
+                                 'identification string.')
     dataset_gr.add_argument('dataset', type=str,
                             help='Specifies the .csv input file that '
                             'the script scores.')
