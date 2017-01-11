@@ -237,9 +237,9 @@ def test_encoding_options(monkeypatch):
 def test_invalid_delimiter(monkeypatch):
     main_args = ['--host',
                  'http://localhost:53646/api',
+                 '--delimiter', 'INVALID',
                  '56dd9570018e213242dfa93c',
                  '56dd9570018e213242dfa93d',
-                 '--delimiter', 'INVALID',
                  'tests/fixtures/temperatura_predict.csv']
 
     ui_class = mock.Mock(spec=UI)

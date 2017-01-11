@@ -28,20 +28,21 @@ def test_args_from_subprocess(live_server):
     arguments = ('{bscore_name} --host={webhost}/api'
                  ' --user={username}'
                  ' --password={password}'
-                 ' {project_id}'
                  ' --verbose'
-                 ' {model_id}'
-                 ' tests/fixtures/temperatura_predict.csv'
                  ' --n_samples=10'
                  ' --n_concurrent=1'
                  ' --out={out}'
-                 ' --no').format(webhost=live_server.url(),
-                                 bscore_name=bscore_name,
-                                 username='username',
-                                 password='password',
-                                 project_id='56dd9570018e213242dfa93c',
-                                 model_id='56dd9570018e213242dfa93d',
-                                 out=fd.name)
+                 ' --no'
+                 ' {project_id}'
+                 ' {model_id}'
+                 ' tests/fixtures/temperatura_predict.csv').format(
+                    webhost=live_server.url(),
+                    bscore_name=bscore_name,
+                    username='username',
+                    password='password',
+                    project_id='56dd9570018e213242dfa93c',
+                    model_id='56dd9570018e213242dfa93d',
+                    out=fd.name)
     try:
         spc = subprocess.check_call(arguments.split(' '))
     except subprocess.CalledProcessError as e:
