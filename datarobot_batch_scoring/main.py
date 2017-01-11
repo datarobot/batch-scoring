@@ -58,16 +58,11 @@ def main(argv=sys.argv[1:]):
                                  'hostname of the prediction API endpoint. '
                                  'E.g. "https://example.orm.datarobot.com"')
     dataset_gr.add_argument('project_id', type=str,
-                            nargs='?',
                             help='Specifies the project '
                             'identification string.')
     dataset_gr.add_argument('model_id', type=str,
                             nargs='?',
                             help='Specifies the model identification string.')
-    dataset_gr.add_argument('import_id', type=str,
-                            nargs='?',
-                            help='Specifies the imported model '
-                                 'identification string.')
     dataset_gr.add_argument('dataset', type=str,
                             help='Specifies the .csv input file that '
                             'the script scores.')
@@ -235,7 +230,6 @@ def main(argv=sys.argv[1:]):
     # parse args
     pid = parsed_args.get('project_id')
     lid = parsed_args.get('model_id')
-    import_id = parsed_args.get('import_id')
 
     n_retry = int(parsed_args['n_retry'])
     if parsed_args.get('keep_cols'):
@@ -260,11 +254,11 @@ def main(argv=sys.argv[1:]):
     skip_row_id = parsed_args['skip_row_id']
     output_delimiter = parsed_args.get('output_delimiter')
 
-    if pid and not (lid or import_id):
+    if pid and not lid:
         import_id = pid
         pid = None  # validation save
-    elif import_id and pid and lid:
-        ui.fatal('import_id should not be used with project_id and model_id')
+    else:
+        import_id = None
 
     if not os.path.exists(parsed_args['dataset']):
         ui.fatal('file {} does not exist.'.format(parsed_args['dataset']))
