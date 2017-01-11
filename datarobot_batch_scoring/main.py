@@ -260,7 +260,7 @@ def main(argv=sys.argv[1:]):
     skip_row_id = parsed_args['skip_row_id']
     output_delimiter = parsed_args.get('output_delimiter')
 
-    if pid and not (lid and import_id):
+    if pid and not (lid or import_id):
         import_id = pid
         pid = None  # validation save
     elif import_id and pid and lid:
