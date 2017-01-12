@@ -137,9 +137,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                     [c for c in keep_cols if c not in first_row.fieldnames],
                     first_row.fieldnames))
 
-        if not (dry_run or import_id):
+        if not dry_run:
 
-            if not api_token:
+            if not (api_token or import_id):
                 try:
                     api_token = acquire_api_token(base_url, base_headers, user,
                                                   pwd, create_api_token, ui)
@@ -239,8 +239,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         network_done = False
         writer_done = False
 
-        shovel_exitcode = None
-        network_exitcode = None
         writer_exitcode = None
 
         n_ret = False
@@ -265,7 +263,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         local_abort_flag = [False]
 
-        def exit_fast(a, b):
+        def exit_fast(*_):
             local_abort_flag[0] = True
 
         signal.signal(signal.SIGINT, exit_fast)

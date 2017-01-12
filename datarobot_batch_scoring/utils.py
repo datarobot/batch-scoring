@@ -354,9 +354,16 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
         else:
             data = batch.data
         try:
-            r = requests.post(endpoint, headers=base_headers,
-                              data=data,
-                              auth=(user, api_token))
+            if user and api_token:
+                r = requests.post(endpoint, headers=base_headers,
+                                  data=data,
+                                  auth=(user, api_token))
+            elif not (user and api_token):
+                r = requests.post(endpoint, headers=base_headers,
+                                  data=data)
+            else:
+                ui.fatal("Aborting: no auth credentials passed")
+
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
             if r.status_code == 200:
