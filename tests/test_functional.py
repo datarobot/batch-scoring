@@ -100,6 +100,47 @@ def test_simple(live_server, tmpdir):
     assert str(actual) == str(expected)
 
 
+def test_simple_transferable(live_server, tmpdir):
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui = PickableMock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        import_id='0ec5bcea7f0f45918fa88257bfe42c09',
+        pid=None,
+        lid=None,
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/regression_predict.csv',
+        pred_name=None,
+        timeout=30,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+
+    assert ret is None
+    actual = out.read_text('utf-8')
+    with open('tests/fixtures/regression_output.csv', 'rU') as f:
+        expected = f.read()
+    assert str(actual) == str(expected)
+
+
 def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')

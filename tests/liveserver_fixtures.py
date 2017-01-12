@@ -113,6 +113,7 @@ def app():
     #           LID                         FILE
     MAPPING = {'56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
                '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
+               '0ec5bcea7f0f45918fa88257bfe42c09': 'tests/fixtures/regression.json',
                None: 'tests/fixtures/temperatura.json'}
 
     app = flask.Flask(__name__)
@@ -162,6 +163,13 @@ def app():
 
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
+        return _predict(lid)
+
+    @app.route('/api/v1/<import_id>/predict', methods=["POST"])
+    def predict_transferable(import_id):
+        return _predict(import_id)
+
+    def _predict(uid):
         body = flask.request.data
 
         if flask.request.content_encoding == "gzip":
@@ -190,7 +198,7 @@ def app():
         except ValueError:
             first_row = 0
 
-        with open(MAPPING.get(lid), 'r') as f:
+        with open(MAPPING.get(uid), 'r') as f:
             reply = json.load(f)
             std_predictions = reply["predictions"]
 
