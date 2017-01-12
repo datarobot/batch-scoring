@@ -336,8 +336,8 @@ def warn_if_redirected(req, ui):
                            ''.format(starting_endpoint, redirect_endpoint))
 
 
-def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
-              compression=None):
+def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
+                         batch, ui, compression=None):
     """Check if user is authorized for the given model and that schema is
     correct.
 

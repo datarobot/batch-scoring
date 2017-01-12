@@ -25,7 +25,7 @@ from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             Shovel, auto_sampler,
                                             investigate_encoding_and_dialect,
                                             decode_reader_state)
-from datarobot_batch_scoring.utils import (acquire_api_token, authorize)
+from datarobot_batch_scoring.utils import (acquire_api_token, make_validation_call)
 from datarobot_batch_scoring.writer import (WriterProcess, RunContext,
                                             decode_writer_state)
 
@@ -146,8 +146,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 except Exception as e:
                     ui.fatal(str(e))
 
-            authorize(user, api_token, n_retry, endpoint, base_headers,
-                      first_row, ui, compression=compression)
+            make_validation_call(user, api_token, n_retry, endpoint,
+                                 base_headers, first_row, ui,
+                                 compression=compression)
 
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
