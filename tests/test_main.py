@@ -365,3 +365,48 @@ def test_skip_row_id(monkeypatch):
             output_delimiter=None,
             compression=False
         )
+
+
+def test_datarobot_transferable_call(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '0ec5bcea7f0f45918fa88257bfe42c09',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--datarobot_key', 'the_key']
+
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', mock.Mock(spec=UI))
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        main(argv=main_args)
+        mock_method.assert_called_once_with(
+            base_url='http://localhost:53646/api/v1/',
+            base_headers={'datarobot-key': 'the_key'},
+            user=mock.ANY,
+            pwd=mock.ANY,
+            api_token=None,
+            create_api_token=False,
+            pid=None,
+            lid=None,
+            import_id='0ec5bcea7f0f45918fa88257bfe42c09',
+            n_retry=3,
+            concurrent=4,
+            resume=False,
+            n_samples=False,
+            out_file='out.csv',
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv',
+            pred_name=None,
+            timeout=30,
+            ui=mock.ANY,
+            fast_mode=False,
+            auto_sample=True,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False,
+            skip_row_id=False,
+            output_delimiter=None,
+            compression=False
+        )
