@@ -51,8 +51,8 @@ def test_section_basic_with_username():
     raw_data = textwrap.dedent("""\
         [batch_scoring]
         host=file_host
-        project_id=file_project_id
-        model_id=file_model_id
+        project_id=aaaaaaaaaaaaaaaaaaaaaaaa
+        model_id=aaaaaaaaaaaaaaaaaaaaaaaa
         user=file_username
         password=file_password""")
     with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
@@ -62,8 +62,8 @@ def test_section_basic_with_username():
         parsed_result = parse_config_file(test_file.name)
         assert isinstance(parsed_result, dict)
         assert parsed_result['host'] == 'file_host'
-        assert parsed_result['project_id'] == 'file_project_id'
-        assert parsed_result['model_id'] == 'file_model_id'
+        assert parsed_result['project_id'] == 'aaaaaaaaaaaaaaaaaaaaaaaa'
+        assert parsed_result['model_id'] == 'aaaaaaaaaaaaaaaaaaaaaaaa'
         assert parsed_result['user'] == 'file_username'
         assert parsed_result['password'] == 'file_password'
     finally:
@@ -82,8 +82,8 @@ def test_run_main_with_conf_file(monkeypatch):
     raw_data = textwrap.dedent("""\
         [batch_scoring]
         host=file_host
-        project_id=file_project_id
-        model_id=file_model_id
+        project_id=56dd9570018e213242dfa93c
+        model_id=56dd9570018e213242dfa93d
         user=file_username
         password=file_password""")
     with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
