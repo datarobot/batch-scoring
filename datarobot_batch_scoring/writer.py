@@ -368,6 +368,7 @@ class WriterProcess(object):
         :return: deserialize text to JSON and returns JSON as python objects
         """
         try:
+            exec_time = float(request['headers']['X-DataRobot-Execution-Time'])
             result = json.loads(request['text'])  # replace with r.content
             elapsed_total_seconds = request['elapsed']
         except Exception as e:
@@ -375,12 +376,12 @@ class WriterProcess(object):
                              ''.format(batch.id, e))
             self.deque_failed_batch(batch)
             return False  # unpack failed for this batch
-        exec_time = result['execution_time']
+
         self._ui.debug(('successful response {}-{}: exec time {:.0f}msec | '
                         'round-trip: {:.0f}msec'
                         '').format(batch.id, batch.rows, exec_time,
                                    elapsed_total_seconds * 1000))
-        return result
+        return result['data']
 
     def format_result_data(self, result, batch):
         """
@@ -397,30 +398,24 @@ class WriterProcess(object):
         skip_row_id = self.ctx.skip_row_id
         fast_mode = self.ctx.fast_mode
         input_delimiter = self.ctx.dialect.delimiter
+        single_row = result[0]
+        fields = sorted(record['label']
+                        for record in single_row['predictionValues'])
 
-        predictions = result['predictions']
-        if result['task'] == TargetType.BINARY:
-            sorted_classes = list(
-                sorted(predictions[0]['class_probabilities'].keys()))
-            out_fields = ['row_id'] + sorted_classes
-            if pred_name is not None:
-                sorted_classes = [sorted_classes[-1]]
-                out_fields = ['row_id'] + [pred_name]
-            pred = [[p['row_id'] + batch.id] +
-                    [p['class_probabilities'][c] for c in
-                     sorted_classes]
-                    for p in
-                    sorted(predictions,
-                           key=operator.itemgetter('row_id'))]
-        elif result['task'] == TargetType.REGRESSION:
-            pred = [[p['row_id'] + batch.id, p['prediction']]
-                    for p in
-                    sorted(predictions,
-                           key=operator.itemgetter('row_id'))]
-            out_fields = ['row_id', pred_name if pred_name else '']
+        if pred_name is not None:
+            out_fields = ['row_id', pred_name]
+            if len(fields) == 2 and single_row['prediction'] in fields:
+                fields = [fields[-1]]
         else:
-            raise ValueError('task "{}" not supported'
-                             ''.format(result['task']))
+            out_fields = ['row_id'] + fields
+        try:
+            pred = [[record['rowId']] + [
+                pred_vals['value'] for pred_vals in
+                sorted(record['predictionValues'], key=operator.itemgetter('label'))
+                if pred_vals['label'] in fields]
+                    for record in sorted(result, key=operator.itemgetter('rowId'))]
+        except Exception as ex:
+            self._ui.fatal(ex)
 
         if keep_cols:
             # stack columns
@@ -515,10 +510,8 @@ class WriterProcess(object):
                     result = self.unpack_request_object(args["request"], batch)
                     if result is False:  # unpack_request_object failed
                         continue
-
                     (written_fields, comb) = self.format_result_data(result,
                                                                      batch)
-
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
                     written += 1
                     rows_done += batch.rows

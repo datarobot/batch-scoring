@@ -126,7 +126,8 @@ class Network(Worker):
         try:
             if r.status_code == 200:
                 pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
-                                   'text': r.text}
+                                   'text': r.text,
+                                   'headers': r.headers}
                 self.writer_queue.put((WriterQueueMsg.RESPONSE, {
                     "request": pickleable_resp,
                     "batch": batch
