@@ -15,8 +15,7 @@ import six
 from six.moves import queue
 
 from datarobot_batch_scoring.consts import SENTINEL, \
-    WriterQueueMsg, TargetType, ProgressQueueMsg, \
-    REPORT_INTERVAL
+    WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
 from datarobot_batch_scoring.utils import get_rusage
 
 
@@ -409,11 +408,13 @@ class WriterProcess(object):
         else:
             out_fields = ['row_id'] + fields
         try:
-            pred = [[record['rowId']] + [
+            pred = [[record['rowId'] + batch.id] + [
                 pred_vals['value'] for pred_vals in
-                sorted(record['predictionValues'], key=operator.itemgetter('label'))
+                sorted(record['predictionValues'],
+                       key=operator.itemgetter('label'))
                 if pred_vals['label'] in fields]
-                    for record in sorted(result, key=operator.itemgetter('rowId'))]
+                    for record in sorted(result,
+                                         key=operator.itemgetter('rowId'))]
         except Exception as ex:
             self._ui.fatal(ex)
 
