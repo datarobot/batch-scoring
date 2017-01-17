@@ -4,10 +4,13 @@ import threading
 import time
 import os
 import os.path
+import traceback
 from glob import glob
 import socket
 import pytest
 import io
+
+import sys
 
 try:
     from urllib2 import urlopen, HTTPError
@@ -136,6 +139,17 @@ def app():
             raise RuntimeError('Not running with the Werkzeug Server')
         func()
 
+    @app.errorhandler(500)
+    def error_handler(error):
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        return ''.join(traceback.format_exception(exc_type, exc_value,
+                                                  exc_traceback)), 500
+
+    @app.after_request
+    def after_request(response):
+        response.headers['X-Datarobot-Execution-Time'] = 0.03
+        return response
+
     @app.route('/api/v1/api_token')
     def auth():
         auth = flask.request.authorization
@@ -179,7 +193,7 @@ def app():
                 body = f.read()
 
         body = body.decode('utf-8').splitlines()
-        rows = len(body) - 1
+        rows_number = len(body) - 1
 
         if app.config["PREDICTION_DELAY"]:
             time.sleep(app.config["PREDICTION_DELAY"])
@@ -201,13 +215,13 @@ def app():
 
         with open(MAPPING.get(uid), 'r') as f:
             reply = json.load(f)
-            std_predictions = reply["predictions"]
+            std_predictions = reply["data"]
 
-            reply["predictions"] = []
-            for i in range(rows):
-                pred = std_predictions[(i + first_row) % 10].copy()
-                pred["row_id"] = i
-                reply["predictions"].append(pred)
+            reply["data"] = []
+            for i in range(rows_number):
+                row = std_predictions[(i + first_row) % 10].copy()
+                row["rowId"] = i
+                reply["data"].append(row)
 
             return json.dumps(reply).encode('utf-8')
 
