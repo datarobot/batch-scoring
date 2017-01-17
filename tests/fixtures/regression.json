@@ -1,50 +1,74 @@
 {
-    "version": "v1",
-    "model_id": "56d6ec39786ce039ac2ec9b7",
-    "status": "",
-    "task": "Regression",
-    "execution_time": 101,
-    "code": 200,
-    "predictions": [
-        {
-            "prediction": 20.4401448517,
-            "row_id": 0
-        },
-        {
-            "prediction": 57.5035298131,
-            "row_id": 1
-        },
-        {
-            "prediction": 36.7561018297,
-            "row_id": 2
-        },
-        {
-            "prediction": 8.89364770725,
-            "row_id": 3
-        },
-        {
-            "prediction": 34.3605063176,
-            "row_id": 4
-        },
-        {
-            "prediction": 91.2866491293,
-            "row_id": 5
-        },
-        {
-            "prediction": 58.662232154,
-            "row_id": 6
-        },
-        {
-            "prediction": 24.8073207843,
-            "row_id": 7
-        },
-        {
-            "prediction": 108.552669517,
-            "row_id": 8
-        },
-        {
-            "prediction": 99.6969079239,
-            "row_id": 9
-        }
-    ]
+    "data":
+    [{
+        "predictionValues":
+        [{
+            "value":5.0001011968,"label":"z"
+        }],
+        "prediction":5.0001011968,
+        "rowId":0
+    },{
+        "predictionValues":
+        [{
+            "value":95.0000397434,"label":"z"
+        }],
+        "prediction":95.0000397434,
+        "rowId":1
+    },{
+        "predictionValues":
+        [{
+            "value":17.0000929936,"label":"z"
+        }],
+        "prediction":17.0000929936,
+        "rowId":2
+    },{
+        "predictionValues":
+        [{
+            "value":28.0000857419,"label":"z"
+        }],
+        "prediction":28.0000857419,
+        "rowId":3
+    },{
+        "predictionValues":
+        [{
+            "value":27.00008986,"label":"z"
+        }],
+        "prediction":27.00008986,
+        "rowId":4
+    },{
+        "predictionValues":
+        [{
+            "value":26.0000905377,"label":"z"
+        }],
+        "prediction":26.0000905377,
+        "rowId":5
+    },{
+        "predictionValues":
+        [{
+            "value":77.0000543932,"label":"z"
+        }],
+        "prediction":77.0000543932,
+        "rowId":6
+    },{
+        "predictionValues":
+        [{
+            "value":13.0000980848,"label":"z"
+        }],
+        "prediction":13.0000980848,
+        "rowId":7
+    },{
+        "predictionValues":
+        [{
+            "value":102.0000365228,"label":"z"
+        }],
+        "prediction":102.0000365228,
+        "rowId":8
+    },{
+        "predictionValues":
+        [{
+            "value":42.000077879,"label":"z"
+        }],
+        "prediction":42.000077879,
+        "rowId":9
+    }]
 }
