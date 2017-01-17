@@ -25,7 +25,8 @@ from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             Shovel, auto_sampler,
                                             investigate_encoding_and_dialect,
                                             decode_reader_state)
-from datarobot_batch_scoring.utils import (acquire_api_token, make_validation_call)
+from datarobot_batch_scoring.utils import (acquire_api_token,
+                                           make_validation_call)
 from datarobot_batch_scoring.writer import (WriterProcess, RunContext,
                                             decode_writer_state)
 
