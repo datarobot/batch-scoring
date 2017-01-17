@@ -15,7 +15,7 @@ from utils import PickableMock, print_logs
 def test_args_from_subprocess(live_server):
     # train one model in project
     with tempfile.NamedTemporaryFile(prefix='test_',
-                                     suffix='.csv', delete=True) as fd:
+                                     suffix='.csv') as fd:
         pass
     bscore_name = 'batch_scoring'
     if os.name is 'nt':
@@ -55,7 +55,7 @@ def test_args_from_subprocess(live_server):
         actual = o.read()
     with open('tests/fixtures/temperatura_output.csv', 'rU') as f:
         expected = f.read()
-    assert str(actual) == str(expected)
+    assert str(actual) == str(expected), str(actual)
     assert spc is 0
 
 
@@ -97,7 +97,7 @@ def test_simple(live_server, tmpdir):
     actual = out.read_text('utf-8')
     with open('tests/fixtures/temperatura_output.csv', 'rU') as f:
         expected = f.read()
-    assert str(actual) == str(expected)
+    assert str(actual) == str(expected), expected
 
 
 def test_simple_transferable(live_server, tmpdir):
@@ -138,7 +138,7 @@ def test_simple_transferable(live_server, tmpdir):
     actual = out.read_text('utf-8')
     with open('tests/fixtures/regression_output.csv', 'rU') as f:
         expected = f.read()
-    assert str(actual) == str(expected)
+    assert str(actual) == str(expected), expected
 
 
 def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
@@ -178,7 +178,7 @@ def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
 
     expected = out.read_text('utf-8')
     with open('tests/fixtures/temperatura_output_keep_x.csv', 'rU') as f:
-        assert expected == f.read()
+        assert expected == f.read(), expected
 
 
 def test_keep_cols_fast_mode(live_server, tmpdir, ui):
@@ -266,4 +266,4 @@ def test_pred_name_classification(live_server, tmpdir):
 
     expected = out.read_text('utf-8')
     with open('tests/fixtures/temperatura_output_healthy.csv', 'rU') as f:
-        assert expected == f.read()
+        assert expected == f.read(), expected
