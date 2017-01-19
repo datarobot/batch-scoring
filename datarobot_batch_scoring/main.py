@@ -41,9 +41,7 @@ Example:
 VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
 
 
-def main(argv=sys.argv[1:]):
-    global ui  # global variable hack, will get rid of a bit later
-    warnings.simplefilter('ignore')
+def parse_args(argv, standalone=False):
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -57,15 +55,6 @@ def main(argv=sys.argv[1:]):
                             help='Specifies the protocol (http or https) and '
                                  'hostname of the prediction API endpoint. '
                                  'E.g. "https://example.orm.datarobot.com"')
-    dataset_gr.add_argument('project_id', type=str,
-                            help='Specifies the project '
-                            'identification string.')
-    dataset_gr.add_argument('model_id', type=str,
-                            nargs='?',
-                            help='Specifies the model identification string.')
-    dataset_gr.add_argument('dataset', type=str,
-                            help='Specifies the .csv input file that '
-                            'the script scores.')
     dataset_gr.add_argument('--out', type=str,
                             nargs='?', default='out.csv',
                             help='Specifies the file name, '
@@ -75,30 +64,45 @@ def main(argv=sys.argv[1:]):
                             'the default file name is out.csv, '
                             'written to the directory containing the script. '
                             '(default: %(default)r)')
-    auth_gr = parser.add_argument_group('Authentication parameters')
-    auth_gr.add_argument('--user', type=str,
-                         help='Specifies the username used to acquire '
-                         'the api-token. '
-                         'Use quotes if the name contains spaces.')
-    auth_gr.add_argument('--password', type=str, nargs='?',
-                         help='Specifies the password used to acquire '
-                         'the api-token. '
-                         'Use quotes if the name contains spaces.')
-    auth_gr.add_argument('--api_token', type=str, nargs='?',
-                         help='Specifies the api token for the requests; '
-                         'if you do not have a token, '
-                         'you must specify the password argument.')
-    auth_gr.add_argument('--create_api_token', action="store_true",
-                         default=False,
-                         help='Requests a new API token. To use this option, '
-                         'you must specify the '
-                         'password argument for this request '
-                         '(not the api_token argument). '
-                         '(default: %(default)r)')
-    auth_gr.add_argument('--datarobot_key', type=str,
-                         nargs='?',
-                         help='An additional datarobot_key '
-                         'for dedicated prediction instances.')
+    if standalone:
+        dataset_gr.add_argument('import_id', type=str,
+                                help='Specifies the project '
+                                'identification string.')
+    else:
+        dataset_gr.add_argument('project_id', type=str,
+                                help='Specifies the project '
+                                'identification string.')
+        dataset_gr.add_argument('model_id', type=str,
+                                help='Specifies the model identification '
+                                     'string.')
+        auth_gr = parser.add_argument_group('Authentication parameters')
+        auth_gr.add_argument('--user', type=str,
+                             help='Specifies the username used to acquire '
+                             'the api-token. '
+                             'Use quotes if the name contains spaces.')
+        auth_gr.add_argument('--password', type=str, nargs='?',
+                             help='Specifies the password used to acquire '
+                             'the api-token. '
+                             'Use quotes if the name contains spaces.')
+        auth_gr.add_argument('--api_token', type=str, nargs='?',
+                             help='Specifies the api token for the requests; '
+                             'if you do not have a token, '
+                             'you must specify the password argument.')
+        auth_gr.add_argument('--create_api_token', action="store_true",
+                             default=False,
+                             help='Requests a new API token. To use this '
+                                  'option, you must specify the '
+                                  'password argument for this request '
+                                  '(not the api_token argument). '
+                                  '(default: %(default)r)')
+        auth_gr.add_argument('--datarobot_key', type=str,
+                             nargs='?',
+                             help='An additional datarobot_key '
+                             'for dedicated prediction instances.')
+    dataset_gr.add_argument('dataset', type=str,
+                            help='Specifies the .csv input file that '
+                            'the script scores.')
+
     conn_gr = parser.add_argument_group('Connection control')
     conn_gr.add_argument('--timeout', type=int,
                          default=30,
@@ -205,7 +209,6 @@ def main(argv=sys.argv[1:]):
         'stdout': False,
         'auto_sample': False,
     }
-    exit_code = 1
     conf_file = get_config_file()
     if conf_file:
         file_args = parse_config_file(conf_file)
@@ -219,120 +222,166 @@ def main(argv=sys.argv[1:]):
     parsed_args = {k: v
                    for k, v in vars(parser.parse_args(argv)).items()
                    if v is not None}
+    return parsed_args
+
+
+def parse_generic_options(parsed_args):
+    global ui
     loglevel = logging.DEBUG if parsed_args['verbose'] else logging.INFO
     stdout = parsed_args['stdout']
     ui = UI(parsed_args.get('prompt'), loglevel, stdout)
+
     printed_args = copy.copy(parsed_args)
     printed_args.pop('password', None)
     ui.debug(printed_args)
     ui.info('platform: {} {}'.format(sys.platform, sys.version))
-
-    # parse args
-    pid = parsed_args.get('project_id')
-    lid = parsed_args.get('model_id')
-
     n_retry = int(parsed_args['n_retry'])
     if parsed_args.get('keep_cols'):
         keep_cols = [s.strip() for s in parsed_args['keep_cols'].split(',')]
     else:
         keep_cols = None
     concurrent = int(parsed_args['n_concurrent'])
-    dataset = parsed_args['dataset']
-    n_samples = int(parsed_args['n_samples'])
-    delimiter = parsed_args.get('delimiter')
+
     resume = parsed_args['resume']
     compression = parsed_args['compress']
     out_file = parsed_args['out']
-    datarobot_key = parsed_args.get('datarobot_key')
     timeout = int(parsed_args['timeout'])
     fast_mode = parsed_args['fast']
-    auto_sample = parsed_args['auto_sample']
-    if not n_samples:
-        auto_sample = True
     encoding = parsed_args['encoding']
     skip_dialect = parsed_args['skip_dialect']
     skip_row_id = parsed_args['skip_row_id']
-    output_delimiter = parsed_args.get('output_delimiter')
-
-    if pid and not lid:
-        import_id = pid
-        pid = None  # validation save
-    else:
-        import_id = None
-
-    if not os.path.exists(parsed_args['dataset']):
-        ui.fatal('file {} does not exist.'.format(parsed_args['dataset']))
-
-    try:
-        pid and verify_objectid(pid)
-        lid and verify_objectid(lid)
-    except ValueError as e:
-        ui.fatal(str(e))
-
-    if delimiter == '\\t' or delimiter == 'tab':
-        # NOTE: on bash you have to use Ctrl-V + TAB
-        delimiter = '\t'
-
-    if delimiter == 'pipe':
-        # using the | char has issues on Windows for some reason
-        delimiter = '|'
-
-    if delimiter and delimiter not in VALID_DELIMITERS:
-        ui.fatal('Delimiter "{}" is not a valid delimiter.'
-                 .format(delimiter))
-
-    if output_delimiter == '\\t' or output_delimiter == 'tab':
-        # NOTE: on bash you have to use Ctrl-V + TAB
-        output_delimiter = '\t'
-
-    if output_delimiter == 'pipe':
-        output_delimiter = '|'
-
-    if output_delimiter and output_delimiter not in VALID_DELIMITERS:
-        ui.fatal('Output delimiter "{}" is not a valid delimiter.'
-                 .format(output_delimiter))
-
-    api_token = parsed_args.get('api_token')
-    create_api_token = parsed_args.get('create_api_token')
-    user = parsed_args.get('user')
-    pwd = parsed_args.get('password')
     host = parsed_args.get('host')
     pred_name = parsed_args.get('pred_name')
     dry_run = parsed_args.get('dry_run', False)
     base_url = ""
 
-    if not (dry_run or import_id):
-        if not user:
-            user = ui.prompt_user()
-        else:
-            user = user.strip()
+    n_samples = int(parsed_args['n_samples'])
+    auto_sample = parsed_args['auto_sample']
+    if not n_samples:
+        auto_sample = True
 
-        if not api_token and not pwd:
-            pwd = ui.getpass()
+    delimiter = parsed_args.get('delimiter')
+    if delimiter == '\\t' or delimiter == 'tab':
+        # NOTE: on bash you have to use Ctrl-V + TAB
+        delimiter = '\t'
+    elif delimiter == 'pipe':
+        # using the | char has issues on Windows for some reason
+        delimiter = '|'
+    if delimiter and delimiter not in VALID_DELIMITERS:
+        ui.fatal('Delimiter "{}" is not a valid delimiter.'
+                 .format(delimiter))
+
+    output_delimiter = parsed_args.get('output_delimiter')
+    if output_delimiter == '\\t' or output_delimiter == 'tab':
+        # NOTE: on bash you have to use Ctrl-V + TAB
+        output_delimiter = '\t'
+    elif output_delimiter == 'pipe':
+        output_delimiter = '|'
+    if output_delimiter and output_delimiter not in VALID_DELIMITERS:
+        ui.fatal('Output delimiter "{}" is not a valid delimiter.'
+                 .format(output_delimiter))
+
+    dataset = parsed_args['dataset']
+    if not os.path.exists(dataset):
+        ui.fatal('file {} does not exist.'.format(dataset))
 
     if not dry_run:
         base_url = parse_host(host, ui)
 
-    base_headers = {}
-    if datarobot_key:
-        base_headers['datarobot-key'] = datarobot_key
-
     ui.debug('batch_scoring v{}'.format(__version__))
     ui.info('connecting to {}'.format(base_url))
 
+    return {
+        'auto_sample': auto_sample,
+        'base_url': base_url,
+        'compression': compression,
+        'concurrent': concurrent,
+        'dataset': dataset,
+        'delimiter': delimiter,
+        'dry_run': dry_run,
+        'encoding': encoding,
+        'fast_mode': fast_mode,
+        'keep_cols': keep_cols,
+        'n_retry': n_retry,
+        'n_samples': n_samples,
+        'out_file': out_file,
+        'output_delimiter': output_delimiter,
+        'pred_name': pred_name,
+        'resume': resume,
+        'skip_dialect': skip_dialect,
+        'skip_row_id': skip_row_id,
+        'timeout': timeout,
+    }
+
+
+def main(argv=sys.argv[1:]):
+    global ui  # global variable hack, will get rid of a bit later
+    warnings.simplefilter('ignore')
+    parsed_args = parse_args(argv)
+    exit_code = 1
+
+    generic_opts = parse_generic_options(parsed_args)
+
+    # parse args
+    pid = parsed_args['project_id']
+    lid = parsed_args['model_id']
+    try:
+        verify_objectid(pid)
+        verify_objectid(lid)
+    except ValueError as e:
+        ui.fatal(str(e))
+
+    # auth only ---
+    datarobot_key = parsed_args.get('datarobot_key')
+    api_token = parsed_args.get('api_token')
+    create_api_token = parsed_args.get('create_api_token')
+    user = parsed_args.get('user')
+    pwd = parsed_args.get('password')
+
+    if not generic_opts['dry_run']:
+        user = user or ui.prompt_user()
+        user = user.strip()
+
+        if not api_token and not pwd:
+            pwd = ui.getpass()
+
+    base_headers = {}
+    if datarobot_key:
+        base_headers['datarobot-key'] = datarobot_key
+    # end auth ---
+
     try:
         exit_code = run_batch_predictions(
-            base_url=base_url, base_headers=base_headers,
-            user=user, pwd=pwd,
+            base_headers=base_headers, user=user, pwd=pwd,
             api_token=api_token, create_api_token=create_api_token,
-            pid=pid, lid=lid, import_id=import_id,  n_retry=n_retry,
-            concurrent=concurrent, resume=resume, n_samples=n_samples,
-            out_file=out_file, keep_cols=keep_cols, delimiter=delimiter,
-            dataset=dataset, pred_name=pred_name, timeout=timeout,
-            ui=ui, fast_mode=fast_mode, auto_sample=auto_sample,
-            dry_run=dry_run, encoding=encoding, skip_dialect=skip_dialect,
-            skip_row_id=skip_row_id, output_delimiter=output_delimiter,
-            compression=compression
+            pid=pid, lid=lid, import_id=None, ui=ui, **generic_opts
+        )
+    except SystemError:
+        pass
+    except ShelveError as e:
+        ui.error(str(e))
+    except KeyboardInterrupt:
+        ui.info('Keyboard interrupt')
+    except Exception as e:
+        ui.fatal(str(e))
+    finally:
+        ui.close()
+        return exit_code
+
+
+def main_standalone(argv=sys.argv[1:]):
+    global ui  # global variable hack, will get rid of a bit later
+    warnings.simplefilter('ignore')
+    parsed_args = parse_args(argv, standalone=True)
+    exit_code = 1
+
+    generic_opts = parse_generic_options(parsed_args)
+    import_id = parsed_args['import_id']
+    try:
+        exit_code = run_batch_predictions(
+            base_headers={}, user=None, pwd=None,
+            api_token=None, create_api_token=False,
+            pid=None, lid=None, import_id=import_id, ui=ui, **generic_opts
         )
     except SystemError:
         pass
