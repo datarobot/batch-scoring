@@ -25,16 +25,19 @@ OptKey = partial(t.Key, optional=True)
 CONFIG_FILENAME = 'batch_scoring.ini'
 
 
-def verify_objectid(id_):
+def verify_objectid(value):
     """Verify if id_ is a proper ObjectId. """
-    if not len(id_) == 24:
-        raise ValueError('id {} not a valid project/model id'.format(id_))
+    try:
+        t.String(regex='^[A-Fa-f0-9]{24}$').check(value)
+    except t.DataError:
+        raise ValueError('id {} not a valid project/model id'.format(value))
 
 
 config_validator = t.Dict({
     OptKey('host'): t.String,
-    OptKey('project_id'): t.contrib.object_id.MongoId >> str,
-    OptKey('model_id'): t.contrib.object_id.MongoId >> str,
+    OptKey('project_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
+    OptKey('model_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
+    OptKey('import_id'): t.String,
     OptKey('n_retry'): t.Int,
     OptKey('keep_cols'): t.String,
     OptKey('n_concurrent'): t.Int,
@@ -333,8 +336,8 @@ def warn_if_redirected(req, ui):
                            ''.format(starting_endpoint, redirect_endpoint))
 
 
-def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
-              compression=None):
+def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
+                         batch, ui, compression=None):
     """Check if user is authorized for the given model and that schema is
     correct.
 
@@ -351,9 +354,16 @@ def authorize(user, api_token, n_retry, endpoint, base_headers, batch, ui,
         else:
             data = batch.data
         try:
-            r = requests.post(endpoint, headers=base_headers,
-                              data=data,
-                              auth=(user, api_token))
+            if user and api_token:
+                r = requests.post(endpoint, headers=base_headers,
+                                  data=data,
+                                  auth=(user, api_token))
+            elif not (user and api_token):
+                r = requests.post(endpoint, headers=base_headers,
+                                  data=data)
+            else:
+                ui.fatal("Aborting: no auth credentials passed")
+
             ui.debug('authorization request response: {}|{}'
                      .format(r.status_code, r.text))
             if r.status_code == 200:

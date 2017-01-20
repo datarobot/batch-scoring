@@ -1,6 +1,6 @@
 import mock
 import pytest
-from datarobot_batch_scoring.main import main, UI
+from datarobot_batch_scoring.main import main, UI, main_standalone
 
 
 def test_without_passed_user_and_passwd(monkeypatch):
@@ -28,6 +28,7 @@ def test_without_passed_user_and_passwd(monkeypatch):
             create_api_token=False,
             pid='56dd9570018e213242dfa93c',
             lid='56dd9570018e213242dfa93d',
+            import_id=None,
             n_retry=3,
             concurrent=1,
             resume=False,
@@ -73,6 +74,7 @@ def test_keep_cols(monkeypatch):
             create_api_token=False,
             pid='56dd9570018e213242dfa93c',
             lid='56dd9570018e213242dfa93d',
+            import_id=None,
             n_retry=3,
             concurrent=4,
             resume=False,
@@ -162,6 +164,7 @@ def test_datarobot_key(monkeypatch):
             create_api_token=False,
             pid='56dd9570018e213242dfa93c',
             lid='56dd9570018e213242dfa93d',
+            import_id=None,
             n_retry=3,
             concurrent=4,
             resume=False,
@@ -208,6 +211,7 @@ def test_encoding_options(monkeypatch):
             create_api_token=False,
             pid='56dd9570018e213242dfa93c',
             lid='56dd9570018e213242dfa93d',
+            import_id=None,
             n_retry=3,
             concurrent=4,
             resume=False,
@@ -233,9 +237,9 @@ def test_encoding_options(monkeypatch):
 def test_invalid_delimiter(monkeypatch):
     main_args = ['--host',
                  'http://localhost:53646/api',
+                 '--delimiter', 'INVALID',
                  '56dd9570018e213242dfa93c',
                  '56dd9570018e213242dfa93d',
-                 '--delimiter', 'INVALID',
                  'tests/fixtures/temperatura_predict.csv']
 
     ui_class = mock.Mock(spec=UI)
@@ -293,6 +297,7 @@ def test_output_delimiter(monkeypatch):
             create_api_token=False,
             pid='56dd9570018e213242dfa93c',
             lid='56dd9570018e213242dfa93d',
+            import_id=None,
             n_retry=3,
             concurrent=4,
             resume=False,
@@ -339,6 +344,7 @@ def test_skip_row_id(monkeypatch):
             create_api_token=False,
             pid='56dd9570018e213242dfa93c',
             lid='56dd9570018e213242dfa93d',
+            import_id=None,
             n_retry=3,
             concurrent=4,
             resume=False,
@@ -356,6 +362,50 @@ def test_skip_row_id(monkeypatch):
             encoding='utf-8',
             skip_dialect=True,
             skip_row_id=True,
+            output_delimiter=None,
+            compression=False
+        )
+
+
+def test_datarobot_transferable_call(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '0ec5bcea7f0f45918fa88257bfe42c09',
+                 'tests/fixtures/temperatura_predict.csv']
+
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', mock.Mock(spec=UI))
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        main_standalone(argv=main_args)
+        mock_method.assert_called_once_with(
+            base_url='http://localhost:53646/api/v1/',
+            base_headers={},
+            user=mock.ANY,
+            pwd=mock.ANY,
+            api_token=None,
+            create_api_token=False,
+            pid=None,
+            lid=None,
+            import_id='0ec5bcea7f0f45918fa88257bfe42c09',
+            n_retry=3,
+            concurrent=4,
+            resume=False,
+            n_samples=False,
+            out_file='out.csv',
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv',
+            pred_name=None,
+            timeout=30,
+            ui=mock.ANY,
+            fast_mode=False,
+            auto_sample=True,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False,
+            skip_row_id=False,
             output_delimiter=None,
             compression=False
         )

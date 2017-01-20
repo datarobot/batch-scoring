@@ -45,7 +45,7 @@ Cut a release candidate
   - tag release
   - push a tag to GitHub
 
-Travis bot runs authomated tests and publish new version on PyPI when
+Travis bot runs automated tests and publish new version on PyPI when
 tests are passed.
 
 Packaging for windows

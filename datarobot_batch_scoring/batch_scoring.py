@@ -25,7 +25,8 @@ from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             Shovel, auto_sampler,
                                             investigate_encoding_and_dialect,
                                             decode_reader_state)
-from datarobot_batch_scoring.utils import (acquire_api_token, authorize)
+from datarobot_batch_scoring.utils import (acquire_api_token,
+                                           make_validation_call)
 from datarobot_batch_scoring.writer import (WriterProcess, RunContext,
                                             decode_writer_state)
 
@@ -53,7 +54,7 @@ def format_usage(rusage):
 
 def run_batch_predictions(base_url, base_headers, user, pwd,
                           api_token, create_api_token,
-                          pid, lid, n_retry, concurrent,
+                          pid, lid, import_id, n_retry, concurrent,
                           resume, n_samples,
                           out_file, keep_cols, delimiter,
                           dataset, pred_name,
@@ -105,7 +106,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         base_headers['content-type'] = 'text/csv; charset=utf8'
         if compression:
             base_headers['Content-Encoding'] = 'gzip'
-        endpoint = base_url + '/'.join((pid, lid, 'predict'))
+        if import_id:
+            endpoint = base_url + '/'.join((import_id, 'predict'))
+        else:
+            endpoint = base_url + '/'.join((pid, lid, 'predict'))
         encoding = investigate_encoding_and_dialect(
             dataset=dataset,
             sep=delimiter, ui=ui,
@@ -136,15 +140,16 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         if not dry_run:
 
-            if not api_token:
+            if not (api_token or import_id):
                 try:
                     api_token = acquire_api_token(base_url, base_headers, user,
                                                   pwd, create_api_token, ui)
                 except Exception as e:
                     ui.fatal(str(e))
 
-            authorize(user, api_token, n_retry, endpoint, base_headers,
-                      first_row, ui, compression=compression)
+            make_validation_call(user, api_token, n_retry, endpoint,
+                                 base_headers, first_row, ui,
+                                 compression=compression)
 
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
@@ -236,8 +241,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         network_done = False
         writer_done = False
 
-        shovel_exitcode = None
-        network_exitcode = None
         writer_exitcode = None
 
         n_ret = False
@@ -262,7 +265,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         local_abort_flag = [False]
 
-        def exit_fast(a, b):
+        def exit_fast(*_):
             local_abort_flag[0] = True
 
         signal.signal(signal.SIGINT, exit_fast)
