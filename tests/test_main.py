@@ -1,6 +1,6 @@
 import mock
 import pytest
-from datarobot_batch_scoring.main import main, UI
+from datarobot_batch_scoring.main import main, UI, main_standalone
 
 
 def test_without_passed_user_and_passwd(monkeypatch):
@@ -371,18 +371,17 @@ def test_datarobot_transferable_call(monkeypatch):
     main_args = ['--host',
                  'http://localhost:53646/api',
                  '0ec5bcea7f0f45918fa88257bfe42c09',
-                 'tests/fixtures/temperatura_predict.csv',
-                 '--datarobot_key', 'the_key']
+                 'tests/fixtures/temperatura_predict.csv']
 
     monkeypatch.setattr('datarobot_batch_scoring.main.UI', mock.Mock(spec=UI))
 
     with mock.patch(
             'datarobot_batch_scoring.main'
             '.run_batch_predictions') as mock_method:
-        main(argv=main_args)
+        main_standalone(argv=main_args)
         mock_method.assert_called_once_with(
             base_url='http://localhost:53646/api/v1/',
-            base_headers={'datarobot-key': 'the_key'},
+            base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,
             api_token=None,

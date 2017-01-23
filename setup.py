@@ -21,7 +21,9 @@ else:
 
     extra['entry_points'] = {
         'console_scripts': [
-            'batch_scoring = datarobot_batch_scoring.main:main']}
+            'batch_scoring = datarobot_batch_scoring.main:main',
+            'batch_scoring_sse = datarobot_batch_scoring.main:main_standalone'
+        ]}
     extra['install_requires'] = install_requires
 
 
