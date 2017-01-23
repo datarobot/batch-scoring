@@ -49,8 +49,7 @@ The following table describes the syntax conventions; the syntax for running the
 DataRobot supplies two scripts, each for a different application. Use:
 
 - ``batch_scoring`` to score on dedicated prediction instances.
-- ``batch_scoring_sse`` is used to score on standalone prediction instances. If you are unsure od
- your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
+- ``batch_scoring_sse`` is used to score on standalone prediction instances. If you are unsure of your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
 
 ============  =======
  Convention   Meaning
