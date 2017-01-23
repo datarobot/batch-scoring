@@ -49,8 +49,7 @@ The following table describes the syntax conventions; the syntax for running the
 Please note that we supply to different scripts:
 
 - ``batch_scoring`` is used to score over ORM and dedicated prediction instances.
-- ``batch_scoring_sse`` is used to score over standalone prediction instances.  If you not familiar
-with the instance types please contact your support.
+- ``batch_scoring_sse`` is used to score over standalone prediction instances.  If you not familiar with the instance types please contact your support.
 
 ============  =======
  Convention   Meaning
