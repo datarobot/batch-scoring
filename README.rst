@@ -29,11 +29,11 @@ How to install particular version: ::
 Features
 --------
 
-  * Concurrent requests (``--n_concurrent``)
-  * Pause/resume
-  * Gzip support
-  * Custom delimiters
-  * parallel processing
+* Concurrent requests (``--n_concurrent``)
+* Pause/resume
+* Gzip support
+* Custom delimiters
+* parallel processing
 
 
 Running batch_scoring
@@ -42,14 +42,14 @@ Running batch_scoring
 You can execute the ``batch_scoring`` or ``batch_scoring_sse`` command from the command line or
 you can pass parameters to a ``batch_scoring`` or ``batch_scoring_sse`` script from .ini file. Place
 the file in your home directory or the directory from which you are running the ``batch_scoring``
- or ``batch_scoring_sse`` command. Use the syntax and arguments below to define the parameters.
- Note that if you run the script and also execute via the command line, the command line parameters take priority.
+or ``batch_scoring_sse`` command. Use the syntax and arguments below to define the parameters.
+Note that if you run the script and also execute via the command line, the command line parameters take priority.
 
 The following table describes the syntax conventions; the syntax for running the script follows the table.
 Please note that we supply to different scripts:
 ``batch_scoring`` is used to score over ORM and dedicated prediction instances.
 ``batch_scoring_sse`` is used to score over standalone prediction instances.  If you not familiar
- with the instance types please contact your support.
+with the instance types please contact your support.
 
 ============  =======
  Convention   Meaning
@@ -76,9 +76,9 @@ The following table describes each of the arguments:
 ============================== ========== ========= ===========
   Argument                     Standalone Dedicated Description
 ------------------------------ ---------- --------- -----------
- host=<host>                       +          +     Specifies the hostname of the prediction API endpoint (the location of the data from where to get predictions).
- user=<user>                       -          +     Specifies the username used to acquire the api-token. Use quotes if the name contains spaces.
- <import_id>                       +          -     Specifies imported model unique identification string. You can ask for ID your prediction administrator who did the import procedure.
+ host=<host>                      \+         \+     Specifies the hostname of the prediction API endpoint (the location of the data from where to get predictions).
+ user=<user>                      \-         \+     Specifies the username used to acquire the api-token. Use quotes if the name contains spaces.
+ <import_id>                      \+         \-     Specifies imported model unique identification string. You can ask for ID your prediction administrator who did the import procedure.
  <project_id>                      -          +     Specifies the project identification string. You can find the ID: embedded in the URL that displays when you are in the Leaderboard (for example, ``https://<host>/projects/<project_id>/models``) or when the prediction API is enabled, from the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
  <model_id>                        -          +     Specifies the model identification string. You can find the ID: embedded in the URL that displays when you are in the Leaderboard and have selected a model  (for example, ``https://<host>/projects/<project_id>/models/<model_id>``) or when the prediction API is enabled, from the example shown when you click Deploy Model for a specific model in the Leaderboard.
  <dataset_filepath>                +          +     Specifies the .csv input file that the script scores. It does this by submitting prediction requests against <host> using project <project_id> and model <model_id>.
@@ -127,9 +127,10 @@ The format of a `batch_scoring.ini` file is as follows::
 
 Usage Notes
 -----------
-  * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
-  * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
-  * The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file. Windows users will see two additional log file, `datarobot_batch_scoring_batcher.log` and `datarobot_batch_scoring_writer.log`.
+
+* If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
+* If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
+* The logs from each batch_scoring run are stored in the current working. All users will see a `datarobot_batch_scoring_main.log` log file. Windows users will see two additional log file, `datarobot_batch_scoring_batcher.log` and `datarobot_batch_scoring_writer.log`.
 
 
 Supported Platforms
