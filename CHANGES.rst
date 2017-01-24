@@ -1,4 +1,4 @@
-X.X.X
+1.9.1 (2017 January 6)
 ==================
 
 * switched to supervisor + workers architecture, improving handling of errors and

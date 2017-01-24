@@ -403,6 +403,9 @@ class WriterProcess(object):
 
         if pred_name is not None:
             out_fields = ['row_id', pred_name]
+            # batch scoring returns only positive class for binary tasks if
+            # user specified pred_name option, so we eliminate negative
+            # result
             if len(fields) == 2 and single_row['prediction'] in fields:
                 fields = [fields[-1]]
         else:
