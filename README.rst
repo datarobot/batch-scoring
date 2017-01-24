@@ -49,7 +49,7 @@ The following table describes the syntax conventions; the syntax for running the
 DataRobot supplies two scripts, each for a different application. Use:
 
 - ``batch_scoring`` to score on dedicated prediction instances.
-- ``batch_scoring_sse`` is used to score on standalone prediction instances. If you are unsure of your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
+- ``batch_scoring_sse`` to score on standalone prediction instances. If you are unsure of your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
 
 ============  =======
  Convention   Meaning
@@ -65,10 +65,12 @@ Required arguments:
 
 ``batch_scoring_sse --host=<host> <import_id> <dataset_filepath>``
 
-Additional recommended arguments
+Additional recommended arguments:
+
 ``[--verbose]  [--keep_cols=<keep_cols>]  [--n_concurrent=<n_concurrent>]``
 
-Additional optional arguments
+Additional optional arguments:
+
 ``[--out=<filepath>] [--api_version=<api_version>] [--pred_name=<string>] [--timeout=<timeout>] [—-create_api_token]  [--n_retry=<n_retry>] [--delimiter=<delimiter>]  [--resume]  [--skip_row_id]  [--output_delimiter=<delimiter>]``
 
 Argument descriptions:
@@ -85,7 +87,7 @@ The following table describes each of the arguments:
  <dataset_filepath>               \+         \+     Specifies the .csv input file that the script scores. DataRobot scores models by submitting prediction requests against ``<host>`` using project ``<project_id>`` and model ``<model_id>``.
  datarobot_key=<datarobot_key>    \-         \+     An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
  password=<pwd>                   \-         \+     Specifies the password used to acquire the API token. Use quotes if the password contains spaces. You must specify either the password or the API token argument. To avoid entering your password each time you run the script, use the ``api_token`` argument instead.
- api_token=<api_token>            \-         \+     Specifies the api token for requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
+ api_token=<api_token>            \-         \+     Specifies the API token for requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
  out=<filepath>                   \+         \+     Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
  verbose                          \+         \+     Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose), the default, displays very little output.
  keep_cols=<keep_cols>            \+         \+     Specifies the column names to append to the predictions. Enter as a comma-separated list.
@@ -97,14 +99,14 @@ The following table describes each of the arguments:
  skip_row_id                      \+         \+     Skip the row_id column in output.
  output_delimiter=<delimiter>     \+         \+     Specifies the delimiter for the output CSV file. The special keyword "tab" can be used to indicate a tab-delimited CSV.
  timeout=<timeout>                \+         \+     The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring or batch_scoring_sse command) closes the connection and retries, up to the number of times defined by the value of ``<n_retry>``. The default value is 30 seconds.
- delimiter=<delimiter>            \+         \+     Specifies the delimiter to recognize in the input .csv file (e.g., "--delimiter=,"). If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab-delimited csv.
+ delimiter=<delimiter>            \+         \+     Specifies the delimiter to recognize in the input .csv file (e.g., "--delimiter=,"). If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab-delimited CSV.
  resume                           \+         \+     Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same arguments plus this ``resume`` argument. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
  help                             \+         \+     Shows usage help for the command.
  fast                             \+         \+     *Experimental*: Enables a faster .csv processor. Note that this method does not support multiline CSV files.
- stdout                           \+         \+     Sends all log messages to stdout. If not specified, log messages to the ``datarobot_batch_scoring_main.log`` file.
+ stdout                           \+         \+     Sends all log messages to stdout. If not specified, the command sends log messages to the ``datarobot_batch_scoring_main.log`` file.
  auto_sample                      \+         \+     Override the ``<n_samples>`` value and instead uses chunks of roughly 2.5 MB to improve throughput. Enabled by default.
  encoding                         \+         \+     Specifies dataset encoding. If not provided, the batch_scoring or batch_scoring_sse script attempts to detect the decoding (e.g., "utf-8", "latin-1", or "iso2022_jp"). See the `Python standard encodings <https://docs.python.org/3/library/codecs.html#standard-encodings>`_ for a list of valid values.
- skip_dialect                     \+         \+     Specifies that the script skips CSV dialect detection. By default, the scripts do detect CSV dialect.
+ skip_dialect                     \+         \+     Specifies that the script skips CSV dialect detection and uses default "excel" dialect for CSV parsing. By default, the scripts do detect CSV dialect for proper batch generation on the client side.
 ============================== ========== ========= ===========
 
 Example::
@@ -131,7 +133,7 @@ Usage Notes
 
 * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
 * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
-* The logs from each `batch_scoring` and `batch_scoring_sse` run are stored in the current working directory. All users see a `datarobot_batch_scoring_main.log` log file. Windows users see two additional log files, `datarobot_batch_scoring_batcher.log` and `datarobot_batch_scoring_writer.log`.
+* The logs from each ``batch_scoring`` and ``batch_scoring_sse`` run are stored in the current working directory. All users see a ``datarobot_batch_scoring_main.log`` log file. Windows users see two additional log files, ``datarobot_batch_scoring_batcher.log`` and ``datarobot_batch_scoring_writer.log``.
 
 
 Supported Platforms
