@@ -140,4 +140,7 @@ Supported Platforms
 -------------------
 The batch_scoring script is tested on Linux and Windows, but it should also work on OS X. Both Python 2.7 and Python 3.x are supported.
 
+Recommended Platform
+-------------------
+Python 3 is recommended over Python 2 because Python 3 seems to handle encoding errors more gracefully. Python 3 also performs better.
 
