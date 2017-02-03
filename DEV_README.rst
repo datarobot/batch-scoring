@@ -48,13 +48,22 @@ Cut a release candidate
 Travis bot runs automated tests and publish new version on PyPI when
 tests are passed.
 
-Packaging for windows
+PyInstaller single-file executable - experimental
 ---------------------
-Use Python 3.4 only -- py2exe doesn't work with Python 3.5:
 
-1. install py2exe (pip install py2exe)
-2. install requirements (pip install -r requirements34.txt)
-3. build dist (python setup.py py2exe)
-4. Distribute content of *dist* folder
-5. On target machine download "Microsoft Visual C++ 2010 Redistributable Package (x64)" (https://www.microsoft.com/en-us/download/details.aspx?id=14632) and install
-6. Enjoy!
+`See an overview of PyInstaller here <http://pyinstaller.readthedocs.io/en/stable/operating-mode.html>`_
+
+This is still experimental, but it seems to work on linux. PyInstaller bundles
+all the code and dependencies, including the Python interpreter, into a single
+directory or executable file. Right now we are creating two single-file
+executables; batch_scoring_sse and batch_scoring.
+
+To create the installs, activate a virtualenv, preferably with python3, and
+run ``make pyinstaller``.  The executables will be placed in ``./dist/``.
+
+This is considered experimental because it's untested, and may not work on every platform
+we need to support. For example, we need to be careful about
+`linux apps forward compatible<http://pyinstaller.readthedocs.io/en/stable/usage.html#making-linux-apps-forward-compatible>`_
+, and we would need separate builds for
+`OSX and Windows<http://pyinstaller.readthedocs.io/en/stable/usage.html#supporting-multiple-operating-systems>`_
+.

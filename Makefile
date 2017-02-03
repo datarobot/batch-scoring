@@ -21,10 +21,16 @@ cov cover coverage: .install .install-test-deps flake8
             --cov-report=term --cov-report=html tests/
 	@echo "open file://`pwd`/htmlcov/index.html"
 
+pyinstaller: clean
+	pip uninstall -y datarobot_batch_scoring || true
+	pip install -r requirements.txt -r requirements-test.txt
+	pyinstaller -y --onefile -n batch_scoring batch_scoring.py
+	pyinstaller -y --onefile -n batch_scoring_sse batch_scoring_sse.py
+
 clean:
 	@rm -rf .install
 	@rm -rf .install-test-deps
-	@rm -rf datarobot_batch_scoring.egg-info
+	@rm -rf datarobot_batch_scoring.egg-info build/* dist/*
 	@rm -rf htmlcov
 	@rm -rf .coverage
 	@find . -name __pycache__ | xargs rm -rf
