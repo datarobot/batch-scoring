@@ -49,7 +49,7 @@ Travis bot runs automated tests and publish new version on PyPI when
 tests are passed.
 
 PyInstaller single-file executable - experimental
----------------------
+-------------------------------------------------
 
 `See an overview of PyInstaller here <http://pyinstaller.readthedocs.io/en/stable/operating-mode.html>`_
 
@@ -62,8 +62,8 @@ To create the installs, activate a virtualenv, preferably with python3, and
 run ``make pyinstaller``.  The executables will be placed in ``./dist/``.
 
 This is considered experimental because it's untested, and may not work on every platform
-we need to support. For example, we need to be careful about
-`linux apps forward compatible<http://pyinstaller.readthedocs.io/en/stable/usage.html#making-linux-apps-forward-compatible>`_
-, and we would need separate builds for
-`OSX and Windows<http://pyinstaller.readthedocs.io/en/stable/usage.html#supporting-multiple-operating-systems>`_
-.
+we need to support. For example, we need to be careful that linux apps are
+forward compatible_, and we would need separate builds_ for OSX and Windows.
+
+.. _compatible: http://pyinstaller.readthedocs.io/en/stable/usage.html#making-linux-apps-forward-compatible
+.. _builds: http://pyinstaller.readthedocs.io/en/stable/usage.html#supporting-multiple-operating-systems
