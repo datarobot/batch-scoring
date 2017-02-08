@@ -52,9 +52,10 @@ offlinebundle:
 		. ./TEMPVENV/bin/activate; \
 		pip install -U pip setuptools; \
 		python setup.py sdist; \
-		pip download --dest=dist/offlinebundle/helper_packages --no-cache-dir  \
+		pip download --dest=dist/offlinebundle/helper_packages --no-cache-dir --only-binary :all: \
+						--implementation=py --abi=none --platform=any \
 						pip setuptools virtualenv virtualenvwrapper wheel appdirs \
-						pyparsing six packaging ; \
+						pyparsing six packaging; \
 		pip download --dest=dist/offlinebundle/required_packages --no-cache-dir --no-binary :all: \
 						dist/datarobot_batch_scoring-"$${VERSION}".tar.gz; \
 		cd ./dist ; \
