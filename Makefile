@@ -1,6 +1,8 @@
 VERSION := $(shell python -c 'from datarobot_batch_scoring.__init__ import __version__ as v ; print(v)')
+CDIR := $(shell pwd)
 export VERSION
-.PHONY: test
+export CDIR
+.PHONY: test clean
 
 .install-test-deps: requirements-test.txt
 	pip install -U -r requirements-test.txt
@@ -24,13 +26,12 @@ cov cover coverage: .install .install-test-deps flake8
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 pyinstaller: clean
-	rm -rf dist/pyinstaller dist/datarobot_batch_scoring_*_executables
 	mkdir -p dist/pyinstaller
 	cp OFFLINE_INSTALL_README.txt dist/pyinstaller
 	( \
-		PYTHON=`which python3.5 || which python3.4 || which python` ; \
-		virtualenv --python="$${PYTHON}" TEMPVENV ; \
-		. ./TEMPVENV/bin/activate; \
+		PYTHON=`which python3.5 || which python3` ; \
+		$${PYTHON} -m venv TEMPVENV ; \
+		. ./TEMPVENV/bin/activate ; \
 		pip install -U pip ; \
 		pip install -r requirements.txt -r requirements-test.txt ; \
 		pip install -U urllib3[secure] ; \
@@ -41,6 +42,10 @@ pyinstaller: clean
 		zip -r -0 datarobot_batch_scoring_"$${VERSION}"_executables.zip datarobot_batch_scoring_"$${VERSION}"_executables; \
 	)
 
+pyinstaller_dockerized:
+	docker run --rm -it -v ${CDIR}:/batch-scoring pyinstaller-centos5-py35-build \
+		/batch-scoring/offline_install_scripts/build_pyinstall_dockerized.sh
+
 offlinebundle:
 	@rm -rf ./TEMPVENV ./dist/offlinebundle
 	@mkdir -p dist/offlinebundle/required_packages dist/offlinebundle/helper_packages
@@ -48,7 +53,7 @@ offlinebundle:
 	wget https://bootstrap.pypa.io/get-pip.py
 	@mv get-pip.py dist/offlinebundle/
 	( \
-		virtualenv TEMPVENV; \
+		python -m venv TEMPVENV; \
 		. ./TEMPVENV/bin/activate; \
 		pip install -U pip setuptools; \
 		python setup.py sdist; \
@@ -61,6 +66,10 @@ offlinebundle:
 		cd ./dist ; \
 		zip -r -0 datarobot_batch_scoring_"$${VERSION}"_offlinebundle.zip offlinebundle ; \
 	)
+
+offlinebundle_dockerized:
+	docker run --rm -it -v ${CDIR}:/batch-scoring python:3.5 \
+		/batch-scoring/offline_install_scripts/build_offlinebundle_dockerized.sh
 
 clean:
 	@rm -rf .install
