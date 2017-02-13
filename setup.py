@@ -35,8 +35,7 @@ with codecs.open(fname, 'r', 'latin1') as fp:
 setup(
     name='datarobot_batch_scoring',
     version=version,
-    description=("A script to support start/resume batch scoring "
-                 "via Datarobot API."),
+    description=("A script to score CSV files via DataRobot's prediction API"),
     author='DataRobot',
     author_email='support@datarobot.com',
     maintainer='DataRobot',
