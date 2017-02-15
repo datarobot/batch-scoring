@@ -158,10 +158,10 @@ Usage Notes
 
 Supported Platforms
 -------------------
-The batch_scoring script is tested on Linux and Windows, but it should also work on OS X. Both Python 2.7 and Python 3.x are supported.
+datarobot_batch_scoring is tested on Linux and Windows and OS X. Both Python 2.7.x and Python 3.x are supported.
 
-Recommended Platform
---------------------
-Python 3.4+ is recommended over Python 2.7.x. Python 2 sometimes errors decoding datasets
+Recommended Python Version
+--------------------------
+Python 3.4 or greater is recommended, but all versions of Python 3 should work. Python 2.7.x. will work, but it sometimes errors decoding data
 that Python 3 handles gracefully. Python 3 is also faster.
 
