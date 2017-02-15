@@ -1,21 +1,23 @@
-# These directions are for the offline install 
+# Instructions - Install batch_scoring using pip for an unprivilaged user
 
-# There are two methods of offline install
-  1. a zip file containing all the packages needed to install pip 
-     and batch_scoring for an unprivalaged offline user
-  2. a single-file executable made by PyInstaller that only depends on 
-     libc.
-
-
-
-1. Instructions - Install batch_scoring using pip for an unprivilaged user
+### Section 1 - unzip or untar the files
 
 # you need a zip file that has a name like 
 #    datarobot_batch_scoring_1.10.0_offlinebundle.zip
-# you must have python 2.7 or python 3 installed but pip is NOT required
+# you must have python 2.7 or python 3 installed, but pip is NOT required
 
 # unzip the offlinebundle zip file and change directory into offlinebundle
+# E.g. 
+
+unzip datarobot_batch_scoring_1.10.0_offlinebundle.zip
+cd datarobot_batch_scoring_1.10.0_offlinebundle
+
+### Section 2 - bootstrap pip
+
+# If you have pip, you can skip this section.
+
 # run the following command to install pip in --user mode
+# note you can use "python3" instead of "python" if that is an option
 
 python get-pip.py --user --no-index --find-links=helper_packages/
 
@@ -24,10 +26,10 @@ python -m pip install --user --no-index --find-links=helper_packages/ helper_pac
 
 # This will install pip and a few other commands in ~/.local/bin 
 # but that directory must be added to your path before you can use them
-# On Linux this can be done by appending the following line to your user's ~/.bashrc
-# On windows or OSX this will look different
+# On Linux this can be done by appending a line to your user's ~/.bashrc
+# 
 
-export PATH=~/.local/bin/:$PATH
+echo 'export PATH=$PATH:~/bin' >> ~/.bashrc 
 
 # then source the file if on Linux
 source ~/.bashrc
@@ -47,16 +49,3 @@ pip install --user --no-index --find-links=required_packages/ required_packages/
 
 batch_scoring --version
 
-
-
-2. Instructions - install single-file executable
-
-# The single-file executable is easy to install, but it will fail if it isn't made correctly.
-# Each executable must be built for the OS and OS version it will run on, so make 
-# sure you communicate that information. 
-
-# Once you have the executable, place it on the user's path. test them out by running
-# them on the command line
-
-batch_scoring --version
-batch_scoring_sse --version
