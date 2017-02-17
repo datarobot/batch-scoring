@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import warnings
+from multiprocessing import freeze_support
 
 from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.batch_scoring import (run_batch_predictions)
@@ -315,6 +316,7 @@ def parse_generic_options(parsed_args):
 
 
 def main(argv=sys.argv[1:]):
+    freeze_support()
     global ui  # global variable hack, will get rid of a bit later
     warnings.simplefilter('ignore')
     parsed_args = parse_args(argv)
@@ -370,6 +372,7 @@ def main(argv=sys.argv[1:]):
 
 
 def main_standalone(argv=sys.argv[1:]):
+    freeze_support()
     global ui  # global variable hack, will get rid of a bit later
     warnings.simplefilter('ignore')
     parsed_args = parse_args(argv, standalone=True)
