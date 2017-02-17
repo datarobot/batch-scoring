@@ -49,3 +49,5 @@ services:
      build:
         context: .
         dockerfile: Dockerfile-pyinstaller-centos5-py35-build
+     volumes:
+        - .:/batch-scoring
