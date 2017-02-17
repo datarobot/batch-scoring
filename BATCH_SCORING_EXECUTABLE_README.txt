@@ -1,4 +1,4 @@
-# These directions are for installing the datarobot_batch_scoring executable 
+# To install we basically just need to get the executable onto the system PATH.
 
 # Linux / OSX users
 
