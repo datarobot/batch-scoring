@@ -52,7 +52,7 @@ deploy:
     bucket: batch-scoring-release-candidates
     region: us-east-1
     set_public: false
-    folder: windows-tagged-build/
+    folder: windows-tagged-build
     artifact: build\\TAG\\*.zip
     on:
       appveyor_repo_tag: true
@@ -65,7 +65,7 @@ deploy:
     bucket: batch-scoring-release-candidates
     region: us-east-1
     set_public: false
-    folder: windows-dev-builds-not-for-release/$(APPVEYOR_BUILD_NUMBER)
+    folder: windows-dev-builds-not-for-release
     artifact: build\\PR\\*.zip
     on:
       appveyor_repo_tag: false
