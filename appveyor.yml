@@ -41,7 +41,8 @@ after_test:
   - "build.cmd 7z a build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
 
 artifacts:
-  - path: dist\*
+  - path: 'build\PR\*.zip'
+  - path: 'build\TAG\*.zip'
 
 deploy:
   # This only pushes when a tag is pushed. This is the release build
