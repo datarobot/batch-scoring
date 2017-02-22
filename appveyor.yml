@@ -1,10 +1,9 @@
+version: $(APPVEYOR_BUILD_NUMBER)
 platform: x64
 matrix:
   fast_finish: true
 
 environment:
-  BUILD_ID: $(APPVEYOR_BUILD_NUMBER)-$(APPVEYOR_REPO_BRANCH)
-  RELEASE_ZIP: datarobot_batch_scoring_$(APPVEYOR_REPO_TAG_NAME)_executables.Windows.x86_64.zip
   PYPI_PASSWD:
     secure: u+K6dKi7+CXXVFEUG4V7zUyV3w7Ntg0Ork/RGVV0eSQ=
   matrix:
@@ -34,53 +33,47 @@ test_script:
 
 after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
-  - "build.cmd 7z a dist\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip dist\\batch_scoring.exe dist\\batch_scoring_sse.exe"
-  - "build.cmd ECHO %RELEASE_ZIP%"  
-  - ps: >-
-      if($env:appveyor_repo_tag -eq 'true') {
-          if($env:PYTHON -eq 'C:\\Python35-x64') {
-              cd dist
-              7z a $env:RELEASE_ZIP batch_scoring.exe batch_scoring_sse.exe ../BATCH_SCORING_EXECUTABLE_README.txt
-              del batch_scoring.exe batch_scoring_sse.exe
-          }
-      }
-  # - "build.cmd del dist\\batch_scoring.exe dist\\batch_scoring_sse.exe"
+  - "build.cmd mkdir build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "build.cmd mkdir build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "build.cmd COPY dist\\batch_scoring.exe +dist\\batch_scoring_sse.exe +BATCH_SCORING_EXECUTABLE_README.txt build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "build.cmd COPY dist\\batch_scoring.exe +dist\\batch_scoring_sse.exe +BATCH_SCORING_EXECUTABLE_README.txt build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "build.cmd 7z a build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64.zip build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "build.cmd 7z a build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
 
 artifacts:
   - path: dist\*
+
+deploy:
+  # This only pushes when a tag is pushed. This is the release build
+  - provider: S3
+    access_key_id: AKIAJ2W2S2GOXXIHGF6Q
+    secret_access_key:
+      secure: JunkjvwVSicgKSfNZzSWTqMyc5qLV4tkLNv0M/MQDM8f9B+2kwNt+F3Usj4EAZL9
+    bucket: batch-scoring-release-candidates
+    region: us-east-1
+    set_public: false
+    folder: windows-tagged-build/
+    artifact: build\\TAG\\*.zip
+    on:
+      appveyor_repo_tag: true
+      PYTHON: "C:\\Python35-x64"
+  # This pushes a windows build on each PR
+  - provider: S3
+    access_key_id: AKIAJ2W2S2GOXXIHGF6Q
+    secret_access_key:
+      secure: JunkjvwVSicgKSfNZzSWTqMyc5qLV4tkLNv0M/MQDM8f9B+2kwNt+F3Usj4EAZL9
+    bucket: batch-scoring-release-candidates
+    region: us-east-1
+    set_public: false
+    folder: windows-dev-builds-not-for-release/$(APPVEYOR_BUILD_NUMBER)
+    artifact: build\\PR\\*.zip
+    on:
+      appveyor_repo_tag: false
+      PYTHON: "C:\\Python35-x64"
+
 
 #notifications:
 #  - provider: Webhook
 #    url: https://ci.appveyor.com/api/github/webhook?id=08c7793w1tp839fl
 #    on_build_success: false
 #    on_build_failure: True
-
-#   # release: myproduct-v$(appveyor_build_version)
-# deploy:
-#   - provider: GitHub
-#     description: 'Windows batch_scoring single-file-executables'
-#     auth_token:
-#       secure: x3h6EkNA6bT0pc9W66lV728BIooYtNBU7ApRmpWO0mC1ddbNKUlHzB8dybH76M3Q
-#     artifact: "dist\\datarobot_batch_scoring_executables.Windows.x86_64.zip"
-#     release: $(APPVEYOR_REPO_TAG_NAME)
-#     draft: false
-#     prerelease: false
-#     force_update: true
-#     on:
-#       appveyor_repo_tag: true        # deploy on tag push only
-#       platform: x64
-#       # branch: master                 # release from master branch only
-# deploy:
-#   # Development branch, deploy to github
-#   - provider: GitHub
-#     auth_token:
-#     secure: x3h6EkNA6bT0pc9W66lV728BIooYtNBU7ApRmpWO0mC1ddbNKUlHzB8dybH76M3Q
-#     release: $(BUILD_ID)-windows-dev
-#     # description needs to be declared, but can be empty, so that github not reject the deploy
-#     description: "This is a development release. It should not be used in production environments."
-#     artifact: "dist\\datarobot_batch_scoring_executables.Windows.x86_64.zip"
-#     draft: false
-#     prerelease: false
-#     on:
-#       appveyor_repo_tag: false
-
