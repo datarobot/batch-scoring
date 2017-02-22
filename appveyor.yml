@@ -1,4 +1,4 @@
-version: $(APPVEYOR_BUILD_NUMBER)
+version: '{build}'
 platform: x64
 matrix:
   fast_finish: true
