@@ -35,10 +35,19 @@ after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
   - "build.cmd mkdir build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
   - "build.cmd mkdir build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
-  - "build.cmd COPY dist\\batch_scoring.exe +dist\\batch_scoring_sse.exe +BATCH_SCORING_EXECUTABLE_README.txt build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
-  - "build.cmd COPY dist\\batch_scoring.exe +dist\\batch_scoring_sse.exe +BATCH_SCORING_EXECUTABLE_README.txt build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
-  - "build.cmd 7z a build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64.zip build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
-  - "build.cmd 7z a build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+
+  - "build.cmd COPY dist\\batch_scoring.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "build.cmd COPY dist\\batch_scoring_sse.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "build.cmd COPY BATCH_SCORING_EXECUTABLE_README.txt build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+
+  - "build.cmd COPY dist\\batch_scoring.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "build.cmd COPY dist\\batch_scoring_sse.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "build.cmd COPY BATCH_SCORING_EXECUTABLE_README.txt build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "build.cmd cd build\\PR"
+  - "build.cmd 7z a datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64.zip datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "build.cmd ..\\.."
+  - "build.cmd cd build\\TAG"
+  - "build.cmd 7z a datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
 
 artifacts:
   - path: 'build\PR\*.zip'
