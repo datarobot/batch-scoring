@@ -2,10 +2,9 @@
 
 # Linux / OSX users
 
-# 1. Unzip or untar the executables 
+# 1. untar the executables 
 
-  unzip datarobot_batch_scoring_*_executables.Linux.x86_64.zip    # for zip
-  tar -xf datarobot_batch_scoring_*_executables.Linux.x86_64.tar  # for tar 
+  tar -xf datarobot_batch_scoring_*_executables.Linux.x86_64.tar  
 
 
 # 2. Install 
@@ -26,3 +25,10 @@
     batch_scoring --help                                   # test that it worked
 
 
+# Windows users
+
+# 1. unzip the executables 
+
+right-click > extract here
+
+# 2. move executables to user's path

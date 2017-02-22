@@ -27,42 +27,54 @@ matrix:
     - language: python
       python: 3.5
       os: linux
-
 install:
-  - if [ $TRAVIS_OS_NAME == 'osx' ]; then git clone https://github.com/MacPython/terryfy; source terryfy/travis_tools.sh; get_python_environment  $pydist $pyver; fi
-  - pip install -U pip wheel
-  - pip install -Ur requirements.txt
-  - pip install -Ur requirements-test.txt
-  - pip install coveralls
-
-
+- if [ $TRAVIS_OS_NAME == 'osx' ]; then git clone https://github.com/MacPython/terryfy;
+  source terryfy/travis_tools.sh; get_python_environment  $pydist $pyver; fi
+- pip install -U pip wheel
+- pip install -Ur requirements.txt
+- pip install -Ur requirements-test.txt
+- pip install coveralls
 script:
-  - if [ $TRAVIS_OS_NAME == 'osx' ]; then ulimit -n 2048; fi
-  - make cov
-  - if [ $TRAVIS_OS_NAME != 'osx' ]; then python setup.py check -rms; fi
-  - pip install -r requirements-pyinstaller.txt
-  - pyinstaller -y --distpath=dist/ --onefile -n batch_scoring batch_scoring.py
-  - pyinstaller -y --distpath=dist/ --onefile -n batch_scoring_sse batch_scoring_sse.py
-  - dist/batch_scoring  --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
-  - dist/batch_scoring_sse  --host=https://foo.bar.com  000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
-
+- if [ $TRAVIS_OS_NAME == 'osx' ]; then ulimit -n 2048; fi
+- make cov
+- if [ $TRAVIS_OS_NAME != 'osx' ]; then python setup.py check -rms; fi
+- pip install -r requirements-pyinstaller.txt -U urllib3[secure]
+- pyinstaller -y --distpath=dist/ --onefile -n batch_scoring batch_scoring.py
+- pyinstaller -y --distpath=dist/ --onefile -n batch_scoring_sse batch_scoring_sse.py
+- dist/batch_scoring  --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032
+  --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 000000000000000000000024
+  tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
+- dist/batch_scoring_sse  --host=https://foo.bar.com  000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz
+  --dry_run --compress  -y
 cache:
   directories:
-  - $HOME/.cache/pip
-
+  - "$HOME/.cache/pip"
 before_cache:
-  - rm -f $HOME/.cache/pip/log/debug.log
-
+- rm -f $HOME/.cache/pip/log/debug.log
 after_success:
-  - coveralls
-
+- coveralls
+- if [[ $TRAVIS_TAG ]]; then if [[ $pyver = '3.5' ]]; then ./offline_install_scripts/travis_pyinstaller_osx.sh $TRAVIS_TAG ; fi ; fi
 deploy:
-  provider: pypi
-  user: Axik
-  password:
-    secure: bn1C6OcsCyJ9jcEGusgyTHo4FS8SOrhVVtQpQVxolw8RJvQjSj666vuosG2r8DeIhhUrR9KV1Ee2A2HhSCkHCFw4fnIgsSXYLWj3DqbCdo9Qcs9raEevd2SDsNnxUjyfzm+0pQpqeA/La1+Pj94+CsSyJTlZSEepedtla/9zfJcIgJ/Z7g0rT7MLjBhGOf6ADepjtO5ZcmOIMaa/+iehZHtbfQJsjYfYIYQy/LJlX2MGFxMkUnyrnF/XuiK0tMTgeEvyOi8W6cDf3vIKHWp5f+mu8ZyyBcREeIkAgSzXvqrcta/m8kHGGRbjnS1tTORTudIUkUBtET+rUYiPRb3gFaEqLgjy0Pv5Nn34bSmAs2jEp92fzwFvOLNQhc0TKiwor1X2l6+MQvIwpRya64mke/DM3FLGknz/06q696iJEgQe1xw9Ju7dFX+IRcFsaR50jFrVsAxon51zvQ0gdgu8ztF9KU2IRTRp2qWXt7d96zyR340bwzjpgRB3QMy+2nMzOOjc0qvlI5tV77LWYA+eg/Knc2GiyMOByuygLQAjD1fxhANNDNLGItmKlAuknkuC0ovmALC9dRSwHQqO/v3eYA6nuHzdI1n3Z1LKjoUppm8RPZVNzX6EjCUGAYlmxCCEYIo7annRru/ZLWbjIc7duRZZL2sKKbwcg/qkC6bxDgo=
-  distributions: "sdist bdist_wheel"
-  on:
-    tags: true
-    all_branches: true
-    python: 3.5
+  - provider: releases
+    api_key:
+      secure: bL1mFfmelX+8c7lA8d3FFK988bq8N1mDGPVgQtx835dC+hTxpxaKwg1PaAp8hHv8IB8FnSypW9nRaqrPZ8mDHCeKNprMTm4/uxcN15nKp2oSMrSGCObpStlkz2bCRAFaxP2j+GcDjnFS5CLlJ3u1fYRqyHwGVR+4stxPBLMOpunPtmSG6qFucqfXP0xkDlIqjRu9OZexD2EgBGWo+gbBp01bNxSf50RUu1uvRhnKn16prBfW11NKiSZEwDQfjqKLxxztRT0ZACHGuWnw9cmZwo4RMK8JEmDVhv6PziKRZeCsr1sDhPF4AXigNBLDmIlvdDXR8vYkOKyKqcdcNTMfdjKFgZq/a8sG5+e/jcvOZqkvOUkUnkfInygpju+5iSylUYhpkG3DRvdzfZ9YRq3/kS82ZulTStkxB9SNDipYn5gAuLX7WaEu6JJ5cdHsmRsXhBNFR7cOWOwFH/4MNn8jdCBp96R5iXmji1qGH3QVrwvZL/d/jQc+72IPf0A/1lMK8OTEX0qb4kUZ75mSZYKHJRVN8XQQUQ2KMnqEPy/pLNJCqR9w5+KnSYBJmjh+0B6Zv14fq/GlNPEzUlXOSNmgVuOarGs+QvPT8gQSilw7v9G/mQxHINgqyF9ZYxmbDpyHIez1YvlU9bCDw2q7IZzpUfUNN8Y0VTtjwzRaZQuRKR8=
+    file: dist/datarobot_batch_scoring_"$TRAVIS_TAG"_executables.OSX.x86_64.tar
+    skip_cleanup: true
+    on:
+      repo: datarobot/batch-scoring
+      tags: true
+      all_branches: true
+      condition: $pyver = '3.5'
+
+## Commented for testing
+
+  # - provider: pypi
+  #   user: Axik
+  #   password: 
+  #     secure: bn1C6OcsCyJ9jcEGusgyTHo4FS8SOrhVVtQpQVxolw8RJvQjSj666vuosG2r8DeIhhUrR9KV1Ee2A2HhSCkHCFw4fnIgsSXYLWj3DqbCdo9Qcs9raEevd2SDsNnxUjyfzm+0pQpqeA/La1+Pj94+CsSyJTlZSEepedtla/9zfJcIgJ/Z7g0rT7MLjBhGOf6ADepjtO5ZcmOIMaa/+iehZHtbfQJsjYfYIYQy/LJlX2MGFxMkUnyrnF/XuiK0tMTgeEvyOi8W6cDf3vIKHWp5f+mu8ZyyBcREeIkAgSzXvqrcta/m8kHGGRbjnS1tTORTudIUkUBtET+rUYiPRb3gFaEqLgjy0Pv5Nn34bSmAs2jEp92fzwFvOLNQhc0TKiwor1X2l6+MQvIwpRya64mke/DM3FLGknz/06q696iJEgQe1xw9Ju7dFX+IRcFsaR50jFrVsAxon51zvQ0gdgu8ztF9KU2IRTRp2qWXt7d96zyR340bwzjpgRB3QMy+2nMzOOjc0qvlI5tV77LWYA+eg/Knc2GiyMOByuygLQAjD1fxhANNDNLGItmKlAuknkuC0ovmALC9dRSwHQqO/v3eYA6nuHzdI1n3Z1LKjoUppm8RPZVNzX6EjCUGAYlmxCCEYIo7annRru/ZLWbjIc7duRZZL2sKKbwcg/qkC6bxDgo=
+  #   distributions: sdist bdist_wheel
+  #   on:
+  #     repo: datarobot/batch-scoring
+  #     tags: true
+  #     all_branches: true
+  #     python: 3.5

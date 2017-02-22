@@ -1,13 +1,17 @@
-version: 1.8.0a0.dev{build}
+platform: x64
+matrix:
+  fast_finish: true
 
 environment:
+  BUILD_ID: $(APPVEYOR_BUILD_NUMBER)-$(APPVEYOR_REPO_BRANCH)
+  RELEASE_ZIP: datarobot_batch_scoring_$(APPVEYOR_REPO_TAG_NAME)_executables.Windows.x86_64.zip
   PYPI_PASSWD:
     secure: u+K6dKi7+CXXVFEUG4V7zUyV3w7Ntg0Ork/RGVV0eSQ=
   matrix:
-    - PYTHON: "C:\\Python35"
     - PYTHON: "C:\\Python35-x64"
-    - PYTHON: "C:\\Python27"
-    - PYTHON: "C:\\Python27-x64"
+    # - PYTHON: "C:\\Python35"
+    # - PYTHON: "C:\\Python27"
+    # - PYTHON: "C:\\Python27-x64"
 
 install:
   - "build.cmd %PYTHON%\\python.exe -m pip install -U pip"
@@ -16,25 +20,67 @@ install:
   - "build.cmd %PYTHON%\\python.exe -m pip install -r requirements-test.txt"
   - "build.cmd %PYTHON%\\python.exe -m pip install -e ."
 
+
 build: false
 
 test_script:
   - "build.cmd %PYTHON%\\python.exe -m pytest -vvv"
+  - "build.cmd %PYTHON%\\python.exe -m pip install -r requirements-pyinstaller.txt -U urllib3[secure]"
+  - "build.cmd %PYTHON%\\python.exe -m pip uninstall -y datarobot_batch_scoring"
+  - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring batch_scoring.py"
+  - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring_sse batch_scoring_sse.py"
+  - "dist\\batch_scoring.exe --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
+  - "dist\\batch_scoring_sse.exe --host=https://foo.bar.com  000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
 
 after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
+  - "build.cmd 7z a dist\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip dist\\batch_scoring.exe dist\\batch_scoring_sse.exe"
+  - "build.cmd ECHO %RELEASE_ZIP%"  
+  - ps: >-
+      if($env:appveyor_repo_tag -eq 'true') {
+          if($env:PYTHON -eq 'C:\\Python35-x64') {
+              cd dist
+              7z a $env:RELEASE_ZIP batch_scoring.exe batch_scoring_sse.exe ../BATCH_SCORING_EXECUTABLE_README.txt
+              del batch_scoring.exe batch_scoring_sse.exe
+          }
+      }
+  # - "build.cmd del dist\\batch_scoring.exe dist\\batch_scoring_sse.exe"
 
 artifacts:
   - path: dist\*
-
-#deploy_script:
-#  - ps: >-
-#      if($env:appveyor_repo_tag -eq 'True') {
-#          Invoke-Expression "$env:PYTHON\\python.exe -m twine upload dist/* --username# andrew.svetlov --password $env:PYPI_PASSWD"
-#      }
 
 #notifications:
 #  - provider: Webhook
 #    url: https://ci.appveyor.com/api/github/webhook?id=08c7793w1tp839fl
 #    on_build_success: false
 #    on_build_failure: True
+
+#   # release: myproduct-v$(appveyor_build_version)
+# deploy:
+#   - provider: GitHub
+#     description: 'Windows batch_scoring single-file-executables'
+#     auth_token:
+#       secure: x3h6EkNA6bT0pc9W66lV728BIooYtNBU7ApRmpWO0mC1ddbNKUlHzB8dybH76M3Q
+#     artifact: "dist\\datarobot_batch_scoring_executables.Windows.x86_64.zip"
+#     release: $(APPVEYOR_REPO_TAG_NAME)
+#     draft: false
+#     prerelease: false
+#     force_update: true
+#     on:
+#       appveyor_repo_tag: true        # deploy on tag push only
+#       platform: x64
+#       # branch: master                 # release from master branch only
+# deploy:
+#   # Development branch, deploy to github
+#   - provider: GitHub
+#     auth_token:
+#     secure: x3h6EkNA6bT0pc9W66lV728BIooYtNBU7ApRmpWO0mC1ddbNKUlHzB8dybH76M3Q
+#     release: $(BUILD_ID)-windows-dev
+#     # description needs to be declared, but can be empty, so that github not reject the deploy
+#     description: "This is a development release. It should not be used in production environments."
+#     artifact: "dist\\datarobot_batch_scoring_executables.Windows.x86_64.zip"
+#     draft: false
+#     prerelease: false
+#     on:
+#       appveyor_repo_tag: false
+
