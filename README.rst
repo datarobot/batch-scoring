@@ -39,7 +39,7 @@ We publish two alternative install methods on our releases_ page. These are for 
 
 :PyInstaller:
     Using pyinstaller_ we build a single-file-executable that does not depend on Python. It only depends on libc and can be installed without administrative privileges.
-    Right now we publish builds that work for most Linux distros. Other NIX platforms (like OSX), and Windows are in the works.
+    Right now we publish builds that work for most Linux distros made since Centos5. OSX and Windows are also supported.
     
     These files have "executables" in their name on the release page.
 
