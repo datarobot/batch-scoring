@@ -79,16 +79,14 @@ deploy:
       all_branches: true 
       tags: false
       condition: $pyver = '3.5'
-
-## Commented for testing
-
-  # - provider: pypi
-  #   user: Axik
-  #   password: 
-  #     secure: bn1C6OcsCyJ9jcEGusgyTHo4FS8SOrhVVtQpQVxolw8RJvQjSj666vuosG2r8DeIhhUrR9KV1Ee2A2HhSCkHCFw4fnIgsSXYLWj3DqbCdo9Qcs9raEevd2SDsNnxUjyfzm+0pQpqeA/La1+Pj94+CsSyJTlZSEepedtla/9zfJcIgJ/Z7g0rT7MLjBhGOf6ADepjtO5ZcmOIMaa/+iehZHtbfQJsjYfYIYQy/LJlX2MGFxMkUnyrnF/XuiK0tMTgeEvyOi8W6cDf3vIKHWp5f+mu8ZyyBcREeIkAgSzXvqrcta/m8kHGGRbjnS1tTORTudIUkUBtET+rUYiPRb3gFaEqLgjy0Pv5Nn34bSmAs2jEp92fzwFvOLNQhc0TKiwor1X2l6+MQvIwpRya64mke/DM3FLGknz/06q696iJEgQe1xw9Ju7dFX+IRcFsaR50jFrVsAxon51zvQ0gdgu8ztF9KU2IRTRp2qWXt7d96zyR340bwzjpgRB3QMy+2nMzOOjc0qvlI5tV77LWYA+eg/Knc2GiyMOByuygLQAjD1fxhANNDNLGItmKlAuknkuC0ovmALC9dRSwHQqO/v3eYA6nuHzdI1n3Z1LKjoUppm8RPZVNzX6EjCUGAYlmxCCEYIo7annRru/ZLWbjIc7duRZZL2sKKbwcg/qkC6bxDgo=
-  #   distributions: sdist bdist_wheel
-  #   on:
-  #     repo: datarobot/batch-scoring
-  #     tags: true
-  #     all_branches: true
-  #     python: 3.5
+# PyPi Push on tag 
+  - provider: pypi
+    user: Axik
+    password: 
+      secure: bn1C6OcsCyJ9jcEGusgyTHo4FS8SOrhVVtQpQVxolw8RJvQjSj666vuosG2r8DeIhhUrR9KV1Ee2A2HhSCkHCFw4fnIgsSXYLWj3DqbCdo9Qcs9raEevd2SDsNnxUjyfzm+0pQpqeA/La1+Pj94+CsSyJTlZSEepedtla/9zfJcIgJ/Z7g0rT7MLjBhGOf6ADepjtO5ZcmOIMaa/+iehZHtbfQJsjYfYIYQy/LJlX2MGFxMkUnyrnF/XuiK0tMTgeEvyOi8W6cDf3vIKHWp5f+mu8ZyyBcREeIkAgSzXvqrcta/m8kHGGRbjnS1tTORTudIUkUBtET+rUYiPRb3gFaEqLgjy0Pv5Nn34bSmAs2jEp92fzwFvOLNQhc0TKiwor1X2l6+MQvIwpRya64mke/DM3FLGknz/06q696iJEgQe1xw9Ju7dFX+IRcFsaR50jFrVsAxon51zvQ0gdgu8ztF9KU2IRTRp2qWXt7d96zyR340bwzjpgRB3QMy+2nMzOOjc0qvlI5tV77LWYA+eg/Knc2GiyMOByuygLQAjD1fxhANNDNLGItmKlAuknkuC0ovmALC9dRSwHQqO/v3eYA6nuHzdI1n3Z1LKjoUppm8RPZVNzX6EjCUGAYlmxCCEYIo7annRru/ZLWbjIc7duRZZL2sKKbwcg/qkC6bxDgo=
+    distributions: sdist bdist_wheel
+    on:
+      repo: datarobot/batch-scoring
+      tags: true
+      all_branches: true
+      python: 3.5
