@@ -39,19 +39,43 @@ Release
 -------
 
 1. update ``__version__`` in ``datarobot_batch_scoring/__init__.py``
-2. perform acceptance tests
-3. tag release
-4. push a tag to GitHub
+2. perform acceptance tests, wait for tests to go green, get sign-off
+3. merge PR in github and get SHA
+4. tag release and push a tag to GitHub
 
-  Travis bot runs automated tests and publish new version on PyPI when  
-  tests are passed.
-5. build the **PyInstaller** and **Offlinebundle** for Linux.
+  - ``git tag vX.Y.Z  <SHA>``
+  - ``git push --tags``
+  - This triggers Travis and Appveyor bots to runs automated tests and publish new version on PyPI when tests are passed.
+  - Travis and Appveyor also build the PyInstaller executables for Windows and OSX and push to S3.
+
+5. build the **PyInstaller** and **Offlinebundle** for Linux
+
   1. build the image for PyInstaller with ``docker-compose build centos5pyinstaller``
-  2. build both releases with ``make build_release_dockerized``
-6. upload the builds producted by step 5. 
-  1. find the release page for the version that was pushed at https://github.com/datarobot/batch-scoring/releases
-  2. ``edit`` the release on github and attach the 4 files (2 zips, 2 tars) that were created in the **batch-scoring/dist** dir. ``save`` changes.
+  2. build both releases with ``make build_release_dockerized``. This will add the following to the dist dir:
 
+    - datarobot_batch_scoring_<TAG>_offlinebundle.zip
+    - datarobot_batch_scoring_<TAG>_offlinebundle.tar
+    - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.tar
+
+6. Collect the **PyInstaller** artifacts for OSX and Windows from S3
+
+    When Travis and Appveyor finish their builds they upload the pyinstaller artifacts to a S3 bucket called ``datarobot-batch-scoring-artifacts``.
+    The OSX builds are in the ``osx-tagged-artifacts`` dir. The Windows artifacts are in ``windows-tagged-artifacts``. Both should have the tag name in their name.
+    Collect the artifacts:
+
+    - datarobot_batch_scoring_<TAG>_executables.Windows.x86_64.zip
+    - datarobot_batch_scoring_<TAG>_executables.OSX.x86_64.tar
+
+7. upload the builds produced by step 5 and 6
+
+  1. find the release page for the version that was pushed at https://github.com/datarobot/batch-scoring/releases
+  2. ``edit`` the release on github and attach the 5 files:
+
+    - datarobot_batch_scoring_<TAG>_offlinebundle.zip
+    - datarobot_batch_scoring_<TAG>_offlinebundle.tar
+    - datarobot_batch_scoring_<TAG>_executables.Windows.x86_64.zip
+    - datarobot_batch_scoring_<TAG>_executables.OSX.x86_64.tar
+    - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.tar
 
 Offline Bundle
 --------------
@@ -85,26 +109,22 @@ We make a special image just for building this executable.
 
     1. build the image for PyInstaller with ``docker-compose build centos5pyinstaller``
     2. build just the pyinstaller executables with ``make pyinstaller_dockerized``. See the **Release** section of this readme for the official release process.
+    3. test the build with ``test_pyinstaller_dockerized``
 
 **PyInstaller build instructions - OSX / Other nixes**
 
-  **Dependencies:** Make, Python>=3.4, zip
+  **Dependencies:** Make, Python>=3.4 
+  Note this build is performed on Travis CI and the artifacts are uploaded on PRs to s3://datarobot-batch-scoring-artifacts/ on both PRs and tags
 
-  TODO: formalize build/release/testing process
-
-  The build works but we aren't ready to release. Dev builds can be made with ``make pyinstaller``
 
 **PyInstaller build instructions - Windows**
 
-  TODO: This should work but we don't have a build or release process for it yet.
+  Note this is done on Appveyor and the artifacts are uploaded on PRs to s3://datarobot-batch-scoring-artifacts/ on both PRs and tags
 
-
-The executables will be placed in 
-``./dist/datarobot_batch_scoring_<version>_executables.<platform>.<arch>``.
-
-This is considered experimental because it's untested, and may not work on every platform
+This is considered experimental because builds may not work on every platform
 we need to support. For example, we need to be careful that linux apps are
-forward compatible_, and we would need separate builds_ for OSX and Windows.
+forward compatible_, and our seperate builds_ for OSX and Windows have not been tested on many every versions of those OSs.
+
 
 .. _compatible: http://pyinstaller.readthedocs.io/en/stable/usage.html#making-linux-apps-forward-compatible
 .. _builds: http://pyinstaller.readthedocs.io/en/stable/usage.html#supporting-multiple-operating-systems

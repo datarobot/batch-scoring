@@ -1,40 +1,84 @@
-version: 1.8.0a0.dev{build}
+version: '{build}'
+platform: x64
+matrix:
+  fast_finish: true
 
 environment:
   PYPI_PASSWD:
     secure: u+K6dKi7+CXXVFEUG4V7zUyV3w7Ntg0Ork/RGVV0eSQ=
   matrix:
-    - PYTHON: "C:\\Python35"
     - PYTHON: "C:\\Python35-x64"
+    - PYTHON: "C:\\Python35"
     - PYTHON: "C:\\Python27"
     - PYTHON: "C:\\Python27-x64"
 
 install:
   - "build.cmd %PYTHON%\\python.exe -m pip install -U pip"
   - "build.cmd %PYTHON%\\python.exe -m pip install wheel"
-#  - "build.cmd %PYTHON%\\python.exe -m pip install twine"
   - "build.cmd %PYTHON%\\python.exe -m pip install -r requirements-test.txt"
   - "build.cmd %PYTHON%\\python.exe -m pip install -e ."
+
 
 build: false
 
 test_script:
   - "build.cmd %PYTHON%\\python.exe -m pytest -vvv"
+  - "build.cmd %PYTHON%\\python.exe -m pip install -r requirements-pyinstaller.txt -U urllib3[secure]"
+  - "build.cmd %PYTHON%\\python.exe -m pip uninstall -y datarobot_batch_scoring"
+  - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring batch_scoring.py"
+  - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring_sse batch_scoring_sse.py"
+  - "dist\\batch_scoring.exe --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
+  - "dist\\batch_scoring_sse.exe --host=https://foo.bar.com  000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
 
 after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
+  - "mkdir build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "mkdir build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+
+  - "COPY dist\\batch_scoring.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "COPY dist\\batch_scoring_sse.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "COPY BATCH_SCORING_EXECUTABLE_README.txt build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+
+  - "COPY dist\\batch_scoring.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "COPY dist\\batch_scoring_sse.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "COPY BATCH_SCORING_EXECUTABLE_README.txt build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - ps: cd build\\PR
+  - "7z a datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64.zip datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "COPY datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64.zip ..\\..\\"
+  - ps: cd ..\\..
+  - ps: cd build\\TAG
+  - "7z a datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "COPY datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64.zip ..\\..\\"
 
 artifacts:
-  - path: dist\*
+  - path: "datarobot_batch_scoring_$(APPVEYOR_REPO_TAG_NAME)_executables.Windows.x86_64.zip"
+  - path: "datarobot_batch_scoring_$(APPVEYOR_REPO_COMMIT)_executables.Windows.x86_64.zip"
 
-#deploy_script:
-#  - ps: >-
-#      if($env:appveyor_repo_tag -eq 'True') {
-#          Invoke-Expression "$env:PYTHON\\python.exe -m twine upload dist/* --username# andrew.svetlov --password $env:PYPI_PASSWD"
-#      }
+deploy:
+  # This only pushes when a tag is pushed. This is the release build
+  - provider: S3
+    access_key_id: AKIAJZGOHZRYJPG6MZXA
+    secret_access_key:
+      secure: 4hoRmOYhISdTVcwqEhaQDQWsZKrYZYE3QBpjZHyvAkDyT0rcphoxJaXU/LXIuRxe
+    bucket: datarobot-batch-scoring-artifacts
+    region: us-east-1
+    set_public: false
+    folder: windows-tagged-artifacts
+    artifact: "datarobot_batch_scoring_$(APPVEYOR_REPO_TAG_NAME)_executables.Windows.x86_64.zip"
+    on:
+      appveyor_repo_tag: true
+      PYTHON: "C:\\Python35-x64"
+  # This pushes a windows build on each PR
+  - provider: S3
+    access_key_id: AKIAJZGOHZRYJPG6MZXA
+    secret_access_key:
+      secure: 4hoRmOYhISdTVcwqEhaQDQWsZKrYZYE3QBpjZHyvAkDyT0rcphoxJaXU/LXIuRxe
+    bucket: datarobot-batch-scoring-artifacts
+    region: us-east-1
+    set_public: false
+    folder: windows-dev-builds-not-for-release
+    artifact: "datarobot_batch_scoring_$(APPVEYOR_REPO_COMMIT)_executables.Windows.x86_64.zip"
+    on:
+      appveyor_repo_tag: false
+      PYTHON: "C:\\Python35-x64"
 
-#notifications:
-#  - provider: Webhook
-#    url: https://ci.appveyor.com/api/github/webhook?id=08c7793w1tp839fl
-#    on_build_success: false
-#    on_build_failure: True
