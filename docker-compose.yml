@@ -43,3 +43,11 @@ services:
         dockerfile: Dockerfile-2.7-dbg
      volumes:
         - .:/opt/project
+  centos5pyinstaller:
+     image: pyinstaller-centos5-py35-build
+     privileged: true
+     build:
+        context: .
+        dockerfile: Dockerfile-pyinstaller-centos5-py35-build
+     volumes:
+        - .:/batch-scoring

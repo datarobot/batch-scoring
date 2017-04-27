@@ -26,6 +26,26 @@ How to install particular version: ::
 
     $ pip install datarobot_batch_scoring==x.y.z
 
+Alternative Installs
+--------------------
+
+We publish two alternative install methods on our releases_ page. These are for situations where internet is restricted or Python is unavailable.
+
+:offlinebundle:
+    For performing installations in environments where Python2.7 or Python3+ is available, but there is no access to the internet.
+    Does not require administrative privileges or pip. Works on Linux, OSX or Windows.
+    
+    These files have "offlinebundle" in their name on the release page.
+
+:PyInstaller:
+    Using pyinstaller_ we build a single-file-executable that does not depend on Python. It only depends on libc and can be installed without administrative privileges.
+    Right now we publish builds that work for most Linux distros made since Centos5. OSX and Windows are also supported.
+    
+    These files have "executables" in their name on the release page.
+
+.. _releases: https://github.com/datarobot/batch-scoring/releases
+.. _pyinstaller: http://www.pyinstaller.org/
+
 Features
 --------
 
@@ -138,6 +158,10 @@ Usage Notes
 
 Supported Platforms
 -------------------
-The batch_scoring script is tested on Linux and Windows, but it should also work on OS X. Both Python 2.7 and Python 3.x are supported.
+datarobot_batch_scoring is tested on Linux and Windows and OS X. Both Python 2.7.x and Python 3.x are supported.
 
+Recommended Python Version
+--------------------------
+Python 3.4 or greater is recommended, but all versions of Python 3 should work. Python 2.7.x. will work, but it sometimes errors decoding data
+that Python 3 handles gracefully. Python 3 is also faster.
 
