@@ -20,7 +20,7 @@ def test_without_passed_user_and_passwd(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,
@@ -66,7 +66,7 @@ def test_keep_cols(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,
@@ -156,7 +156,7 @@ def test_datarobot_key(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={'datarobot-key': 'the_key'},
             user=mock.ANY,
             pwd=mock.ANY,
@@ -203,7 +203,7 @@ def test_encoding_options(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,
@@ -289,7 +289,7 @@ def test_output_delimiter(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,
@@ -336,7 +336,7 @@ def test_skip_row_id(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,
@@ -380,7 +380,7 @@ def test_datarobot_transferable_call(monkeypatch):
             '.run_batch_predictions') as mock_method:
         main_standalone(argv=main_args)
         mock_method.assert_called_once_with(
-            base_url='http://localhost:53646/api/v1/',
+            base_url='http://localhost:53646/predApi/v1.0/',
             base_headers={},
             user=mock.ANY,
             pwd=mock.ANY,

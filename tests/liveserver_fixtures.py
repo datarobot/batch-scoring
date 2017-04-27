@@ -150,7 +150,7 @@ def app():
         response.headers['X-Datarobot-Execution-Time'] = 0.03
         return response
 
-    @app.route('/api/v1/api_token')
+    @app.route('/predApi/v1.0/api_token')
     def auth():
         auth = flask.request.authorization
         if not auth:
@@ -166,7 +166,7 @@ def app():
         else:
             return '{"api_token": "Som3tok3n"}'
 
-    @app.route('/api/v1/api_token', methods=['POST'])
+    @app.route('/predApi/v1.0/api_token', methods=['POST'])
     def post_auth():
         auth = flask.request.authorization
         if not auth:
@@ -176,11 +176,11 @@ def app():
         else:
             return '{"api_token": "Som3tok3n"}'
 
-    @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
+    @app.route('/predApi/v1.0/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
         return _predict(lid)
 
-    @app.route('/api/v1/<import_id>/predict', methods=["POST"])
+    @app.route('/predApi/v1.0/<import_id>/predict', methods=["POST"])
     def predict_transferable(import_id):
         return _predict(import_id)
 
