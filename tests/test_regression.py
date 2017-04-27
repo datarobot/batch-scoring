@@ -16,7 +16,7 @@ def test_regression(live_server, tmpdir, ui, keep_cols=None,
     # train one model in project
     out = tmpdir.join('out.csv')
 
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -62,7 +62,7 @@ def test_regression_rename(live_server, tmpdir):
     out = tmpdir.join('out.csv')
 
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -102,7 +102,7 @@ def test_regression_rename_fast(live_server, tmpdir):
     out = tmpdir.join('out.csv')
 
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -150,7 +150,7 @@ def check_regression_jp(live_server, tmpdir, fast_mode, gzipped):
     dataset_suffix = '.gz' if gzipped else ''
 
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},

@@ -307,7 +307,8 @@ def parse_host(host, ui):
         ui.fatal('Cannot parse "--host" argument. Host address must start '
                  'with a protocol such as "http://" or "https://". '
                  'Value given: {}'.format(host))
-    base_url = '{}://{}/api/v1/'.format(parsed.scheme, parsed.netloc)
+    base_url = '{}://{}/predApi/v1.0/'.format(parsed.scheme,
+                                              parsed.netloc)
     ui.debug('parse_host return value: {}'.format(base_url))
     return base_url
 

@@ -98,7 +98,7 @@ def test_run_main_with_conf_file(monkeypatch):
                 '.run_batch_predictions') as mock_method:
             batch_scoring_main(argv=main_args)
             mock_method.assert_called_once_with(
-                base_url='http://localhost:53646/api/v1/',
+                base_url='http://localhost:53646/predApi/v1.0/',
                 base_headers={},
                 user='file_username',
                 pwd='file_password',
@@ -157,7 +157,7 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     '.run_batch_predictions') as mock_method:
                 batch_scoring_main(argv=main_args)
                 mock_method.assert_called_once_with(
-                    base_url='http://localhost:53646/api/v1/',
+                    base_url='http://localhost:53646/predApi/v1.0/',
                     base_headers={},
                     user='file_username',
                     pwd='file_password',

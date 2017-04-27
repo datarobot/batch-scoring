@@ -1,3 +1,16 @@
+1.10.1 (2017 April 27)
+================
+
+* New semantic routes versioning support
+
+* New prediction response schema support
+
+
+1.10.0 (2017 January 27)
+=================
+
+* Independent prediction service support for scoring
+
 1.9.1 (2017 January 6)
 ==================
 
@@ -16,7 +29,7 @@
 
 1.8.8 (2016 November 17)
 ==================
-* --output_delimiter flag to set delimiter for output CSV. "tab" can be used 
+* --output_delimiter flag to set delimiter for output CSV. "tab" can be used
     for tab-delimited output
 
 * --skip_row_id flag to skip row_id column in output
@@ -33,7 +46,7 @@
 1.8.7 (2016 November 1)
 ==================
 * --pred_name parameter is documented. Potentially backward incompatible change:
-    Previously, 1.0 class was used as positive result for binary predictions, 
+    Previously, 1.0 class was used as positive result for binary predictions,
     now last class in lexical order is used
 
 * Fixed memory leak and performance problem caused by unrestricted batch-generator
@@ -76,11 +89,11 @@
 
 1.8.2 (2016 June 16)
 ==================
-* added --auto_sample option to find the n_samples automatically. 
+* added --auto_sample option to find the n_samples automatically.
 
 1.8.1 (2016 June 15)
 ==================
-* added --auto_sample option to find the n_samples automatically. 
+* added --auto_sample option to find the n_samples automatically.
 
 * change how csv dialects are passed around in attempt to fix a bug on Windows.
 

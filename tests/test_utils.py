@@ -249,7 +249,7 @@ def test_auto_small_dataset():
 
 def test_acquire_api_token(live_server):
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = acquire_api_token(base_url, {}, 'username', 'password', False, ui)
     assert ret == 'Som3tok3n'
     ui.info.assert_called_with('api-token acquired')
@@ -258,7 +258,7 @@ def test_acquire_api_token(live_server):
 
 def test_acquire_api_token_unauthorized(live_server):
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'unknown', 'passwd', False, ui)
         assert not ui.info.called
@@ -268,7 +268,7 @@ def test_acquire_api_token_unauthorized(live_server):
 
 def test_acquire_api_token_bad_status(live_server):
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'bad_status', 'passwd', False, ui)
         assert not ui.info.called
@@ -278,7 +278,7 @@ def test_acquire_api_token_bad_status(live_server):
 
 def test_acquire_api_token_no_token1(live_server):
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'no_token1', 'passwd', False, ui)
         assert not ui.info.called
@@ -289,7 +289,7 @@ def test_acquire_api_token_no_token1(live_server):
 
 def test_acquire_api_token_no_token2(live_server):
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
         acquire_api_token(base_url, {}, 'no_token2', 'passwd', False, ui)
         assert not ui.info.called
@@ -300,7 +300,7 @@ def test_acquire_api_token_no_token2(live_server):
 
 def test_create_and_acquire_api_token(live_server):
     ui = PickableMock()
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = acquire_api_token(base_url, {}, 'username', 'password', True, ui)
     assert ret == 'Som3tok3n'
     ui.info.assert_called_with('api-token acquired')
@@ -314,14 +314,17 @@ def test_parse_host(input, expected):
 
 
 def test_parse_host_success():
-    test_parse_host('http://dr.com', 'http://dr.com/api/v1/')
-    test_parse_host('https://dr.com', 'https://dr.com/api/v1/')
-    test_parse_host('https://dr.com/api', 'https://dr.com/api/v1/')
-    test_parse_host('https://dr.com/api/v1', 'https://dr.com/api/v1/')
-    test_parse_host('https://dr.com/api/v1/', 'https://dr.com/api/v1/')
-    test_parse_host('http://dr.com/api/v1/', 'http://dr.com/api/v1/')
-    test_parse_host('http://dr.com:8080', 'http://dr.com:8080/api/v1/')
-    test_parse_host('https://127.0.0.1/', 'https://127.0.0.1/api/v1/')
+    test_parse_host('http://dr.com', 'http://dr.com/predApi/v1.0/')
+    test_parse_host('https://dr.com', 'https://dr.com/predApi/v1.0/')
+    test_parse_host('https://dr.com/api', 'https://dr.com/predApi/v1.0/')
+    test_parse_host('https://dr.com/predApi/v1.0',
+                    'https://dr.com/predApi/v1.0/')
+    test_parse_host('https://dr.com/predApi/v1.0/',
+                    'https://dr.com/predApi/v1.0/')
+    test_parse_host('http://dr.com/predApi/v1.0/',
+                    'http://dr.com/predApi/v1.0/')
+    test_parse_host('http://dr.com:8080', 'http://dr.com:8080/predApi/v1.0/')
+    test_parse_host('https://127.0.0.1/', 'https://127.0.0.1/predApi/v1.0/')
 
 
 def test_parse_host_no_protocol_fatal():

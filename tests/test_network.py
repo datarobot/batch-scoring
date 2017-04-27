@@ -10,7 +10,7 @@ from utils import read_logs
 def test_request_client_timeout(live_server, tmpdir, ui):
     live_server.app.config['PREDICTION_DELAY'] = 3
     out = tmpdir.join('out.csv')
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -56,7 +56,7 @@ def test_request_pool_is_full(live_server, tmpdir, ui):
 
     out = tmpdir.join('out.csv')
 
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -91,10 +91,10 @@ def test_request_pool_is_full(live_server, tmpdir, ui):
 
 
 def test_request_retry(live_server, tmpdir, ui):
-    live_server.app.config["FAIL_AT"] = [8]
+    live_server.app.config["FAIL_AT"] = [8, 9]
 
     out = tmpdir.join('out.csv')
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -133,7 +133,7 @@ def test_request_retry(live_server, tmpdir, ui):
 
 def test_compression(live_server, tmpdir, ui):
     out = tmpdir.join('out.csv')
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -180,7 +180,7 @@ def test_wrong_result_order(live_server, tmpdir, ui):
         10: 1.0
     }
 
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
@@ -222,7 +222,7 @@ def test_lost_retry(live_server, tmpdir, ui):
     live_server.app.config["PREDICTION_DELAY"] = 1.0
     live_server.app.config["FAIL_AT"] = [14]
 
-    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
         base_url=base_url,
         base_headers={},
