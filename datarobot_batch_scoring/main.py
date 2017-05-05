@@ -237,8 +237,10 @@ def _parse_field_size_limit(fsl):
     the system default, (2) use the string `max` in which case we will use sys.maxsize,
     or (3) specify an integer for how many bytes a field can take up
     """
-    if fsl is None or fsl == 'max':
+    if fsl is None:
         return fsl
+    if fsl == 'max':
+        return sys.maxsize
     try:
         return int(fsl)
     except ValueError:
