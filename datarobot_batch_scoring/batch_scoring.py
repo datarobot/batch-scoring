@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import csv
 import multiprocessing
 import os
 import platform
@@ -62,7 +63,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           dry_run, encoding, skip_dialect,
                           skip_row_id=False,
                           output_delimiter=None,
-                          max_batch_size=None, compression=None):
+                          max_batch_size=None, compression=None,
+                          field_size_limit=None):
+
+    csv.field_size_limit(field_size_limit)
 
     if max_batch_size is None:
         max_batch_size = MAX_BATCH_SIZE
