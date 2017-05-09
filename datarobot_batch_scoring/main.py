@@ -106,7 +106,7 @@ def parse_args(argv, standalone=False):
 
     conn_gr = parser.add_argument_group('Connection control')
     conn_gr.add_argument('--timeout', type=int,
-                         default=30,
+                         default=None,
                          help='The timeout for each post request. '
                          '(default: %(default)r)')
     conn_gr.add_argument('--n_samples', type=int,

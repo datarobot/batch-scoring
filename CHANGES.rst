@@ -1,3 +1,7 @@
+1.10.2 (2017 May 9)
+================
+* Set default timeout on server response to infinity.
+
 1.10.1 (2017 April 27)
 ================
 
