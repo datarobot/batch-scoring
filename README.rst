@@ -12,7 +12,7 @@ A script to score CSV files via DataRobot's prediction API.
 .. image:: https://caniusepython3.com/project/datarobot_batch_scoring.svg
 
 .. image:: https://badge.fury.io/py/datarobot_batch_scoring.svg
-    :target: https://badge.fury.io/py/datarobot_batch_scoring.svg
+    :target: https://pypi.python.org/pypi/datarobot_batch_scoring
 
 
 How to install
@@ -154,6 +154,7 @@ Usage Notes
 * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
 * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
 * The logs from each ``batch_scoring`` and ``batch_scoring_sse`` run are stored in the current working directory. All users see a ``datarobot_batch_scoring_main.log`` log file. Windows users see two additional log files, ``datarobot_batch_scoring_batcher.log`` and ``datarobot_batch_scoring_writer.log``.
+* Batch scoring won't work if there is only 1 feature in the scoring data. This issue is caused by limitations of standard python CSV parser. For resolving this issue, please add index column to the dataset - it'll be ignored in scoring, but will help it in parsing.
 
 
 Supported Platforms

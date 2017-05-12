@@ -9,6 +9,8 @@
 
 * New prediction response schema support
 
+* **Dropped support of DataRobot Prediction API < 3.0 version.**
+
 
 1.10.0 (2017 January 27)
 =================
