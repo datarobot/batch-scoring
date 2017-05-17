@@ -66,7 +66,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           max_batch_size=None, compression=None,
                           field_size_limit=None):
 
-    csv.field_size_limit(field_size_limit)
+    if field_size_limit is not None:
+        csv.field_size_limit(field_size_limit)
 
     if max_batch_size is None:
         max_batch_size = MAX_BATCH_SIZE

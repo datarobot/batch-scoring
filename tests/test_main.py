@@ -47,7 +47,8 @@ def test_without_passed_user_and_passwd(monkeypatch):
             skip_dialect=False,
             skip_row_id=False,
             output_delimiter=None,
-            compression=False
+            compression=False,
+            field_size_limit=None,
         )
 
 
@@ -93,7 +94,8 @@ def test_keep_cols(monkeypatch):
             skip_dialect=False,
             skip_row_id=False,
             output_delimiter=None,
-            compression=False
+            compression=False,
+            field_size_limit=None
         )
 
 
@@ -183,7 +185,8 @@ def test_datarobot_key(monkeypatch):
             skip_dialect=False,
             skip_row_id=False,
             output_delimiter=None,
-            compression=False
+            compression=False,
+            field_size_limit=None
         )
 
 
@@ -230,7 +233,8 @@ def test_encoding_options(monkeypatch):
             skip_dialect=True,
             skip_row_id=False,
             output_delimiter=None,
-            compression=False
+            compression=False,
+            field_size_limit=None,
         )
 
 
@@ -316,7 +320,8 @@ def test_output_delimiter(monkeypatch):
             skip_dialect=True,
             skip_row_id=False,
             output_delimiter='\t',
-            compression=False
+            compression=False,
+            field_size_limit=None
         )
 
 
@@ -363,7 +368,8 @@ def test_skip_row_id(monkeypatch):
             skip_dialect=True,
             skip_row_id=True,
             output_delimiter=None,
-            compression=False
+            compression=False,
+            field_size_limit=None
         )
 
 
@@ -407,5 +413,6 @@ def test_datarobot_transferable_call(monkeypatch):
             skip_dialect=False,
             skip_row_id=False,
             output_delimiter=None,
-            compression=False
+            compression=False,
+            field_size_limit=None,
         )

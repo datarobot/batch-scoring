@@ -138,7 +138,8 @@ def test_run_main_with_conf_file(monkeypatch):
                 skip_dialect=False,
                 skip_row_id=False,
                 output_delimiter=None,
-                compression=False
+                compression=False,
+                field_size_limit=None
             )
     finally:
         os.remove(test_file.name)
@@ -197,7 +198,8 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     skip_dialect=False,
                     skip_row_id=False,
                     output_delimiter=None,
-                    compression=False
+                    compression=False,
+                    field_size_limit=None
                 )
     finally:
         os.remove(test_file.name)
