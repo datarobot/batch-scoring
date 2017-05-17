@@ -21,23 +21,35 @@ class TestCSVReaderWithWideData(object):
         yield
         csv.field_size_limit(old_limit)
 
-    def test_slow_reader_with_really_wide_field_fails_default(self, csv_file_handle_with_wide_field):
-        reader = SlowReader(csv_file_handle_with_wide_field, 'utf-8', ui=Mock())
+    def test_slow_reader_with_really_wide_field_fails_default(
+            self, csv_file_handle_with_wide_field):
+        reader = SlowReader(csv_file_handle_with_wide_field,
+                            'utf-8',
+                            ui=Mock())
         with pytest.raises(csv.Error):
             list(reader)
 
     @pytest.mark.usefixtures('really_big_fields_enabled')
-    def test_slow_reader_can_succeed_if_override_csv_width(self, csv_file_handle_with_wide_field):
-        reader = SlowReader(csv_file_handle_with_wide_field, 'utf-8', ui=Mock())
+    def test_slow_reader_can_succeed_if_override_csv_width(
+            self, csv_file_handle_with_wide_field):
+        reader = SlowReader(csv_file_handle_with_wide_field,
+                            'utf-8',
+                            ui=Mock())
         data = list(reader)
         assert len(data) == 4
 
-    def test_fast_reader_with_really_wide_field_cannot_even_instantiate_default(self, csv_file_handle_with_wide_field):
+    def test_fast_reader_with_really_wide_field_wont_even_instantiate_default(
+            self,
+            csv_file_handle_with_wide_field):
         with pytest.raises(csv.Error):
             FastReader(csv_file_handle_with_wide_field, 'utf-8', ui=Mock())
 
     @pytest.mark.usefixtures('really_big_fields_enabled')
-    def test_fast_reader_can_succeed_if_override_csv_width(self, csv_file_handle_with_wide_field):
-        reader = FastReader(csv_file_handle_with_wide_field, 'utf-8', ui=Mock())
+    def test_fast_reader_can_succeed_if_override_csv_width(
+            self,
+            csv_file_handle_with_wide_field):
+        reader = FastReader(csv_file_handle_with_wide_field,
+                            'utf-8',
+                            ui=Mock())
         data = list(reader)
         assert len(data) == 4
