@@ -2,8 +2,6 @@ import csv
 import sys
 
 import pytest
-import six
-import six.moves
 from mock import Mock
 
 from datarobot_batch_scoring.reader import FastReader, SlowReader
