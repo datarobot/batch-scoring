@@ -187,10 +187,10 @@ def parse_args(argv, standalone=False):
                              '"|"')
     csv_gr.add_argument('--field_size_limit', type=str, default=None,
                         help='Override the maximum field size. May be '
-                             'necessary for datasets with very wide text fields, '
-                             'but can lead to memory issues. Use `max` for the '
-                             'system maximum value, otherwise specify an integer '
-                             'for the number of bytes.')
+                             'necessary for datasets with very wide text '
+                             'fields, but can lead to memory issues. Use '
+                             '`max` for the system maximum value, otherwise specify '
+                             'an integer for the number of bytes.')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -233,9 +233,10 @@ def parse_args(argv, standalone=False):
 
 
 def _parse_field_size_limit(fsl):
-    """Users can either (1) not specify (i.e. will be `None`) in which case we will use
-    the system default, (2) use the string `max` in which case we will use sys.maxsize,
-    or (3) specify an integer for how many bytes a field can take up
+    """Users can either (1) not specify (i.e. will be `None`) in which case 
+    we will use the system default, (2) use the string `max` in which case we
+    will use sys.maxsize, or (3) specify an integer for how many bytes a 
+    field can take up
     """
     if fsl is None:
         return fsl
