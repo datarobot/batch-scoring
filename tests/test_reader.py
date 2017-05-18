@@ -1,5 +1,4 @@
 import csv
-import sys
 
 import pytest
 from mock import Mock
