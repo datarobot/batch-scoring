@@ -364,6 +364,17 @@ def main(argv=sys.argv[1:]):
         ui.error(str(e))
     except KeyboardInterrupt:
         ui.info('Keyboard interrupt')
+    except UnicodeDecodeError as e:
+        ui.error(str(e))
+        if generic_opts.get('fast_mode'):
+            ui.error(
+                'You are using --fast option, which uses a small sample of '
+                'data to figuring out the encoding of your file. You can '
+                'try to specify the encoding directly for this file by using '
+                'the encoding flag (e.g. --encoding utf-8). You could also '
+                'try to remove the --fast mode to auto-detect the encoding '
+                'with a larger sample size'
+            )
     except Exception as e:
         ui.fatal(str(e))
     finally:
