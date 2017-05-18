@@ -1,3 +1,11 @@
+1.11.0 (beta)
+=============
+* New parameter `field_size_limit` allows users to specify a larger maximum field
+  size than the Python `csv` module normally allows. Users can use a larger number
+  for this value if they encounter issues with very large text fields, for example.
+  Please note that using larger values for this parameter may cause issues with
+  memory consumption.
+
 1.10.2 (2017 May 9)
 ================
 * Set default timeout on server response to infinity.

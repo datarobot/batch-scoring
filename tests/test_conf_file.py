@@ -70,6 +70,21 @@ def test_section_basic_with_username():
         os.remove(test_file.name)
 
 
+def test_field_width_config_option():
+    raw_data = (
+        '[batch_scoring]\n'
+        'field_size_limit=12345678'
+    )
+    with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
+        test_file.write(str(raw_data).encode('utf-8'))
+
+    try:
+        parsed_result = parse_config_file(test_file.name)
+        assert parsed_result['field_size_limit'] == 12345678
+    finally:
+        os.remove(test_file.name)
+
+
 def test_run_main_with_conf_file(monkeypatch):
     main_args = ['--host',
                  'http://localhost:53646/api',
@@ -125,7 +140,8 @@ def test_run_main_with_conf_file(monkeypatch):
                 skip_dialect=False,
                 skip_row_id=False,
                 output_delimiter=None,
-                compression=False
+                compression=False,
+                field_size_limit=None
             )
     finally:
         os.remove(test_file.name)
@@ -184,7 +200,8 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     skip_dialect=False,
                     skip_row_id=False,
                     output_delimiter=None,
-                    compression=False
+                    compression=False,
+                    field_size_limit=None
                 )
     finally:
         os.remove(test_file.name)

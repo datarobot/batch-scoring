@@ -185,6 +185,10 @@ def parse_args(argv, standalone=False):
                              'keyword "tab" can be used to indicate a tab '
                              'delimited csv. "pipe" can be used to indicate '
                              '"|"')
+    csv_gr.add_argument('--field_size_limit', type=int, default=None,
+                        help='Override the maximum field size. May be '
+                             'necessary for datasets with very wide text '
+                             'fields, but can lead to memory issues.')
     misc_gr = parser.add_argument_group('Miscellaneous')
     misc_gr.add_argument('-y', '--yes', dest='prompt', action='store_true',
                          help="Always answer 'yes' for user prompts")
@@ -252,6 +256,7 @@ def parse_generic_options(parsed_args):
     skip_dialect = parsed_args['skip_dialect']
     skip_row_id = parsed_args['skip_row_id']
     host = parsed_args.get('host')
+    field_size_limit = parsed_args.get('field_size_limit')
     pred_name = parsed_args.get('pred_name')
     dry_run = parsed_args.get('dry_run', False)
     base_url = ""
@@ -302,6 +307,7 @@ def parse_generic_options(parsed_args):
         'dry_run': dry_run,
         'encoding': encoding,
         'fast_mode': fast_mode,
+        'field_size_limit': field_size_limit,
         'keep_cols': keep_cols,
         'n_retry': n_retry,
         'n_samples': n_samples,
