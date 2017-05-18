@@ -17,7 +17,7 @@ class TestCSVReaderWithWideData(object):
     @pytest.yield_fixture
     def really_big_fields_enabled(self):
         old_limit = csv.field_size_limit()
-        csv.field_size_limit(sys.maxsize)
+        csv.field_size_limit(2 ** 28)
         yield
         csv.field_size_limit(old_limit)
 
