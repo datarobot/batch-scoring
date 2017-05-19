@@ -238,6 +238,61 @@ def test_encoding_options(monkeypatch):
         )
 
 
+def test_unicode_decode_error_message_fast(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '56dd9570018e213242dfa93c',
+                 '56dd9570018e213242dfa93d',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--encoding=ascii', '--fast', '--dry_run']
+
+    ui_class = mock.Mock(spec=UI)
+    ui = ui_class.return_value
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', ui_class)
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        mock_method.side_effect = UnicodeDecodeError('test',
+                                                     b'', 1, 1, 'test')
+        assert main(argv=main_args) == 1
+
+    ui.error.assert_has_calls([
+        mock.call("'test' codec can't decode bytes in position 1-0: test"),
+        mock.call("You are using --fast option, which uses a small sample "
+                  "of data to figuring out the encoding of your file. You "
+                  "can try to specify the encoding directly for this file "
+                  "by using the encoding flag (e.g. --encoding utf-8). "
+                  "You could also try to remove the --fast mode to auto-"
+                  "detect the encoding with a larger sample size")
+    ])
+
+
+def test_unicode_decode_error_message_slow(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '56dd9570018e213242dfa93c',
+                 '56dd9570018e213242dfa93d',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--dry_run']
+
+    ui_class = mock.Mock(spec=UI)
+    ui = ui_class.return_value
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', ui_class)
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        mock_method.side_effect = UnicodeDecodeError('test',
+                                                     b'', 1, 1, 'test')
+        assert main(argv=main_args) == 1
+
+    # Without fast flag, we don't show the verbose error message
+    ui.error.assert_called_with(
+        "'test' codec can't decode bytes in position 1-0: test"
+    )
+
+
 def test_invalid_delimiter(monkeypatch):
     main_args = ['--host',
                  'http://localhost:53646/api',
