@@ -112,7 +112,7 @@ def parse_args(argv, standalone=False):
     conn_gr.add_argument('--n_samples', type=int,
                          nargs='?',
                          default=False,
-                         help='DEPRECATED. Specifies the number of samples '
+                         help='Specifies the number of samples '
                               '(rows) to use per batch. If not defined the '
                               '"auto_sample" option will be used.')
     conn_gr.add_argument('--n_concurrent', type=int,

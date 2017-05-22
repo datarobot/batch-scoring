@@ -1,10 +1,21 @@
 1.11.0 (beta)
 =============
+
+New Features
+------------
 * New parameter `field_size_limit` allows users to specify a larger maximum field
   size than the Python `csv` module normally allows. Users can use a larger number
   for this value if they encounter issues with very large text fields, for example.
   Please note that using larger values for this parameter may cause issues with
   memory consumption.
+
+Bugfixes
+--------
+* Previously, files whose first few lines did not fit within 512KB would error during
+  the auto-sampler (which finds a reasonable number of rows to send with each batch).
+  This issue hsa been fixed by adding a fallback to a default of 10 lines per
+  batch in these cases. This parameter can still be overridden by using the
+  `n_samples` parameter.
 
 1.10.2 (2017 May 9)
 ================

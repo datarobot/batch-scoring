@@ -25,6 +25,7 @@ DETECT_SAMPLE_SIZE_FAST = int(0.2 * 1024 ** 2)
 DETECT_SAMPLE_SIZE_SLOW = 1024 ** 2
 AUTO_SAMPLE_SIZE = int(0.5 * 1024 ** 2)
 AUTO_SMALL_SAMPLES = 500
+AUTO_SAMPLE_FALLBACK = 10
 AUTO_GOAL_SIZE = int(2.5 * 1024 ** 2)  # size we want per batch
 
 
@@ -486,10 +487,17 @@ def auto_sampler(dataset, encoding, ui):
     for _ in buf:
         file_lines += 1
         line_pos.append(buf.tell())
+
     #  remove the last line since it's probably not fully formed
-    buf.truncate(line_pos[-2])
-    buf.seek(0)
-    file_lines -= 1
+    try:
+        buf.truncate(line_pos[-2])
+        buf.seek(0)
+        file_lines -= 1
+    except IndexError:
+        # PRED-1240 there's no guarantee that we got _any_ fully formed lines.
+        # If so, the dataset is super wide, so we only send one row at a time
+        return AUTO_SAMPLE_FALLBACK
+
     try:
         for _ in reader:
             csv_lines += 1

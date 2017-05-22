@@ -33,3 +33,22 @@ def csv_file_handle_with_wide_field():
         s.write('spam{}'.format(idx))
     s.seek(0)
     return s
+
+
+@pytest.fixture
+def csv_file_with_wide_dataset():
+    """The auto_sampler will only look at a half-MB to estimate a good sample size
+    to send per batch. If the dataset doesn't get to one full line before this value
+    then the auto_sampler would fail (PRED-1240).
+
+    """
+    s = six.StringIO()
+    # write header
+    for i in range(1024 * 128):
+        s.write('column_{:0>8},'.format(i))
+    s.write('end\n')
+    for i in range(1024 * 128):
+        s.write('1,')
+    s.write('0\n')
+    s.seek(0)
+    return s
