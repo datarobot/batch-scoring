@@ -37,9 +37,9 @@ def csv_file_handle_with_wide_field():
 
 @pytest.fixture
 def csv_file_with_wide_dataset():
-    """The auto_sampler will only look at a half-MB to estimate a good sample size
-    to send per batch. If the dataset doesn't get to one full line before this value
-    then the auto_sampler would fail (PRED-1240).
+    """The auto_sampler will only look at a half-MB to estimate a good sample
+    size to send per batch. If the dataset doesn't get to one full line before
+    this value then the auto_sampler would fail (PRED-1240).
 
     """
     s = six.StringIO()
