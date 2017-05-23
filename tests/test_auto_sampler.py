@@ -15,7 +15,7 @@ class TestAutoSampler(object):
                                                  csv_file_with_wide_dataset):
         """PRED 1240"""
         with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
-            f.write(csv_file_with_wide_dataset.getvalue())
+            f.write(csv_file_with_wide_dataset.getvalue().encode('utf-8'))
         try:
             enc = investigate_encoding_and_dialect(dataset=f.name,
                                                    sep=',',
