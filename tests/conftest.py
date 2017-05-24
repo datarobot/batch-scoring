@@ -1,3 +1,5 @@
+import os
+import tempfile
 import uuid
 import pytest
 import six
@@ -36,11 +38,9 @@ def csv_file_handle_with_wide_field():
 
 
 @pytest.fixture
-def csv_file_with_wide_dataset():
-    """The auto_sampler will only look at a half-MB to estimate a good sample
-    size to send per batch. If the dataset doesn't get to one full line before
-    this value then the auto_sampler would fail (PRED-1240).
-
+def csv_data_with_wide_dataset():
+    """Data of a very wide dataset, whose first line does not fit within
+    the threshold for the auto_sampler
     """
     s = six.StringIO()
     # write header
@@ -52,3 +52,12 @@ def csv_file_with_wide_dataset():
     s.write('0\n')
     s.seek(0)
     return s
+
+
+@pytest.yield_fixture
+def csv_file_with_wide_dataset(csv_data_with_wide_dataset):
+    """Path to a very wide dataset"""
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
+        f.write(csv_data_with_wide_dataset.getvalue().encode('utf-8'))
+    yield f.name
+    os.remove(f.name)
