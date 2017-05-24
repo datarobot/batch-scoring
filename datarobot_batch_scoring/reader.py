@@ -495,7 +495,7 @@ def auto_sampler(dataset, encoding, ui):
         file_lines -= 1
     except IndexError:
         # PRED-1240 there's no guarantee that we got _any_ fully formed lines.
-        # If so, the dataset is super wide, so we only send one row at a time
+        # If so, the dataset is super wide, so we only send 10 rows at a time
         return AUTO_SAMPLE_FALLBACK
 
     try:
