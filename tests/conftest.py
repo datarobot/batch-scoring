@@ -1,3 +1,5 @@
+import os
+import tempfile
 import uuid
 import pytest
 import six
@@ -33,3 +35,29 @@ def csv_file_handle_with_wide_field():
         s.write('spam{}'.format(idx))
     s.seek(0)
     return s
+
+
+@pytest.fixture
+def csv_data_with_wide_dataset():
+    """Data of a very wide dataset, whose first line does not fit within
+    the threshold for the auto_sampler
+    """
+    s = six.StringIO()
+    # write header
+    for i in range(1024 * 128):
+        s.write('column_{:0>8},'.format(i))
+    s.write('end\n')
+    for i in range(1024 * 128):
+        s.write('1,')
+    s.write('0\n')
+    s.seek(0)
+    return s
+
+
+@pytest.yield_fixture
+def csv_file_with_wide_dataset(csv_data_with_wide_dataset):
+    """Path to a very wide dataset"""
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
+        f.write(csv_data_with_wide_dataset.getvalue().encode('utf-8'))
+    yield f.name
+    os.remove(f.name)
