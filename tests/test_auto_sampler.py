@@ -6,8 +6,6 @@ import mock
 from datarobot_batch_scoring.reader import (investigate_encoding_and_dialect,
                                             auto_sampler)
 
-path = '/home/dallin/tmp/PRED-1240/head.csv'
-
 
 class TestAutoSampler(object):
 
