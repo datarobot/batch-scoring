@@ -376,7 +376,7 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
             if r.status_code == 400:
                 # client error -- maybe schema is wrong
                 try:
-                    msg = r.json()['status']
+                    msg = r.json()['message']
                 except:
                     msg = r.text
                 ui.fatal('failed with client error: {}'.format(msg))
@@ -406,7 +406,7 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
     if n_retry == 0:
         status = r.text if r is not None else 'UNKNOWN'
         try:
-            status = r.json()['status']
+            status = r.json()['message']
         except:
             pass  # fall back to r.text
         content = r.content if r is not None else 'NO CONTENT'

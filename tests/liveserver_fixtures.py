@@ -125,6 +125,7 @@ def app():
     app.config['PREDICTION_DELAY'] = 0
     app.config['FAIL_AT'] = []
     app.config['DELAY_AT'] = []
+    app.config['FAIL_GRACEFULLY_AT'] = []
 
     app.request_number = 0
 
@@ -202,6 +203,10 @@ def app():
         if app.config["FAIL_AT"]:
             if app.request_number in app.config["FAIL_AT"]:
                 raise RuntimeError("Requested failure")
+
+        if app.config["FAIL_GRACEFULLY_AT"]:
+            if app.request_number in app.config["FAIL_GRACEFULLY_AT"]:
+                return json.dumps({"message": "Requested failure"}), 400
 
         if app.config["DELAY_AT"]:
             if app.request_number in app.config["DELAY_AT"]:

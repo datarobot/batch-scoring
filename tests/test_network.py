@@ -131,6 +131,48 @@ def test_request_retry(live_server, tmpdir, ui):
     assert "failed with status code: 500" in logs
 
 
+def test_request_log_client_error(live_server, tmpdir, ui):
+    live_server.app.config["FAIL_GRACEFULLY_AT"] = [8, 9]
+
+    out = tmpdir.join('out.csv')
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93d',
+        import_id=None,
+        n_retry=3,
+        concurrent=2,
+        resume=False,
+        n_samples=5,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/temperatura_predict.csv.gz',
+        pred_name=None,
+        timeout=30,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+    assert ret is None
+
+    actual = out.read_text('utf-8')
+    assert len(actual.splitlines()) == 101
+
+    logs = read_logs()
+
+    assert 'failed with status code 400 message: Requested failure' in logs
+
+
 def test_compression(live_server, tmpdir, ui):
     out = tmpdir.join('out.csv')
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())

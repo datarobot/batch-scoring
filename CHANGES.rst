@@ -17,6 +17,8 @@ Bugfixes
   batch in these cases. This parameter can still be overridden by using the
   `n_samples` parameter.
 
+* Fix issue when client error message wasn't logged properly.
+
 1.10.2 (2017 May 9)
 ================
 * Set default timeout on server response to infinity.
