@@ -81,11 +81,10 @@ deploy:
       condition: $pyver = '3.5'
 # PyPi Push on tag 
   - provider: pypi
-    server: https://upload.pypi.org/legacy/
     skip_upload_docs: true
     user: Axik
     password: 
-      secure: bn1C6OcsCyJ9jcEGusgyTHo4FS8SOrhVVtQpQVxolw8RJvQjSj666vuosG2r8DeIhhUrR9KV1Ee2A2HhSCkHCFw4fnIgsSXYLWj3DqbCdo9Qcs9raEevd2SDsNnxUjyfzm+0pQpqeA/La1+Pj94+CsSyJTlZSEepedtla/9zfJcIgJ/Z7g0rT7MLjBhGOf6ADepjtO5ZcmOIMaa/+iehZHtbfQJsjYfYIYQy/LJlX2MGFxMkUnyrnF/XuiK0tMTgeEvyOi8W6cDf3vIKHWp5f+mu8ZyyBcREeIkAgSzXvqrcta/m8kHGGRbjnS1tTORTudIUkUBtET+rUYiPRb3gFaEqLgjy0Pv5Nn34bSmAs2jEp92fzwFvOLNQhc0TKiwor1X2l6+MQvIwpRya64mke/DM3FLGknz/06q696iJEgQe1xw9Ju7dFX+IRcFsaR50jFrVsAxon51zvQ0gdgu8ztF9KU2IRTRp2qWXt7d96zyR340bwzjpgRB3QMy+2nMzOOjc0qvlI5tV77LWYA+eg/Knc2GiyMOByuygLQAjD1fxhANNDNLGItmKlAuknkuC0ovmALC9dRSwHQqO/v3eYA6nuHzdI1n3Z1LKjoUppm8RPZVNzX6EjCUGAYlmxCCEYIo7annRru/ZLWbjIc7duRZZL2sKKbwcg/qkC6bxDgo=
+      secure: "kRbo6mHdrZDaG8plDdl18S3Ld/Ek7W37VPuX1qcdR5nbb1bm8nddH7us9kHZAVWl8p4o4s8uN6shaSUobXTYU+7MFK6cb22c+nVcSYJMlMDq1cOlRNwFs+gXIKT8bgnW1VX/DVfMMkHQSvD00SRDKoUDQdQXbauStlSV4Nj1wSGXfovkujneBKfmeXYo3TBX/I9HVc+VAyXG9mCDJwivS//gpJKwgkpIKu3TOCPJY/makubvGcPUYzbZPRvi5iMp5pQPFTX2rnmzbp6CGH6jaGhgHjAYeNVQVdeNuXqrxvoTSyfmzfYJRla7b5zqBILPb0nxH9YLlZC7WYuqGgoUaijk554jcq1+und0GBo3xo7lo5HIHRUgOILn8KlzOp2Z6Gp7APkRevlot11yb6avWb2f46BP9P2vFzycCHJmJkZ1klF0UVEOEbBhJyP8i4kGArI1Y4qrsqUfzQfjkm6YfFQvXdjVFdNnm1Ze6yTT+Tt4q3gO0u1DIX8H1ofaU7AhOWF5BQ67ytFkw9jeCxKCTRrAn/QYfAw/eSzZZcatCb1RsfPTtxTFfxkTHP5QzFELQ0RzorSCEtugLAetX613JM2eaRs1cGhzflhirrc6yFDYjsScgj675woc5pBXSgjKrM9I8oTEAdetRtewewOIrPlNfV3qNoQa+AQHlRqr4bQ="
     distributions: sdist bdist_wheel
     on:
       repo: datarobot/batch-scoring
