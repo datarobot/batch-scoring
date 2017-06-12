@@ -239,6 +239,7 @@ def parse_generic_options(parsed_args):
     printed_args = copy.copy(parsed_args)
     printed_args.pop('password', None)
     ui.debug(printed_args)
+    ui.info('version: {}'.format(__version__))
     ui.info('platform: {} {}'.format(sys.platform, sys.version))
     n_retry = int(parsed_args['n_retry'])
     if parsed_args.get('keep_cols'):
