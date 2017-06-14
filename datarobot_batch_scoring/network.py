@@ -169,7 +169,7 @@ class Network(Worker):
                 self.ui.error(msg)
                 self.send_error_to_ctx(batch, msg)
             else:
-                self.ui.warning('retrying. batch {}, attempts left: {}'
+                self.ui.warning('retrying failed batch {}, attempts left: {}'
                                 .format(batch.id, batch.rty_cnt - 1))
                 self.push_retry(batch)
 
