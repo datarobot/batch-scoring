@@ -3,7 +3,7 @@
 
 Enhancements
 ------------
-* Logs now include version and use better language for retries.
+* Logs now include version, retry attempts and whether output file was removed.
 
 
 1.11.0 (2017 May 30)
