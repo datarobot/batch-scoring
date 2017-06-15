@@ -223,6 +223,7 @@ class NewRunContext(RunContext):
                 self.out_file))
             if rm:
                 os.remove(self.out_file)
+                self._ui.info('Removed {}'.format(self.out_file))
             else:
                 sys.exit(0)
 
