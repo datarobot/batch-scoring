@@ -1,3 +1,11 @@
+1.11.1 (unreleased)
+===================
+
+Enhancements
+------------
+* Logs now include version and use better language for retries.
+
+
 1.11.0 (2017 May 30)
 =============
 

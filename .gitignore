@@ -9,6 +9,8 @@ build
 .coverage
 .install
 .install-deps
-.shelve
+*.shelve
 htmlcov
 .idea
+datarobot_batch_scoring_*.log
+out.csv
