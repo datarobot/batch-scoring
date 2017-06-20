@@ -43,6 +43,19 @@ VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
 
 
 def parse_args(argv, standalone=False):
+    defaults = {
+        'prompt': None,
+        'out': 'out.csv',
+        'create_api_token': False,
+        'timeout': 30,
+        'n_samples': False,
+        'n_concurrent': 4,
+        'n_retry': 3,
+        'resume': None,
+        'fast': False,
+        'stdout': False,
+        'auto_sample': False,
+    }
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -57,7 +70,7 @@ def parse_args(argv, standalone=False):
                                  'hostname of the prediction API endpoint. '
                                  'E.g. "https://example.orm.datarobot.com"')
     dataset_gr.add_argument('--out', type=str,
-                            nargs='?', default='out.csv',
+                            nargs='?', default=defaults['out'],
                             help='Specifies the file name, '
                             'and optionally path, '
                             'to which the results are written. '
@@ -90,7 +103,7 @@ def parse_args(argv, standalone=False):
                              'if you do not have a token, '
                              'you must specify the password argument.')
         auth_gr.add_argument('--create_api_token', action="store_true",
-                             default=False,
+                             default=defaults['create_api_token'],
                              help='Requests a new API token. To use this '
                                   'option, you must specify the '
                                   'password argument for this request '
@@ -106,34 +119,37 @@ def parse_args(argv, standalone=False):
 
     conn_gr = parser.add_argument_group('Connection control')
     conn_gr.add_argument('--timeout', type=int,
-                         default=None,
+                         default=defaults['timeout'],
                          help='The timeout for each post request. '
                          '(default: %(default)r)')
     conn_gr.add_argument('--n_samples', type=int,
                          nargs='?',
-                         default=False,
+                         default=defaults['n_samples'],
                          help='Specifies the number of samples '
                               '(rows) to use per batch. If not defined the '
                               '"auto_sample" option will be used.')
     conn_gr.add_argument('--n_concurrent', type=int,
                          nargs='?',
-                         default=4,
+                         default=defaults['n_concurrent'],
                          help='Specifies the number of concurrent requests '
                          'to submit. (default: %(default)r)')
     conn_gr.add_argument('--n_retry', type=int,
-                         default=3,
+                         default=defaults['n_retry'],
                          help='Specifies the number of times DataRobot '
                          'will retry if a request fails. '
                          'A value of -1 specifies an infinite '
                          'number of retries. (default: %(default)r)')
-    conn_gr.add_argument('--resume', action='store_true',
-                         default=False,
+    conn_gr.add_argument('--resume', dest='resume', action='store_true',
+                         default=defaults['resume'],
                          help='Starts the prediction from the point at which '
                          'it was halted. '
                          'If the prediction stopped, for example due '
                          'to error or network connection issue, you can run '
                          'the same command with all the same '
                          'all arguments plus this resume argument.')
+    conn_gr.add_argument('--no-resume', dest='resume', action='store_false',
+                         help='Starts the prediction from scratch disregarding'
+                         ' previous run.')
     conn_gr.add_argument('--compress', action='store_true',
                          default=False,
                          help='Compress batch. This can improve throughout '
@@ -159,11 +175,11 @@ def parse_args(argv, standalone=False):
                         'predictions assumes last class in lexical order '
                         'as positive')
     csv_gr.add_argument('--fast', action='store_true',
-                        default=False,
+                        default=defaults['fast'],
                         help='Experimental: faster CSV processor. '
                         'Note: does not support multiline csv. ')
     csv_gr.add_argument('--auto_sample', action='store_true',
-                        default=False,
+                        default=defaults['auto_sample'],
                         help='Override "n_samples" and instead '
                         'use chunks of about 1.5 MB. This is recommended and '
                         'enabled by default if "n_samples" is not defined.')
@@ -201,19 +217,6 @@ def parse_args(argv, standalone=False):
                          default=False,
                          help='Send all log messages to stdout.')
 
-    defaults = {
-        'prompt': None,
-        'out': 'out.csv',
-        'create_api_token': False,
-        'timeout': 30,
-        'n_samples': False,
-        'n_concurrent': 4,
-        'n_retry': 3,
-        'resume': False,
-        'fast': False,
-        'stdout': False,
-        'auto_sample': False,
-    }
     conf_file = get_config_file()
     if conf_file:
         file_args = parse_config_file(conf_file)
@@ -248,7 +251,7 @@ def parse_generic_options(parsed_args):
         keep_cols = None
     concurrent = int(parsed_args['n_concurrent'])
 
-    resume = parsed_args['resume']
+    resume = parsed_args.get('resume')
     compression = parsed_args['compress']
     out_file = parsed_args['out']
     timeout = int(parsed_args['timeout'])

@@ -69,15 +69,9 @@ class RunContext(object):
         Either resume or start a new one.
         """
         file_context = ContextFile(pid, lid, n_samples, keep_cols)
-        if file_context.exists():
-            is_resume = None
-            if resume:
-                is_resume = True
-            if is_resume is None:
-                is_resume = ui.prompt_yesno('Existing run found. Resume')
-        else:
-            is_resume = False
-        if is_resume:
+        if resume is None and file_context.exists():
+            resume = ui.prompt_yesno('Existing run found. Resume')
+        if resume:
             ctx_class = OldRunContext
         else:
             ctx_class = NewRunContext

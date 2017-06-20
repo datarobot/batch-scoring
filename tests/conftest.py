@@ -5,6 +5,7 @@ import pytest
 import six
 
 from datarobot_batch_scoring.utils import UI
+from datarobot_batch_scoring.writer import ContextFile
 
 pytest_plugins = ['liveserver_fixtures']
 
@@ -61,3 +62,11 @@ def csv_file_with_wide_dataset(csv_data_with_wide_dataset):
         f.write(csv_data_with_wide_dataset.getvalue().encode('utf-8'))
     yield f.name
     os.remove(f.name)
+
+
+@pytest.yield_fixture
+def run_context_file():
+    c_file = ContextFile('pid', 'lid', 10, None)
+    open(c_file.file_name, 'a')
+    yield c_file
+    c_file.clean()
