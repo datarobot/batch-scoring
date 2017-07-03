@@ -1,8 +1,10 @@
+import csv
 import getpass
 import io
 import logging
 import os
 import sys
+from collections import namedtuple
 from functools import partial
 from gzip import GzipFile
 from os import getcwd
@@ -431,6 +433,37 @@ try:
 except ImportError:
     def get_rusage():
         return {}
+
+
+DialectTuple = namedtuple('DialectTuple',
+                          'delimiter doublequote escapechar lineterminator '
+                          'quotechar quoting skipinitialspace strict')
+
+
+class SerializableDialect(DialectTuple):
+    @classmethod
+    def from_dialect(cls, dialect):
+        return cls(
+            delimiter=dialect.delimiter,
+            doublequote=dialect.doublequote,
+            escapechar=dialect.escapechar,
+            lineterminator=dialect.lineterminator,
+            quotechar=dialect.quotechar,
+            quoting=dialect.quoting,
+            skipinitialspace=dialect.skipinitialspace,
+            strict=getattr(dialect, 'strict', False))
+
+    def to_dialect(self):
+        class _dialect(csv.Dialect):
+            delimiter = self.delimiter
+            doublequote = self.escapechar
+            escapechar = self.escapechar
+            lineterminator = self.lineterminator
+            quotechar = self.quotechar
+            quoting = self.quoting
+            skipinitialspace = self.skipinitialspace
+            strict = self.strict
+        return _dialect()
 
 
 class Worker(object):
