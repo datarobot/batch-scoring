@@ -3,6 +3,7 @@
 
 Enhancements
 ------------
+* Batch scoring now works for Python 3.6 on Windows (offline installs require 3.5 though)
 * Logs now include version, retry attempts and whether output file was removed.
 
 
