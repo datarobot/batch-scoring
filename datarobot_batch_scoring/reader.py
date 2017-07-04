@@ -257,7 +257,6 @@ class Shovel(object):
         self.shovel_status = shovel_status
         self.abort_flag = abort_flag
         self.batch_gen_args = batch_gen_args
-        self.dialect = csv.get_dialect('dataset_dialect')
         #  The following should only impact Windows
         self._ui.set_next_UI_name('batcher')
 
@@ -350,8 +349,9 @@ class Shovel(object):
                 _ui.close()
 
     def go(self):
+        dataset_dialect = csv.get_dialect('dataset_dialect')
         args = ([self.batch_gen_args,
-                 SerializableDialect.from_dialect(self.dialect),
+                 SerializableDialect.from_dialect(dataset_dialect),
                  self.queue])
         self.p = multiprocessing.Process(target=self._shove,
                                          args=args,
