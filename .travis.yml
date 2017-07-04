@@ -24,9 +24,6 @@ matrix:
   - language: python
     python: 3.5
     os: linux
-  - language: python
-    python: 3.6
-    os: linux
 install:
 - if [ $TRAVIS_OS_NAME == 'osx' ]; then git clone https://github.com/MacPython/terryfy;
   source terryfy/travis_tools.sh; get_python_environment  $pydist $pyver; fi
