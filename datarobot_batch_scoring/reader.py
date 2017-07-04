@@ -15,9 +15,8 @@ import six
 from datarobot_batch_scoring.consts import (Batch,
                                             REPORT_INTERVAL,
                                             ProgressQueueMsg)
-from datarobot_batch_scoring.utils import get_rusage
+from datarobot_batch_scoring.utils import get_rusage, SerializableDialect
 
-from .utils import SerializableDialect
 
 if six.PY2:
     import StringIO
