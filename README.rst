@@ -15,6 +15,20 @@ A script to score CSV files via DataRobot's prediction API.
     :target: https://pypi.python.org/pypi/datarobot_batch_scoring
 
 
+Version Compatibility
+---------------------
+We aim to support as many versions of DataRobot as possible with each release of batch_scoring, but occasionally
+there are changes in the backend that create incompatibilities. This chart is kept up-to-date with the version
+compatibilities between this tool and versions of DataRobot. If you are unsure which version of DataRobot you
+are using, please contact DataRobot support for assistance.
+
+===================== =================
+batch_scoring_version DataRobot Version
+--------------------- -----------------
+<=1.10                2.7, 2.8, 2.9
+>=1.11                3.0, 3.1+
+===================== =================
+
 How to install
 --------------
 
