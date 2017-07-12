@@ -10,8 +10,8 @@ Enhancements
 
 Documentation
 -------------
-A new "Version Compatibility" section has been added to the README to help surface to users any
-incompatibilities between versions of `batch_scoring` and versions of `DataRobot`.
+* A new "Version Compatibility" section has been added to the README to help surface to users any
+  incompatibilities between versions of `batch_scoring` and versions of `DataRobot`.
 
 
 1.11.0 (2017 May 30)
