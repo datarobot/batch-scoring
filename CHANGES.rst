@@ -1,4 +1,4 @@
-1.11.1 (unreleased)
+1.12.0 (unreleased)
 ===================
 
 Enhancements
@@ -7,6 +7,11 @@ Enhancements
 * Logs now include version, retry attempts and whether output file was removed.
 * New argument `no-resume` that allows you to start new batch-scoring run from scratch without being questioned about previous runs.
 
+
+Documentation
+-------------
+* A new "Version Compatibility" section has been added to the README to help surface to users any
+  incompatibilities between versions of `batch_scoring` and versions of `DataRobot`.
 
 
 1.11.0 (2017 May 30)
