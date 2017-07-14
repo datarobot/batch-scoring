@@ -340,6 +340,8 @@ def test_parse_host_no_protocol_fatal():
 
 
 def test_serializable_dialect_fields():
+    def same_attr(key, coll1, coll2):
+        return getattr(coll1, key) == getattr(coll2, key)
     original_dialect = csv.excel()
     serializable_dialect = SerializableDialect.from_dialect(original_dialect)
     converted_dialect = serializable_dialect.to_dialect()
@@ -347,5 +349,5 @@ def test_serializable_dialect_fields():
                  'lineterminator quotechar quoting skipinitialspace'.split(' ')
     for key in attributes:
         assert hasattr(serializable_dialect, key)
-        assert getattr(serializable_dialect, key) == getattr(original_dialect, key)
-        assert getattr(original_dialect, key) == getattr(converted_dialect, key)
+        assert same_attr(key, serializable_dialect, original_dialect)
+        assert same_attr(key, original_dialect, converted_dialect)
