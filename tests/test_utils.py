@@ -4,7 +4,8 @@ import mock
 import pytest
 from datarobot_batch_scoring.utils import (verify_objectid, UI,
                                            acquire_api_token,
-                                           parse_host)
+                                           parse_host,
+                                           SerializableDialect)
 from datarobot_batch_scoring.reader import (iter_chunks,
                                             investigate_encoding_and_dialect,
                                             auto_sampler)
@@ -336,3 +337,15 @@ def test_parse_host_no_protocol_fatal():
                    ' Value given: {}').format(host)
             parse_host(host, ui)
             ui_fatal.assert_called_with(msg)
+
+
+def test_serializable_dialect_fields():
+    original_dialect = csv.excel()
+    serializable_dialect = SerializableDialect.from_dialect(original_dialect)
+    converted_dialect = serializable_dialect.to_dialect()
+    attributes = 'delimiter doublequote escapechar ' \
+                 'lineterminator quotechar quoting skipinitialspace'.split(' ')
+    for key in attributes:
+        assert hasattr(serializable_dialect, key)
+        assert getattr(serializable_dialect, key) == getattr(original_dialect, key)
+        assert getattr(original_dialect, key) == getattr(converted_dialect, key)
