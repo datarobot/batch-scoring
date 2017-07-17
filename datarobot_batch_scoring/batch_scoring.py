@@ -142,9 +142,10 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             # `first_row.fieldnames`, it is a fatal error.
             extra_cols = set(keep_cols) - set(first_row.fieldnames)
             if extra_cols:
-                ui.fatal('keep_cols "{}" not in columns {}.'.format(
+                msg = 'keep_cols "{}" not in columns {}.'.format(
                     list(sorted(extra_cols)),
-                    first_row.fieldnames))
+                    first_row.fieldnames)
+                ui.fatal(msg)
 
         if not dry_run:
 
