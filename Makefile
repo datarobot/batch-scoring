@@ -23,6 +23,9 @@ cov cover coverage: .install .install-test-deps flake8
             --cov-report=term --cov-report=html tests/
 	@echo "open file://`pwd`/htmlcov/index.html"
 
+coverage-map: .install .install-test-deps
+	coverage report -m
+
 pyinstaller: clean
 	#  On Linux use "make pyinstaller_dockerized"
 	./offline_install_scripts/build_pyinstaller.sh
