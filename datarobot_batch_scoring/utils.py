@@ -456,7 +456,7 @@ class SerializableDialect(DialectTuple):
     def to_dialect(self):
         class _dialect(csv.Dialect):
             delimiter = self.delimiter
-            doublequote = self.escapechar
+            doublequote = self.doublequote
             escapechar = self.escapechar
             lineterminator = self.lineterminator
             quotechar = self.quotechar
