@@ -138,10 +138,14 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         first_row = first_row._replace(data=first_row_data)
 
         if keep_cols:
-            if not all(c in first_row.fieldnames for c in keep_cols):
-                ui.fatal('keep_cols "{}" not in columns {}.'.format(
-                    [c for c in keep_cols if c not in first_row.fieldnames],
-                    first_row.fieldnames))
+            # If any columns appear in `keep_cols` that are not in
+            # `first_row.fieldnames`, it is a fatal error.
+            extra_cols = set(keep_cols) - set(first_row.fieldnames)
+            if extra_cols:
+                msg = 'keep_cols "{}" not in columns {}.'.format(
+                    list(sorted(extra_cols)),
+                    first_row.fieldnames)
+                ui.fatal(msg)
 
         if not dry_run:
 

@@ -226,6 +226,9 @@ def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):
         assert ret is None
 
     ui.fatal.assert_called()
+    ui.fatal.assert_called_with(
+        '''keep_cols "['not_present']" not in columns ['', 'x'].'''
+    )
 
 
 def test_pred_name_classification(live_server, tmpdir):
