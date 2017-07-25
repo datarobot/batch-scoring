@@ -2,6 +2,7 @@ import collections
 import logging
 import multiprocessing
 import signal
+import textwrap
 from functools import partial
 from time import time
 
@@ -11,7 +12,7 @@ from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import wait
 from datarobot_batch_scoring.consts import (SENTINEL,
                                             REPORT_INTERVAL,
-                                            ProgressQueueMsg)
+                                            ProgressQueueMsg, WriterQueueMsg)
 from datarobot_batch_scoring.utils import get_rusage
 from six.moves import queue
 
@@ -30,6 +31,108 @@ FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
 class Network(BaseNetworkWorker):
+
+    def _response_callback(self, r, batch=None, *args, **kw):
+        try:
+            if r.status_code == 200:
+                pickleable_resp = {'elapsed': r.elapsed.total_seconds(),
+                                   'text': r.text,
+                                   'headers': r.headers}
+                self.writer_queue.put((WriterQueueMsg.RESPONSE, {
+                    "request": pickleable_resp,
+                    "batch": batch
+                }))
+                return
+            elif isinstance(r, FakeResponse):
+                if r.status_code == 499:
+                    msg = ('batch {} timed out, dropping; '
+                           'we lost {} records'
+                           ''.format(batch.id, len(batch.data)))
+                    self.ui.error(msg)
+                    self.send_error_to_ctx(batch, msg)
+                    return
+
+                self.ui.debug('Skipping processing response '
+                              'because of FakeResponse')
+            else:
+                try:
+                    self.ui.warning('batch {} failed with status code '
+                                    '{} message: {}'
+                                    ''.format(
+                                         batch.id,
+                                         r.status_code,
+                                         json.loads(r.text)['message']))
+                except ValueError:
+                    self.ui.warning('batch {} failed with status code: {}'
+                                    ''.format(batch.id, r.status_code))
+
+                text = r.text
+                msg = ('batch {} failed, status_code:{} '
+                       'text:{}'.format(batch.id, r.status_code, text))
+                self.ui.error(msg)
+                self.send_warning_to_ctx(batch, msg)
+
+            if batch.rty_cnt == 1:
+                msg = ('batch {} exceeded retry limit; '
+                       'we lost {} records'
+                       ''.format(batch.id, len(batch.data)))
+                self.ui.error(msg)
+                self.send_error_to_ctx(batch, msg)
+            else:
+                self.ui.warning('retrying failed batch {}, attempts left: {}'
+                                .format(batch.id, batch.rty_cnt - 1))
+                self.push_retry(batch)
+
+        except Exception as e:
+            msg = 'batch {} - dropping due to: {}, {} records lost'.format(
+                batch.id, e, batch.rows)
+            self.ui.error(msg)
+            self.send_error_to_ctx(batch, msg)
+
+    def push_retry(self, batch):
+        # we retry a batch - decrement retry counter
+        batch = batch._replace(rty_cnt=batch.rty_cnt - 1)
+        try:
+            self.network_deque.put(batch, block=False)
+        except queue.Full:
+            msg = 'Dropping {} due to backfill queue full.'.format(
+                batch)
+            self.ui.error(msg)
+            self.send_error_to_ctx(batch, msg)
+
+    def _request(self, request):
+
+        prepared = self.session.prepare_request(request)
+        try:
+            self.session.send(prepared, timeout=self._timeout)
+        except Exception as exc:
+            code = 400
+            if isinstance(exc, requests.exceptions.ReadTimeout):
+                self.ui.warning(textwrap.dedent("""The server did not send any data
+in the allotted amount of time.
+You might want to decrease the "--n_concurrent" parameters
+or
+increase "--timeout" parameter.
+"""))
+                code = 499
+            else:
+                self.ui.debug('Exception {}: {}'.format(type(exc), exc))
+                raise
+
+            try:
+                callback = request.kwargs['hooks']['response']
+            except AttributeError:
+                callback = request.hooks['response'][0]
+            response = FakeResponse(code, 'No Response')
+            callback(response)
+
+    def request_cb(self, f):
+        futures = [i for i in self.futures if not i.done()]
+        self.ui.debug('request finished, pending futures: {}'
+                      ''.format(len(futures)))
+
+        if len(futures) == 0:
+            self.state = b'E'
 
     def get_batch(self):
         while True:
