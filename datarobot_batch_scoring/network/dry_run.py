@@ -29,7 +29,11 @@ logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
-class Network(Worker):
+class DryRunNetworkWorker(Worker):
+    """A worker that will drain the network_queue, but doesn't actually send any
+    requests or put anything into the writer_queue
+    """
+
     state_names = {
         b"-": "Initial",
         b"I": "Idle",
