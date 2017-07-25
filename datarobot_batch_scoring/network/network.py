@@ -205,7 +205,7 @@ increase "--timeout" parameter.
             response = FakeResponse(code, 'No Response')
             callback(response)
 
-    def get_batch(self, dry_run=False):
+    def get_batch(self):
         while True:
             if self.abort_flag.value:
                 self.exit_fast(None, None)
@@ -223,14 +223,10 @@ increase "--timeout" parameter.
                     self.n_consumed += 1
                     yield r
                 except queue.Empty:
-                    if dry_run and self.state in (b"-", b"R"):
-                        self.state = b'E'
-                    elif self.state == b"E":
+                    if self.state == b"E":
                         self.state = b'e'
                     elif self.state == b"e":
                         self.state = b'I'
-                        if dry_run:
-                            break
 
                 except OSError:
                     self.ui.error('OS Error')
@@ -304,19 +300,13 @@ increase "--timeout" parameter.
         self.state = b'D'
         os._exit(1)
 
-    def perform_requests(self, dry_run=False):
+    def perform_requests(self):
         signal.signal(signal.SIGINT, self.exit_fast)
         signal.signal(signal.SIGTERM, self.exit_fast)
 
         self.state = b'E'
-        for q_batch in self.get_batch(dry_run):
+        for q_batch in self.get_batch():
             for (batch, data) in self.split_batch(q_batch):
-
-                if dry_run:
-                    if self.state != b"R":
-                        self.state = b'R'
-                    yield
-                    continue
 
                 hook = partial(self._response_callback, batch=batch)
                 r = requests.Request(
@@ -361,14 +351,7 @@ increase "--timeout" parameter.
         if self.proc and self.proc.is_alive():
             self.proc.terminate()
 
-    def run(self, dry_run=False):
-        if dry_run:
-            i = 0
-            for _ in self.perform_requests(True):
-                i += 1
-
-            return i
-
+    def run(self):
         self._executor = ThreadPoolExecutor(self.concurrency)
         self.session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(
@@ -404,10 +387,7 @@ increase "--timeout" parameter.
             "rusage": get_rusage(),
         }))
 
-    def go(self, dry_run=False):
-        if dry_run:
-            return self.run(dry_run)
-
+    def go(self):
         self.ui.set_next_UI_name('network')
         self.proc = \
             multiprocessing.Process(target=self.run,
