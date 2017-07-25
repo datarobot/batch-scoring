@@ -20,7 +20,7 @@ from datarobot_batch_scoring.consts import (WriterQueueMsg,
                                             ProgressQueueMsg,
                                             SENTINEL,
                                             REPORT_INTERVAL)
-from datarobot_batch_scoring.network import Network
+from datarobot_batch_scoring.network import Network, DryRunNetworkWorker
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk, peek_row,
                                             Shovel, auto_sampler,
@@ -180,28 +180,27 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
         ui.info('Reader go...')
         shovel_proc = shovel.go()
 
-        network = stack.enter_context(Network(concurrency=concurrent,
-                                              timeout=timeout,
-                                              ui=ui,
-                                              network_queue=network_queue,
-                                              network_deque=network_deque,
-                                              writer_queue=writer_queue,
-                                              progress_queue=progress_queue,
-                                              abort_flag=abort_flag,
-                                              network_status=network_status,
-                                              endpoint=endpoint,
-                                              headers=base_headers,
-                                              user=user,
-                                              api_token=api_token,
-                                              pred_name=pred_name,
-                                              fast_mode=fast_mode,
-                                              max_batch_size=max_batch_size,
-                                              compression=compression
-                                              ))
         t0 = time()
 
         if dry_run:
-            network.go(dry_run=True)
+            network = stack.enter_context(DryRunNetworkWorker(concurrency=concurrent,
+                                                              timeout=timeout,
+                                                              ui=ui,
+                                                              network_queue=network_queue,
+                                                              network_deque=network_deque,
+                                                              writer_queue=writer_queue,
+                                                              progress_queue=progress_queue,
+                                                              abort_flag=abort_flag,
+                                                              network_status=network_status,
+                                                              endpoint=endpoint,
+                                                              headers=base_headers,
+                                                              user=user,
+                                                              api_token=api_token,
+                                                              pred_name=pred_name,
+                                                              fast_mode=fast_mode,
+                                                              max_batch_size=max_batch_size,
+                                                              compression=compression))
+            network.go()
             ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
             ui.info('dry-run complete | total time elapsed {}s'.format(
                 time() - t1))
@@ -231,6 +230,25 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
             ctx.scoring_succeeded = True
             return
+
+        network = stack.enter_context(Network(concurrency=concurrent,
+                                              timeout=timeout,
+                                              ui=ui,
+                                              network_queue=network_queue,
+                                              network_deque=network_deque,
+                                              writer_queue=writer_queue,
+                                              progress_queue=progress_queue,
+                                              abort_flag=abort_flag,
+                                              network_status=network_status,
+                                              endpoint=endpoint,
+                                              headers=base_headers,
+                                              user=user,
+                                              api_token=api_token,
+                                              pred_name=pred_name,
+                                              fast_mode=fast_mode,
+                                              max_batch_size=max_batch_size,
+                                              compression=compression
+                                              ))
 
         exit_code = None
 
