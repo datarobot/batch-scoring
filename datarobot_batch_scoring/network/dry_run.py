@@ -1,27 +1,21 @@
 import collections
 import json
 import logging
-import multiprocessing
 import os
 import signal
 import sys
 import textwrap
-from concurrent.futures import FIRST_COMPLETED
-from concurrent.futures import wait
-from functools import partial
-from time import time
 
 import requests
 import requests.adapters
-from six.moves import queue
-
+from concurrent.futures import FIRST_COMPLETED
+from concurrent.futures import wait
 from datarobot_batch_scoring.consts import (SENTINEL,
-                                            WriterQueueMsg, Batch,
-                                            REPORT_INTERVAL,
-                                            ProgressQueueMsg)
+                                            WriterQueueMsg, Batch)
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk)
-from datarobot_batch_scoring.utils import compress, get_rusage, Worker
+from datarobot_batch_scoring.utils import compress, Worker
+from six.moves import queue
 
 try:
     from futures import ThreadPoolExecutor
@@ -205,7 +199,7 @@ increase "--timeout" parameter.
             response = FakeResponse(code, 'No Response')
             callback(response)
 
-    def get_batch(self, dry_run=False):
+    def get_batch(self):
         while True:
             if self.abort_flag.value:
                 self.exit_fast(None, None)
@@ -223,14 +217,13 @@ increase "--timeout" parameter.
                     self.n_consumed += 1
                     yield r
                 except queue.Empty:
-                    if dry_run and self.state in (b"-", b"R"):
+                    if self.state in (b"-", b"R"):
                         self.state = b'E'
                     elif self.state == b"E":
                         self.state = b'e'
                     elif self.state == b"e":
                         self.state = b'I'
-                        if dry_run:
-                            break
+                        break
 
                 except OSError:
                     self.ui.error('OS Error')
@@ -304,43 +297,18 @@ increase "--timeout" parameter.
         self.state = b'D'
         os._exit(1)
 
-    def perform_requests(self, dry_run=False):
+    def perform_requests(self):
         signal.signal(signal.SIGINT, self.exit_fast)
         signal.signal(signal.SIGTERM, self.exit_fast)
 
         self.state = b'E'
-        for q_batch in self.get_batch(dry_run):
-            for (batch, data) in self.split_batch(q_batch):
-
-                if dry_run:
-                    if self.state != b"R":
-                        self.state = b'R'
-                    yield
-                    continue
-
-                hook = partial(self._response_callback, batch=batch)
-                r = requests.Request(
-                    method='POST',
-                    url=self.endpoint,
-                    headers=self.headers,
-                    data=data,
-                    auth=(self.user, self.api_token),
-                    hooks={'response': hook})
-
-                self.n_requests += 1
-
-                while True:
-                    self.futures = [i for i in self.futures if not i.done()]
-                    if len(self.futures) < self.concurrency:
-                        self.state = b'R'
-                        f = self._executor.submit(self._request, r)
-                        f.add_done_callback(self.request_cb)
-                        self.futures.append(f)
-                        break
-                    else:
-                        self.state = b'F'
-                        wait(self.futures, return_when=FIRST_COMPLETED)
+        for q_batch in self.get_batch():
+            for (_, _) in self.split_batch(q_batch):
+                if self.state != b"R":
+                    self.state = b'R'
                 yield
+                continue
+
         #  wait for all batches to finish before returning
         self.state = b'W'
         while self.futures:
@@ -361,56 +329,11 @@ increase "--timeout" parameter.
         if self.proc and self.proc.is_alive():
             self.proc.terminate()
 
-    def run(self, dry_run=False):
-        if dry_run:
-            i = 0
-            for _ in self.perform_requests(True):
-                i += 1
-
-            return i
-
-        self._executor = ThreadPoolExecutor(self.concurrency)
-        self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=self.concurrency, pool_maxsize=self.concurrency)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
-
-        t0 = time()
-        last_report = time()
+    def run(self):
         i = 0
-        r = None
-        for r in self.perform_requests():
-            if r is not True:
-                i += 1
-                self.ui.info('{} responses sent | time elapsed {}s'
-                             .format(i, time() - t0))
+        for _ in self.perform_requests():
+            i += 1
+        return i
 
-                if time() - last_report > REPORT_INTERVAL:
-                    self.progress_queue.put((
-                        ProgressQueueMsg.NETWORK_PROGRESS, {
-                            "processed": self.n_requests,
-                            "retried": self.n_retried,
-                            "consumed": self.n_consumed,
-                            "rusage": get_rusage(),
-                        }))
-                    last_report = time()
-
-        self.progress_queue.put((ProgressQueueMsg.NETWORK_DONE, {
-            "ret": r,
-            "processed": self.n_requests,
-            "retried": self.n_retried,
-            "consumed": self.n_consumed,
-            "rusage": get_rusage(),
-        }))
-
-    def go(self, dry_run=False):
-        if dry_run:
-            return self.run(dry_run)
-
-        self.ui.set_next_UI_name('network')
-        self.proc = \
-            multiprocessing.Process(target=self.run,
-                                    name='Netwrk_Proc')
-        self.proc.start()
-        return self.proc
+    def go(self):
+        return self.run()
