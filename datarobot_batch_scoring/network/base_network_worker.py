@@ -2,16 +2,12 @@ import collections
 import logging
 import os
 import sys
-import textwrap
 
-import requests
-import requests.adapters
 from datarobot_batch_scoring.consts import (WriterQueueMsg, Batch,
                                             ProgressQueueMsg)
 from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk)
 from datarobot_batch_scoring.utils import compress, get_rusage, Worker
-from six.moves import queue
 
 try:
     from futures import ThreadPoolExecutor
