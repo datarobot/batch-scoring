@@ -24,19 +24,20 @@ FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 class BaseNetworkWorker(Worker):
     """A network worker
 
-    Work for the worker is read off of the network_queue; failures are put into the network_deque
-    from which they are also read and sometimes retried.
+    Work for the worker is read off of the network_queue; failures are put into
+    the network_deque from which they are also read and sometimes retried.
 
-    Successfully returned responses are put into the writer_queue for processing by another
-    worker.
+    Successfully returned responses are put into the writer_queue for
+    processing by another worker.
 
-    Occasional progress updates are occasionally put into the progress_queue for processing
-    by another worker
+    Occasional progress updates are occasionally put into the progress_queue
+    for processing by another worker
 
-    A properly functioning Worker implementation must read data from the network_queue until it
-    finds the SENTINEL message, which is the indicator that no more work will be put onto the
-    network queue. At this point the worker should finish any remaining work and put a
-    NETWORK_PROGRESS message into the progress_queue with the following details:
+    A properly functioning Worker implementation must read data from the
+    network_queue until it finds the SENTINEL message, which is the indicator
+    that no more work will be put onto the network queue. At this point the
+    worker should finish any remaining work and put a NETWORK_PROGRESS message
+    into the progress_queue with the following details:
 
     ret : boolean
         The return status (success flag) of the process
@@ -49,10 +50,11 @@ class BaseNetworkWorker(Worker):
     rusage : dict
         The resource usage. See the function `get_rusage` in `utils`
 
-    In addition, it is helpful for debugging purposes if the worker is diligent about minding its
-    state transitions. As an instance of `Worker`, any time the `self.state` attribute is updated,
-    a message is sent to the interface logging this fact. Valid values for the state are defined
-    in this class in the `state_names` class attribute.
+    In addition, it is helpful for debugging purposes if the worker is diligent
+    about minding its state transitions. As an instance of `Worker`, any time
+    the `self.state` attribute is updated, a message is sent to the interface
+    logging this fact. Valid values for the state are defined in this class in
+    the `state_names` class attribute.
     """
 
     state_names = {

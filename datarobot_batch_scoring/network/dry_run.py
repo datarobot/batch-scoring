@@ -22,8 +22,8 @@ FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
 class DryRunNetworkWorker(BaseNetworkWorker):
-    """A worker that will drain the network_queue, but doesn't actually send any
-    requests or put anything into the writer_queue
+    """A worker that will drain the network_queue, but doesn't actually send
+    any requests or put anything into the writer_queue
     """
 
     def get_batch(self):
