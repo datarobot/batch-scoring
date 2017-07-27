@@ -9,12 +9,6 @@ from six.moves import queue
 
 from .base_network_worker import BaseNetworkWorker
 
-try:
-    from futures import ThreadPoolExecutor
-except ImportError:
-    from concurrent.futures import ThreadPoolExecutor
-
-
 logger = logging.getLogger(__name__)
 
 

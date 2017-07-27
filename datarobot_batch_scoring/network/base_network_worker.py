@@ -9,11 +9,6 @@ from datarobot_batch_scoring.reader import (fast_to_csv_chunk,
                                             slow_to_csv_chunk)
 from datarobot_batch_scoring.utils import compress, get_rusage, Worker
 
-try:
-    from futures import ThreadPoolExecutor
-except ImportError:
-    from concurrent.futures import ThreadPoolExecutor
-
 
 logger = logging.getLogger(__name__)
 
