@@ -109,8 +109,9 @@ class Network(BaseNetworkWorker):
         except Exception as exc:
             code = 400
             if isinstance(exc, requests.exceptions.ReadTimeout):
-                self.ui.warning(textwrap.dedent("""The server did not send any
-data in the allotted amount of time.
+                self.ui.warning(textwrap.dedent(
+                    """The server did not send any data
+in the allotted amount of time.
 You might want to decrease the "--n_concurrent" parameters
 or
 increase "--timeout" parameter.
