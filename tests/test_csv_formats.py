@@ -170,7 +170,7 @@ def test_empty_file(live_server):
             encoding='',
             skip_dialect=False
         )
-    assert str(ctx.value) == ("Could not determine delimiter")
+    assert "The csv module failed to detect the CSV dialect." in str(ctx.value)
 
 
 def test_no_delimiter(live_server):

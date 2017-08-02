@@ -15,6 +15,7 @@ import six
 from datarobot_batch_scoring.consts import (Batch,
                                             REPORT_INTERVAL,
                                             ProgressQueueMsg)
+from datarobot_batch_scoring.detect import Detector
 from datarobot_batch_scoring.utils import get_rusage, SerializableDialect
 
 
@@ -366,6 +367,48 @@ class Shovel(object):
             self.p.terminate()
 
 
+def sniff_dialect(sample, encoding, sep, skip_dialect, ui):
+    t1 = time()
+    try:
+        if skip_dialect:
+            ui.debug('investigate_encoding_and_dialect - skip dialect detect')
+            if sep:
+                csv.register_dialect('dataset_dialect', csv.excel,
+                                     delimiter=sep)
+            else:
+                csv.register_dialect('dataset_dialect', csv.excel)
+            dialect = csv.get_dialect('dataset_dialect')
+        else:
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(sample.decode(encoding), delimiters=sep)
+            ui.debug('investigate_encoding_and_dialect - seconds to detect '
+                     'csv dialect: {}'.format(time() - t1))
+    except csv.Error:
+        decoded_one = sample.decode(encoding)
+        t2 = time()
+        detector = Detector()
+        delimiter, resampled = detector.detect(decoded_one)
+
+        if len(delimiter) == 1:
+            delimiter = delimiter[0]
+            ui.info("Detected delimiter as %s" % delimiter)
+
+            if sep is not None and sep != delimiter:
+                delimiter = sep
+        else:
+            raise csv.Error(
+                "The csv module failed to detect the CSV dialect. "
+                "Try giving hints with the --delimiter argument, "
+                "E.g  --delimiter=','"
+            )
+
+        sniffer = csv.Sniffer()
+        dialect = sniffer.sniff(resampled, delimiters=delimiter)
+        ui.debug('investigate_encoding_and_dialect v2 - seconds to detect '
+                 'csv dialect: {}'.format(time() - t2))
+    return dialect
+
+
 def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
                                      encoding=None, skip_dialect=False,
                                      output_delimiter=None):
@@ -394,22 +437,11 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
         ui.debug('investigate_encoding_and_dialect - skip encoding detect')
         encoding = encoding.lower()
         sample[:1000].decode(encoding)  # Fail here if the encoding is invalid
-    t1 = time()
+
     try:
-        if skip_dialect:
-            ui.debug('investigate_encoding_and_dialect - skip dialect detect')
-            if sep:
-                csv.register_dialect('dataset_dialect', csv.excel,
-                                     delimiter=sep)
-            else:
-                csv.register_dialect('dataset_dialect', csv.excel)
-            dialect = csv.get_dialect('dataset_dialect')
-        else:
-            sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(sample.decode(encoding), delimiters=sep)
-            ui.debug('investigate_encoding_and_dialect - seconds to detect '
-                     'csv dialect: {}'.format(time() - t1))
-    except csv.Error:
+        dialect = sniff_dialect(sample, encoding, sep, skip_dialect, ui)
+    except csv.Error as ex:
+        ui.fatal(ex)
         if len(sample) < 10:
             ui.fatal('Input file "%s" is less than 10 chars long '
                      'and this is the possible cause of a csv.Error.'
@@ -425,6 +457,7 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
                      '--delimiter argument, E.g  '
                      """--delimiter=','""")
         raise
+
     #  in Python 2, csv.dialect sometimes returns unicode which the
     #  PY2 csv.reader cannot handle. This may be from the Recoder
     if six.PY2:
