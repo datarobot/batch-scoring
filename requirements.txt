@@ -1,6 +1,6 @@
 six>=1.9.0
 requests>=2.7.0,<2.16
-trafaret>=0.7.1
+trafaret==0.10.0
 contextlib2>=0.5.1
 futures>=3.0.4
 chardet>=2.3.0,<3.0
