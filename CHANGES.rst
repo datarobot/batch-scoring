@@ -1,11 +1,13 @@
-1.12.0 (unreleased)
-===================
+1.12.0 (2017 August 9)
+======================
 
 Enhancements
 ------------
 * Batch scoring now works with Python 3.6 on Windows (offline installs require 3.5 though)
 * Logs now include version, retry attempts and whether output file was removed.
 * New argument `no-resume` that allows you to start new batch-scoring run from scratch without being questioned about previous runs.
+* The version of the dependency `trafaret` has been pinned to `0.10.0` to deal with a breaking change in the interface
+  of that package.
 
 
 Documentation
@@ -15,7 +17,7 @@ Documentation
 
 
 1.11.0 (2017 May 30)
-=============
+====================
 
 New Features
 ------------
