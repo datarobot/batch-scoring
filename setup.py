@@ -42,7 +42,8 @@ setup(
     maintainer_email='support@datarobot.com',
     license='BSD',
     url='http://www.datarobot.com/',
-    packages=['datarobot_batch_scoring'],
+    packages=['datarobot_batch_scoring',
+              'datarobot_batch_scoring.network'],
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7',
