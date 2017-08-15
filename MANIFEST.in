@@ -1,4 +1,4 @@
-recursive-include datarobot_scoring *.py
+recursive-include datarobot_batch_scoring *.py
 
 include setup.py
 include README.rst
