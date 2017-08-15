@@ -8,7 +8,7 @@ RUN pip install -r requirements.txt -r requirements-test.txt
 
 COPY . /opt/project
 
-RUN pip install -e .
+RUN pip install .
 
 COPY docker-entrypoint.sh /
 
