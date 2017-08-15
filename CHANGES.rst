@@ -1,3 +1,10 @@
+1.12.1 (2017 August 14)
+=======================
+
+Bugfixes
+--------
+* Updates the distribution metadata to include modules critical to the functioning of this library.
+
 1.12.0 (2017 August 9)
 ======================
 
