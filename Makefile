@@ -10,7 +10,7 @@ flake8: .install-test-deps
 	flake8 datarobot_batch_scoring tests
 
 .install: $(shell find datarobot_batch_scoring -type f)
-	pip install .
+	pip install -e .
 	touch .install
 
 test: .install .install-test-deps flake8
