@@ -85,7 +85,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                            concurrent)
 
     with ExitStack() as stack:
-        if os.name is 'nt':
+        if os.name == 'nt':
             #  Windows requires an additional manager process. The locks
             #  and queues it creates are proxies for objects that exist within
             #  the manager itself. It does not perform as well so we only
@@ -575,7 +575,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.debug('Network finished with error')
             exit_code = 1
 
-        if writer_exitcode is 0:
+        if writer_exitcode == 0:
             ui.debug('writer process exited successfully')
         else:
             ui.debug('writer process did not exit properly: '
@@ -634,7 +634,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         ui.info('==== Total stats ===='.format(bucket))
         ui.info("done: {} lost: {}".format(total_done, total_lost))
-        if exit_code is None and total_lost is 0:
+        if exit_code is None and total_lost == 0:
             ctx.scoring_succeeded = True
         else:
             exit_code = 1
