@@ -101,8 +101,8 @@ class Network(BaseNetworkWorker):
 
     def _request(self, request):
 
-        prepared = self.session.prepare_request(request)
         try:
+            prepared = self.session.prepare_request(request)
             self.session.send(prepared, timeout=self._timeout)
         except Exception as exc:
             code = 400
