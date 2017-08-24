@@ -53,6 +53,15 @@ def format_usage(rusage):
                "RSS: {rss}".format(**rusage)
 
 
+def my_os_cannot_handle_life_in_the_fast_lane():
+    if os.name == 'nt':
+        return True
+    elif platform.system() == 'Darwin' and sys.version_info >= (3, 6):
+        return True
+    else:
+        return False
+
+
 def run_batch_predictions(base_url, base_headers, user, pwd,
                           api_token, create_api_token,
                           pid, lid, import_id, n_retry, concurrent,
@@ -85,7 +94,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                            concurrent)
 
     with ExitStack() as stack:
-        if os.name is 'nt':
+        if my_os_cannot_handle_life_in_the_fast_lane():
             #  Windows requires an additional manager process. The locks
             #  and queues it creates are proxies for objects that exist within
             #  the manager itself. It does not perform as well so we only
@@ -252,7 +261,6 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                               ))
 
         exit_code = None
-
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
                                                    network_queue,
                                                    network_deque,
@@ -575,7 +583,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             ui.debug('Network finished with error')
             exit_code = 1
 
-        if writer_exitcode is 0:
+        if writer_exitcode == 0:
             ui.debug('writer process exited successfully')
         else:
             ui.debug('writer process did not exit properly: '
@@ -634,7 +642,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         ui.info('==== Total stats ===='.format(bucket))
         ui.info("done: {} lost: {}".format(total_done, total_lost))
-        if exit_code is None and total_lost is 0:
+        if exit_code is None and total_lost == 0:
             ctx.scoring_succeeded = True
         else:
             exit_code = 1

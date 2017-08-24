@@ -6,28 +6,26 @@ import signal
 import textwrap
 from functools import partial
 from time import time
-
-import requests
-import requests.adapters
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import wait
-from datarobot_batch_scoring.consts import (SENTINEL,
-                                            REPORT_INTERVAL,
-                                            ProgressQueueMsg, WriterQueueMsg)
-from datarobot_batch_scoring.utils import get_rusage
-from six.moves import queue
-
-from .base_network_worker import BaseNetworkWorker
-
 try:
     from futures import ThreadPoolExecutor
 except ImportError:
     from concurrent.futures import ThreadPoolExecutor
 
+from six.moves import queue
+import requests
+import requests.adapters
+
+from datarobot_batch_scoring.consts import (SENTINEL,
+                                            REPORT_INTERVAL,
+                                            ProgressQueueMsg, WriterQueueMsg)
+from datarobot_batch_scoring.utils import get_rusage
+
+from .base_network_worker import BaseNetworkWorker
+
 
 logger = logging.getLogger(__name__)
-
-
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
 
@@ -103,8 +101,8 @@ class Network(BaseNetworkWorker):
 
     def _request(self, request):
 
-        prepared = self.session.prepare_request(request)
         try:
+            prepared = self.session.prepare_request(request)
             self.session.send(prepared, timeout=self._timeout)
         except Exception as exc:
             code = 400
