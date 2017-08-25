@@ -1,7 +1,6 @@
 import csv
 import glob
 import hashlib
-import json
 import multiprocessing
 import operator
 import os
@@ -17,7 +16,6 @@ from six.moves import queue
 from datarobot_batch_scoring.consts import SENTINEL, \
     WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
 from datarobot_batch_scoring.utils import get_rusage
-from datarobot_batch_scoring.api_response_handlers.pred_api_v10 import (format_data, unpack_data)
 
 
 class ShelveError(Exception):
@@ -333,7 +331,7 @@ def decode_writer_state(ch):
 
 class WriterProcess(object):
     def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue,
-                 abort_flag, writer_status):
+                 abort_flag, writer_status, response_handlers):
         self._ui = ui
         self.ctx = ctx
         self.writer_queue = writer_queue
@@ -341,6 +339,7 @@ class WriterProcess(object):
         self.deque = deque
         self.progress_queue = progress_queue
         self.abort_flag = abort_flag
+        self.response_handlers = response_handlers
         self.local_abort_flag = False
         self.writer_status = writer_status
         self.proc = None
@@ -409,12 +408,15 @@ class WriterProcess(object):
                     processed += 1
                     batch = args["batch"]
 
+                    unpack_data, format_data = self.response_handlers
                     try:
-                        data, exec_time, elapsed_seconds = unpack_data(args['request'])
-                        self._ui.debug(('successful response {}-{}: exec time {:.0f}msec | '
-                                        'round-trip: {:.0f}msec'
-                                        '').format(batch.id, batch.rows, exec_time,
-                                                   elapsed_seconds * 1000))
+                        data, exec_time, elapsed_seconds = \
+                            unpack_data(args['request'])
+                        debug_msg = ('successful response {}-{}: exec time '
+                                     '{:.0f}msec | round-trip: {:.0f}msec')
+                        self._ui.debug(
+                            debug_msg.format(batch.id, batch.rows, exec_time,
+                                             elapsed_seconds * 1000))
                     except Exception as e:
                         self._ui.warning('{} response parse error: {} -- retry'
                                          ''.format(batch.id, e))
@@ -491,7 +493,8 @@ class WriterProcess(object):
                                            self.deque,
                                            self.progress_queue,
                                            self.abort_flag,
-                                           self.writer_status]),
+                                           self.writer_status,
+                                           self.response_handlers]),
                                     name='Writer_Proc')
         self.proc.start()
         return self.proc
@@ -506,7 +509,8 @@ class WriterProcess(object):
 
 
 def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
-                         progress_queue, abort_flag, writer_status):
+                         progress_queue, abort_flag, writer_status,
+                         response_handlers):
     """
     This was intended to be a staticmethod of WriterProcess but
     python 2.7 on Windows can't find it unless it's at module level
@@ -520,5 +524,5 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
                     ''.format(multiprocessing.current_process().name))
     ctx.open()
     WriterProcess(_ui, ctx, writer_queue, queue, deque,
-                  progress_queue, abort_flag, writer_status
-                  ).process_response()
+                  progress_queue, abort_flag, writer_status,
+                  response_handlers).process_response()
