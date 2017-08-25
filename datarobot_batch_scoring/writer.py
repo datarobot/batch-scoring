@@ -464,9 +464,7 @@ class WriterProcess(object):
         self._ui.debug('Writer Process started - {}'
                        ''.format(multiprocessing.current_process().name))
 
-        rows_done = 0
-        for _, rows in self.ctx.db['checkpoints']:
-            rows_done += rows
+        rows_done = sum(rows for _, rows in self.ctx.db['checkpoints'])
 
         success = False
         processed = 0
