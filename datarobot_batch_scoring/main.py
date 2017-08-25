@@ -7,12 +7,13 @@ import warnings
 from multiprocessing import freeze_support
 
 from datarobot_batch_scoring import __version__
+from datarobot_batch_scoring.api_response_handlers import RESPONSE_HANDLERS, PRED_API_V10
 from datarobot_batch_scoring.batch_scoring import (run_batch_predictions)
 from datarobot_batch_scoring.writer import ShelveError
 from datarobot_batch_scoring.utils import (UI, get_config_file,
                                            parse_config_file,
                                            verify_objectid,
-                                           parse_host)
+                                           get_endpoint)
 
 VERSION_TEMPLATE = '%(prog)s {}'.format(__version__)
 
@@ -55,6 +56,7 @@ def parse_args(argv, standalone=False):
         'fast': False,
         'stdout': False,
         'auto_sample': False,
+        'api_version': PRED_API_V10,
     }
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
@@ -102,6 +104,11 @@ def parse_args(argv, standalone=False):
                              help='Specifies the api token for the requests; '
                              'if you do not have a token, '
                              'you must specify the password argument.')
+        auth_gr.add_argument('--api_version', type=str,
+                             choices=RESPONSE_HANDLERS.keys(),
+                             default=defaults['api_version'],
+                             help='Specifies API version. '
+                                  '(default: %(default)r)')
         auth_gr.add_argument('--create_api_token', action="store_true",
                              default=defaults['create_api_token'],
                              help='Requests a new API token. To use this '
@@ -259,11 +266,9 @@ def parse_generic_options(parsed_args):
     encoding = parsed_args['encoding']
     skip_dialect = parsed_args['skip_dialect']
     skip_row_id = parsed_args['skip_row_id']
-    host = parsed_args.get('host')
     field_size_limit = parsed_args.get('field_size_limit')
     pred_name = parsed_args.get('pred_name')
     dry_run = parsed_args.get('dry_run', False)
-    base_url = ""
 
     n_samples = int(parsed_args['n_samples'])
     auto_sample = parsed_args['auto_sample']
@@ -295,15 +300,10 @@ def parse_generic_options(parsed_args):
     if not os.path.exists(dataset):
         ui.fatal('file {} does not exist.'.format(dataset))
 
-    if not dry_run:
-        base_url = parse_host(host, ui)
-
     ui.debug('batch_scoring v{}'.format(__version__))
-    ui.info('connecting to {}'.format(base_url))
 
     return {
         'auto_sample': auto_sample,
-        'base_url': base_url,
         'compression': compression,
         'concurrent': concurrent,
         'dataset': dataset,
@@ -362,9 +362,19 @@ def main(argv=sys.argv[1:]):
         base_headers['datarobot-key'] = datarobot_key
     # end auth ---
 
+    if generic_opts['dry_run']:
+        base_url = ''
+        ui.info('Running in dry-run mode')
+    else:
+        try:
+            base_url = get_endpoint(parsed_args['host'], parsed_args['api_version'])
+            ui.info('Will be using API endpoint: {}'.format(base_url))
+        except ValueError as e:
+            ui.fatal(str(e))
+
     try:
         exit_code = run_batch_predictions(
-            base_headers=base_headers, user=user, pwd=pwd,
+            base_url=base_url, base_headers=base_headers, user=user, pwd=pwd,
             api_token=api_token, create_api_token=create_api_token,
             pid=pid, lid=lid, import_id=None, ui=ui, **generic_opts
         )
@@ -399,8 +409,20 @@ def main_standalone(argv=sys.argv[1:]):
 
     generic_opts = parse_generic_options(parsed_args)
     import_id = parsed_args['import_id']
+
+    if generic_opts['dry_run']:
+        base_url = ''
+        ui.info('Running in dry-run mode')
+    else:
+        try:
+            base_url = get_endpoint(parsed_args['host'], parsed_args['api_version'])
+            ui.info('Will be using API endpoint: {}'.format(base_url))
+        except ValueError as e:
+            ui.fatal(str(e))
+
     try:
         exit_code = run_batch_predictions(
+            base_url=base_url,
             base_headers={}, user=None, pwd=None,
             api_token=None, create_api_token=False,
             pid=None, lid=None, import_id=import_id, ui=ui, **generic_opts

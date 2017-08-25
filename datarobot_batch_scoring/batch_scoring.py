@@ -16,6 +16,7 @@ import six
 from six.moves import queue
 
 from datarobot_batch_scoring import __version__
+from datarobot_batch_scoring.api_response_handlers import get_response_handlers_from_url
 from datarobot_batch_scoring.consts import (WriterQueueMsg,
                                             ProgressQueueMsg,
                                             SENTINEL,
@@ -265,7 +266,11 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
         exit_code = None
 
-        response_handlers = (unpack_data, format_data)
+        try:
+            response_handlers = get_response_handlers_from_url(base_url)
+        except ValueError as e:
+            ui.fatal(str(e))
+
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
                                                    network_queue,
                                                    network_deque,
