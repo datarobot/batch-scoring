@@ -591,10 +591,11 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
     This should only be run in the spawned process to launch the
     WriterProcess class instance.
     """
-    if str(multiprocessing.current_process().name) != 'Writer_Proc':
+    process_name = str(multiprocessing.current_process().name)
+    if process_name != 'Writer_Proc':
         _ui.warning('WriterProcess.run_subproc_cls_inst called in '
                     'process named: "{}"'
-                    ''.format(multiprocessing.current_process().name))
+                    ''.format(process_name))
     ctx.open()
     WriterProcess(_ui, ctx, writer_queue, queue, deque,
                   progress_queue, abort_flag, writer_status
