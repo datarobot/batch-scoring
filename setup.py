@@ -2,7 +2,7 @@
 import codecs
 import os.path
 import re
-from setuptools import setup
+from setuptools import setup, find_packages
 
 extra = {}
 
@@ -42,8 +42,7 @@ setup(
     maintainer_email='support@datarobot.com',
     license='BSD',
     url='http://www.datarobot.com/',
-    packages=['datarobot_batch_scoring',
-              'datarobot_batch_scoring.network'],
+    packages=find_packages(),
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7',
