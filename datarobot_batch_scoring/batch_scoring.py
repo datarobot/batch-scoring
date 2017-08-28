@@ -31,6 +31,9 @@ from datarobot_batch_scoring.utils import (acquire_api_token,
 from datarobot_batch_scoring.writer import (WriterProcess, RunContext,
                                             decode_writer_state)
 
+from datarobot_batch_scoring.api_response_handlers.pred_api_v10 import (
+    format_data, unpack_data)
+
 if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack
 elif six.PY3:  # pragma: no cover
@@ -261,12 +264,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                               ))
 
         exit_code = None
+
+        response_handlers = (unpack_data, format_data)
         writer = stack.enter_context(WriterProcess(ui, ctx, writer_queue,
                                                    network_queue,
                                                    network_deque,
                                                    progress_queue,
                                                    abort_flag,
-                                                   writer_status))
+                                                   writer_status,
+                                                   response_handlers))
         ui.info('Writer go...')
         writer_proc = writer.go()
 

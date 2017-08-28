@@ -1,7 +1,6 @@
 import csv
 import glob
 import hashlib
-import json
 import multiprocessing
 import operator
 import os
@@ -332,7 +331,7 @@ def decode_writer_state(ch):
 
 class WriterProcess(object):
     def __init__(self, ui, ctx, writer_queue, queue, deque, progress_queue,
-                 abort_flag, writer_status):
+                 abort_flag, writer_status, response_handlers):
         self._ui = ui
         self.ctx = ctx
         self.writer_queue = writer_queue
@@ -340,6 +339,7 @@ class WriterProcess(object):
         self.deque = deque
         self.progress_queue = progress_queue
         self.abort_flag = abort_flag
+        self.response_handlers = response_handlers
         self.local_abort_flag = False
         self.writer_status = writer_status
         self.proc = None
@@ -353,105 +353,6 @@ class WriterProcess(object):
             self._ui.error('Dropping {} due to backfill queue full.'.format(
                 batch))
             self.ctx.save_error(batch, error="Backfill queue full")
-
-    def unpack_request_object(self, request, batch):
-        """
-
-        :param request: text of response from request object. contains JSON
-        :param batch: batch NamedTuple
-        :return: deserialize text to JSON and returns JSON as python objects
-        """
-        try:
-            exec_time = float(request['headers']['X-DataRobot-Execution-Time'])
-            result = json.loads(request['text'])  # replace with r.content
-            elapsed_total_seconds = request['elapsed']
-        except Exception as e:
-            self._ui.warning('{} response error: {} -- retry'
-                             ''.format(batch.id, e))
-            self.deque_failed_batch(batch)
-            return False  # unpack failed for this batch
-
-        self._ui.debug(('successful response {}-{}: exec time {:.0f}msec | '
-                        'round-trip: {:.0f}msec'
-                        '').format(batch.id, batch.rows, exec_time,
-                                   elapsed_total_seconds * 1000))
-        return result['data']
-
-    def format_result_data(self, result, batch):
-        """
-        :param result: JSON data returned from pred server
-        :param batch: batch NamedTuple
-        :param pred_name: name of prediction column
-        :return: out_fields, pred
-
-        Takes the result data and formats it.
-        """
-
-        pred_name = self.ctx.pred_name
-        keep_cols = self.ctx.keep_cols
-        skip_row_id = self.ctx.skip_row_id
-        fast_mode = self.ctx.fast_mode
-        input_delimiter = self.ctx.dialect.delimiter
-        single_row = result[0]
-        fields = sorted(record['label']
-                        for record in single_row['predictionValues'])
-
-        if pred_name is not None:
-            out_fields = ['row_id', pred_name]
-            # batch scoring returns only positive class for binary tasks if
-            # user specified pred_name option, so we eliminate negative
-            # result
-            if len(fields) == 2 and single_row['prediction'] in fields:
-                fields = [fields[-1]]
-        else:
-            out_fields = ['row_id'] + fields
-        try:
-            pred = [[record['rowId'] + batch.id] + [
-                pred_vals['value'] for pred_vals in
-                sorted(record['predictionValues'],
-                       key=operator.itemgetter('label'))
-                if pred_vals['label'] in fields]
-                    for record in sorted(result,
-                                         key=operator.itemgetter('rowId'))]
-        except Exception as ex:
-            self._ui.fatal(ex)
-
-        if keep_cols:
-            # stack columns
-
-            feature_indices = {col: i for i, col in
-                               enumerate(batch.fieldnames)}
-            indices = [feature_indices[col] for col in keep_cols]
-
-            written_fields = []
-
-            if not skip_row_id:
-                written_fields.append('row_id')
-
-            written_fields += keep_cols + out_fields[1:]
-
-            # first column is row_id
-            comb = []
-            for row, predicted in zip(batch.data, pred):
-                if fast_mode:
-                    # row is a full line, we need to cut it into fields
-                    # FIXME this will fail on quoted fields!
-                    row = row.rstrip().split(input_delimiter)
-                keeps = [row[i] for i in indices]
-                output_row = []
-                if not skip_row_id:
-                    output_row.append(predicted[0])
-                output_row += keeps + predicted[1:]
-                comb.append(output_row)
-        else:
-            if not skip_row_id:
-                comb = pred
-                written_fields = out_fields
-            else:
-                written_fields = out_fields[1:]
-                comb = [row[1:] for row in pred]
-
-        return written_fields, comb
 
     def exit_fast(self, a, b):
         self.local_abort_flag = True
@@ -506,11 +407,33 @@ class WriterProcess(object):
                 elif msg == WriterQueueMsg.RESPONSE:
                     processed += 1
                     batch = args["batch"]
-                    result = self.unpack_request_object(args["request"], batch)
-                    if result is False:  # unpack_request_object failed
+
+                    unpack_data, format_data = self.response_handlers
+                    try:
+                        data, exec_time, elapsed_seconds = \
+                            unpack_data(args['request'])
+                        debug_msg = ('successful response {}-{}: exec time '
+                                     '{:.0f}msec | round-trip: {:.0f}msec')
+                        self._ui.debug(
+                            debug_msg.format(batch.id, batch.rows, exec_time,
+                                             elapsed_seconds * 1000))
+                    except Exception as e:
+                        self._ui.warning('{} response parse error: {} -- retry'
+                                         ''.format(batch.id, e))
+                        self.deque_failed_batch(batch)
                         continue
-                    (written_fields, comb) = self.format_result_data(result,
-                                                                     batch)
+
+                    try:
+                        written_fields, comb = format_data(
+                            data, batch,
+                            pred_name=self.ctx.pred_name,
+                            keep_cols=self.ctx.keep_cols,
+                            skip_row_id=self.ctx.skip_row_id,
+                            fast_mode=self.ctx.fast_mode,
+                            delimiter=self.ctx.dialect.delimiter)
+                    except Exception as e:
+                        self._ui.fatal(e)
+
                     self.ctx.checkpoint_batch(batch, written_fields, comb)
                     written += 1
                     rows_done += batch.rows
@@ -570,7 +493,8 @@ class WriterProcess(object):
                                            self.deque,
                                            self.progress_queue,
                                            self.abort_flag,
-                                           self.writer_status]),
+                                           self.writer_status,
+                                           self.response_handlers]),
                                     name='Writer_Proc')
         self.proc.start()
         return self.proc
@@ -585,7 +509,8 @@ class WriterProcess(object):
 
 
 def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
-                         progress_queue, abort_flag, writer_status):
+                         progress_queue, abort_flag, writer_status,
+                         response_handlers):
     """
     This was intended to be a staticmethod of WriterProcess but
     python 2.7 on Windows can't find it unless it's at module level
@@ -599,5 +524,5 @@ def run_subproc_cls_inst(_ui, ctx, writer_queue, queue, deque,
                     ''.format(multiprocessing.current_process().name))
     ctx.open()
     WriterProcess(_ui, ctx, writer_queue, queue, deque,
-                  progress_queue, abort_flag, writer_status
-                  ).process_response()
+                  progress_queue, abort_flag, writer_status,
+                  response_handlers).process_response()
