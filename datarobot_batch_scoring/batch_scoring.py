@@ -16,7 +16,8 @@ import six
 from six.moves import queue
 
 from datarobot_batch_scoring import __version__
-from datarobot_batch_scoring.api_response_handlers import get_response_handlers_from_url
+from datarobot_batch_scoring.api_response_handlers import \
+    get_response_handlers_from_url
 from datarobot_batch_scoring.consts import (WriterQueueMsg,
                                             ProgressQueueMsg,
                                             SENTINEL,
@@ -31,9 +32,6 @@ from datarobot_batch_scoring.utils import (acquire_api_token,
                                            make_validation_call)
 from datarobot_batch_scoring.writer import (WriterProcess, RunContext,
                                             decode_writer_state)
-
-from datarobot_batch_scoring.api_response_handlers.pred_api_v10 import (
-    format_data, unpack_data)
 
 if six.PY2:  # pragma: no cover
     from contextlib2 import ExitStack

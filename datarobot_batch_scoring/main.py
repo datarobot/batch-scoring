@@ -7,7 +7,8 @@ import warnings
 from multiprocessing import freeze_support
 
 from datarobot_batch_scoring import __version__
-from datarobot_batch_scoring.api_response_handlers import RESPONSE_HANDLERS, PRED_API_V10
+from datarobot_batch_scoring.api_response_handlers import (
+    RESPONSE_HANDLERS, PRED_API_V10)
 from datarobot_batch_scoring.batch_scoring import (run_batch_predictions)
 from datarobot_batch_scoring.writer import ShelveError
 from datarobot_batch_scoring.utils import (UI, get_config_file,
@@ -367,7 +368,8 @@ def main(argv=sys.argv[1:]):
         ui.info('Running in dry-run mode')
     else:
         try:
-            base_url = get_endpoint(parsed_args['host'], parsed_args['api_version'])
+            base_url = get_endpoint(parsed_args['host'],
+                                    parsed_args['api_version'])
             ui.info('Will be using API endpoint: {}'.format(base_url))
         except ValueError as e:
             ui.fatal(str(e))
@@ -415,7 +417,8 @@ def main_standalone(argv=sys.argv[1:]):
         ui.info('Running in dry-run mode')
     else:
         try:
-            base_url = get_endpoint(parsed_args['host'], parsed_args['api_version'])
+            base_url = get_endpoint(parsed_args['host'],
+                                    parsed_args['api_version'])
             ui.info('Will be using API endpoint: {}'.format(base_url))
         except ValueError as e:
             ui.fatal(str(e))
