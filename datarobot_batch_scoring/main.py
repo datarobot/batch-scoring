@@ -418,7 +418,7 @@ def main_standalone(argv=sys.argv[1:]):
     else:
         try:
             base_url = get_endpoint(parsed_args['host'],
-                                    parsed_args['api_version'])
+                                    PRED_API_V10)
             ui.info('Will be using API endpoint: {}'.format(base_url))
         except ValueError as e:
             ui.fatal(str(e))
