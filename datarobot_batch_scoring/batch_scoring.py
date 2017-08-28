@@ -56,8 +56,6 @@ def format_usage(rusage):
 def my_os_cannot_handle_life_in_the_fast_lane():
     if os.name == 'nt':
         return True
-    elif platform.system() == 'Darwin' and sys.version_info >= (3, 6):
-        return True
     else:
         return False
 
