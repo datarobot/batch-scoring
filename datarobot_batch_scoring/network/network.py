@@ -28,6 +28,40 @@ from .base_network_worker import BaseNetworkWorker
 logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
 
+from requests.packages.urllib3.util.connection import socket as r_socket
+try:
+    from functools import lru_cache
+except ImportError:
+    # https://stackoverflow.com/questions/17119154/python-decorator-optional-argument
+    import functools
+    def lru_cache(*setting_args, **setting_kwargs):
+        cache = {}
+        no_args = (
+            len(setting_args) == 1 and
+            not setting_kwargs and
+            callable(setting_args[0])
+        )
+        if no_args:
+            # We were called without args
+            func = setting_args[0]
+        def outer(method):
+            @functools.wraps(method)
+            def func(*args, **kwargs):
+                key = tuple(args) + tuple(sorted(kwargs.items()))
+                if key not in cache:
+                    cache[key] = method(*args, **kwargs)
+                return cache[key]
+            return func
+        return outer(func) if no_args else outer
+
+
+old_getaddrinfo = r_socket.getaddrinfo
+
+@lru_cache()
+def my_getaddrinfo(*args, **kwargs):
+    return old_getaddrinfo(*args, **kwargs)
+
+r_socket.getaddrinfo = my_getaddrinfo
 
 class Network(BaseNetworkWorker):
 
