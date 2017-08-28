@@ -1,3 +1,12 @@
+1.13.0 (unreleased)
+===================
+
+Enhancements
+------------
+* Adds support for legacy predictions (api/v1) and a new parameter for specifying api version (--api_version)
+
+
+
 1.12.1 (2017 August 14)
 =======================
 
