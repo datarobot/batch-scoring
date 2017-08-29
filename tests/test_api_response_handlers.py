@@ -140,7 +140,7 @@ class TestApiV1Handlers(object):
         assert type(result) is tuple
         data, exec_time, elapsed = result
         assert type(data) is dict
-        assert data.keys() == {
+        assert set(data.keys()) == {
             'status', 'model_id', 'code', 'execution_time', 'predictions'}
         assert elapsed == 0.123
         assert exec_time == 10
