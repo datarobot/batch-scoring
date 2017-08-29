@@ -1,7 +1,11 @@
 import csv
+import tempfile
+
 import pytest
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
 from utils import PickableMock
+
+from datarobot_batch_scoring.reader import DETECT_SAMPLE_SIZE_SLOW
 
 
 def test_gzipped_csv(live_server, ui):
@@ -240,3 +244,57 @@ def test_header_only(live_server):
         )
     assert str(ctx.value) == ("Input file 'tests/fixtures/header_only.csv' "
                               "is empty.")
+
+
+def test_quotechar_in_keep_cols(live_server):
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    ui = PickableMock()
+    with tempfile.NamedTemporaryFile(prefix='test_',
+                                     suffix='.csv',
+                                     delete=False) as fd:
+        head = open("tests/fixtures/quotes_input_head.csv",
+                    "rb").read()
+        body_1 = open("tests/fixtures/quotes_input_first_part.csv",
+                      "rb").read()
+        body_2 = open("tests/fixtures/quotes_input_bad_part.csv",
+                      "rb").read()
+        fd.file.write(head)
+        size = 0
+        while size < DETECT_SAMPLE_SIZE_SLOW:
+            fd.file.write(body_1)
+            size += len(body_1)
+        fd.file.write(body_2)
+        fd.close()
+
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            import_id=None,
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file='out.csv',
+            keep_cols=["b", "c"],
+            delimiter=None,
+            dataset=fd.name,
+            pred_name=None,
+            timeout=30,
+            ui=ui,
+            auto_sample=True,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+        assert ret is None
+
+        last_line = open("out.csv", "rb").readlines()[-1]
+        expected_last_line = b'1044,2,"eeeeeeee ""eeeeee"" eeeeeeeeeeee'
+        assert last_line[:len(expected_last_line)] == expected_last_line

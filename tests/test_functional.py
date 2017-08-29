@@ -15,7 +15,8 @@ from utils import PickableMock, print_logs
 def test_args_from_subprocess(live_server):
     # train one model in project
     with tempfile.NamedTemporaryFile(prefix='test_',
-                                     suffix='.csv') as fd:
+                                     suffix='.csv',
+                                     delete=True) as fd:
         pass
     bscore_name = 'batch_scoring'
     if os.name is 'nt':
