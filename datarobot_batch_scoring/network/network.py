@@ -49,11 +49,10 @@ except ImportError:
         def outer(func):
             @functools.wraps(func)
             def cacher(*args, **kwargs):
-                with lock:
-                    key = tuple(args) + tuple(sorted(kwargs.items()))
-                    if key not in cache:
-                        cache[key] = func(*args, **kwargs)
-                    return cache[key]
+                key = tuple(args) + tuple(sorted(kwargs.items()))
+                if key not in cache:
+                    cache[key] = func(*args, **kwargs)
+                return cache[key]
             return cacher
         return outer(func) if no_args else outer
 
@@ -78,7 +77,8 @@ old_getaddrinfo = r_socket.getaddrinfo
 
 @lru_cache()
 def my_getaddrinfo(*args, **kwargs):
-    return old_getaddrinfo(*args, **kwargs)
+    with lock:
+        return old_getaddrinfo(*args, **kwargs)
 
 r_socket.getaddrinfo = my_getaddrinfo
 
