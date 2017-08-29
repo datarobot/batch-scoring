@@ -44,14 +44,14 @@ except ImportError:
         if no_args:
             # We were called without args
             func = setting_args[0]
-        def outer(method):
-            @functools.wraps(method)
-            def func(*args, **kwargs):
+        def outer(func):
+            @functools.wraps(func)
+            def cacher(*args, **kwargs):
                 key = tuple(args) + tuple(sorted(kwargs.items()))
                 if key not in cache:
                     cache[key] = method(*args, **kwargs)
                 return cache[key]
-            return func
+            return cacher
         return outer(func) if no_args else outer
 
 
