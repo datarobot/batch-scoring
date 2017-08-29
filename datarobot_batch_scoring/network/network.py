@@ -5,37 +5,12 @@ import multiprocessing
 import signal
 import textwrap
 from functools import partial
-from time import time
-import threading
-from concurrent.futures import FIRST_COMPLETED
-from concurrent.futures import wait
-try:
-    from futures import ThreadPoolExecutor
-except ImportError:
-    from concurrent.futures import ThreadPoolExecutor
-
-from six.moves import queue
-import requests
-import requests.adapters
-
-from datarobot_batch_scoring.consts import (SENTINEL,
-                                            REPORT_INTERVAL,
-                                            ProgressQueueMsg, WriterQueueMsg)
-from datarobot_batch_scoring.utils import get_rusage
-
-from .base_network_worker import BaseNetworkWorker
-
-
-logger = logging.getLogger(__name__)
-FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
-lock = threading.Lock()
-
+import functools
 try:
     from functools import lru_cache
 except ImportError:
     # Python 2.7 compatible lru_cache implementation
     # https://stackoverflow.com/questions/17119154/python-decorator-optional-argument
-    import functools
     def lru_cache(*setting_args, **setting_kwargs):
         cache = {}
         no_args = (
@@ -56,6 +31,32 @@ except ImportError:
             return cacher
         return outer(func) if no_args else outer
 
+from time import time
+import threading
+from concurrent.futures import FIRST_COMPLETED
+from concurrent.futures import wait
+try:
+    from futures import ThreadPoolExecutor
+except ImportError:
+    from concurrent.futures import ThreadPoolExecutor
+
+from six.moves import queue
+import requests
+import requests.adapters
+from requests.packages.urllib3.util.connection import socket as r_socket
+
+from datarobot_batch_scoring.consts import (SENTINEL,
+                                            REPORT_INTERVAL,
+                                            ProgressQueueMsg, WriterQueueMsg)
+from datarobot_batch_scoring.utils import get_rusage
+
+from .base_network_worker import BaseNetworkWorker
+
+
+logger = logging.getLogger(__name__)
+FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
+lock = threading.Lock()
+
 
 # Monkey-patch getaddrinfo with an LRU cache to minimize conflicting calls
 # There are a couple of problems here:
@@ -72,8 +73,8 @@ except ImportError:
 #
 # The use of a cache is useful because it replaces the single lookup (there is only one
 # address we need resolved) with a read operation from then after.
-from requests.packages.urllib3.util.connection import socket as r_socket
 old_getaddrinfo = r_socket.getaddrinfo
+
 
 @lru_cache()
 def my_getaddrinfo(*args, **kwargs):
