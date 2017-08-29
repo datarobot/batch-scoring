@@ -59,6 +59,20 @@ except ImportError:
 
 
 # Monkey-patch getaddrinfo with an LRU cache to minimize conflicting calls
+# There are a couple of problems here:
+# - getaddrinfo appears not to be threadsafe even though many articles say it is fixed
+#   We cache the result to avoid making a call to a function that is not threadsafe.
+# - getaddrinfo is called many times to resolve the address of only a single location
+#   (We can cache the result and avoid making the call repeatedly.) However, we are not using
+#   caching principally because of a performance issue; it is about safety.
+#
+# There are several reasonable alternatives that are not helpful:
+# - putting a lock around the `session.send` call does not help because there is only
+#   one `.run` call
+# - using multiple `request.Session` objects (one per thread) eliminates access to thread-pooling
+#
+# The use of a cache is useful because it replaces the single lookup (there is only one
+# address we need resolved) with a read operation from then after.
 from requests.packages.urllib3.util.connection import socket as r_socket
 old_getaddrinfo = r_socket.getaddrinfo
 
