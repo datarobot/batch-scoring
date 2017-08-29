@@ -109,12 +109,10 @@ class Network(BaseNetworkWorker):
                               'because of FakeResponse')
             else:
                 try:
-                    self.ui.warning('batch {} failed with status code '
-                                    '{} message: {}'
-                                    ''.format(
-                                         batch.id,
-                                         r.status_code,
-                                         json.loads(r.text)['message']))
+                    fmt = 'batch {} failed with status code {} message: {}'
+                    self.ui.warning(
+                        fmt.format(batch.id, r.status_code, json.loads(r.text)['message'])
+                    )
                 except ValueError:
                     self.ui.warning('batch {} failed with status code: {}'
                                     ''.format(batch.id, r.status_code))
