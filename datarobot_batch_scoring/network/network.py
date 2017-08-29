@@ -49,7 +49,7 @@ except ImportError:
             def cacher(*args, **kwargs):
                 key = tuple(args) + tuple(sorted(kwargs.items()))
                 if key not in cache:
-                    cache[key] = method(*args, **kwargs)
+                    cache[key] = func(*args, **kwargs)
                 return cache[key]
             return cacher
         return outer(func) if no_args else outer
