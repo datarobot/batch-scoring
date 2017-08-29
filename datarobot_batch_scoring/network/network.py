@@ -6,6 +6,7 @@ import signal
 import textwrap
 from functools import partial
 from time import time
+import threading
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import wait
 try:
@@ -27,11 +28,12 @@ from .base_network_worker import BaseNetworkWorker
 
 logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
+lock = threading.Lock()
 
-from requests.packages.urllib3.util.connection import socket as r_socket
 try:
     from functools import lru_cache
 except ImportError:
+    # Python 2.7 compatible lru_cache implementation
     # https://stackoverflow.com/questions/17119154/python-decorator-optional-argument
     import functools
     def lru_cache(*setting_args, **setting_kwargs):
@@ -47,14 +49,17 @@ except ImportError:
         def outer(func):
             @functools.wraps(func)
             def cacher(*args, **kwargs):
-                key = tuple(args) + tuple(sorted(kwargs.items()))
-                if key not in cache:
-                    cache[key] = func(*args, **kwargs)
-                return cache[key]
+                with lock:
+                    key = tuple(args) + tuple(sorted(kwargs.items()))
+                    if key not in cache:
+                        cache[key] = func(*args, **kwargs)
+                    return cache[key]
             return cacher
         return outer(func) if no_args else outer
 
 
+# Monkey-patch getaddrinfo with an LRU cache to minimize conflicting calls
+from requests.packages.urllib3.util.connection import socket as r_socket
 old_getaddrinfo = r_socket.getaddrinfo
 
 @lru_cache()
