@@ -3,7 +3,8 @@
 
 Enhancements
 ------------
-* Adds support for legacy predictions (api/v1) and a new parameter for specifying api version (--api_version)
+* Brings back support for legacy predictions (api/v1) and a new parameter for specifying api version (``--api_version``).
+  Check ``batch_scoring --help`` for a list of valid options and the default value.
 
 
 
