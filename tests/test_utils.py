@@ -329,11 +329,15 @@ def test_parse_host_success():
     test_parse_host('https://127.0.0.1/', 'https://127.0.0.1/predApi/v1.0/')
 
 
-def test_get_endpoint():
-    assert get_endpoint(
-        'https://dr.com/', 'api/v1') == 'https://dr.com/api/v1/'
-    assert get_endpoint(
-        'https://dr.com', 'predApi/v1.0') == 'https://dr.com/predApi/v1.0/'
+@pytest.mark.parametrize('host, api_version, result', (
+    ('https://dr.com/', 'api/v1', 'https://dr.com/api/v1/'),
+    ('https://dr.com', 'predApi/v1.0', 'https://dr.com/predApi/v1.0/')
+))
+def test_get_endpoint(host, api_version, result):
+    assert get_endpoint(host, api_version) == result
+
+
+def test_get_endpoint_raises():
     with pytest.raises(ValueError):
         get_endpoint('localhost', 'api/v2.0')
 
