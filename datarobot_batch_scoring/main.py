@@ -86,6 +86,11 @@ def parse_args(argv, standalone=False):
                                 help='Specifies the project '
                                 'identification string.')
     else:
+        dataset_gr.add_argument('--api_version', type=str,
+                                choices=RESPONSE_HANDLERS.keys(),
+                                default=defaults['api_version'],
+                                help='Specifies API version. '
+                                     '(default: %(default)r)')
         dataset_gr.add_argument('project_id', type=str,
                                 help='Specifies the project '
                                 'identification string.')
@@ -105,11 +110,6 @@ def parse_args(argv, standalone=False):
                              help='Specifies the api token for the requests; '
                              'if you do not have a token, '
                              'you must specify the password argument.')
-        auth_gr.add_argument('--api_version', type=str,
-                             choices=RESPONSE_HANDLERS.keys(),
-                             default=defaults['api_version'],
-                             help='Specifies API version. '
-                                  '(default: %(default)r)')
         auth_gr.add_argument('--create_api_token', action="store_true",
                              default=defaults['create_api_token'],
                              help='Requests a new API token. To use this '
