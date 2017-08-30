@@ -26,7 +26,7 @@ are using, please contact DataRobot support for assistance.
 batch_scoring_version DataRobot Version
 --------------------- -----------------
 <=1.10                2.7, 2.8, 2.9
->=1.11                3.0, 3.1+
+>=1.11, <1.13         3.0, 3.1+
 >=1.13                2.7, 2.8, 2.9, 3.0, 3.1+
 ===================== =================
 
@@ -123,7 +123,9 @@ The following table describes each of the arguments:
  datarobot_key=<datarobot_key>    \-         \+     An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
  password=<pwd>                   \-         \+     Specifies the password used to acquire the API token. Use quotes if the password contains spaces. You must specify either the password or the API token argument. To avoid entering your password each time you run the script, use the ``api_token`` argument instead.
  api_token=<api_token>            \-         \+     Specifies the API token for requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
- api_version=<api_version>        \+         \+     Specifies the API version for requests. If omitted, defaults to current latest. Override this if your DataRobot distribution doesn't support the latest API version.
+ api_version=<api_version>        \+         \+     Specifies the API version for requests. If omitted, defaults to current latest.
+                                                    Override this if your DataRobot distribution doesn't support the latest API version.
+                                                    Valid options are ``predApi/v1.0`` and ``api/v1``; ``predApi/v1.0`` is the default.
  out=<filepath>                   \+         \+     Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
  verbose                          \+         \+     Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose), the default, displays very little output.
  keep_cols=<keep_cols>            \+         \+     Specifies the column names to append to the predictions. Enter as a comma-separated list.
