@@ -419,6 +419,7 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
     else:
         ui.debug('authorization has succeeded')
 
+
 try:
     import resource
 
