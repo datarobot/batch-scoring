@@ -340,6 +340,17 @@ def warn_if_redirected(req, ui):
                            ''.format(starting_endpoint, redirect_endpoint))
 
 
+def get_endpoint(host, api_version):
+    parsed = urlparse(host)
+    if not parsed.scheme and not parsed.netloc:
+        raise ValueError(
+            'Cannot parse "--host" argument. Host address must start '
+            'with a protocol such as "http://" or "https://". '
+            'Value given: {}'.format(host))
+
+    return '{}://{}/{}/'.format(parsed.scheme, parsed.netloc, api_version)
+
+
 def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                          batch, ui, compression=None):
     """Check if user is authorized for the given model and that schema is

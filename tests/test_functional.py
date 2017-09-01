@@ -101,6 +101,47 @@ def test_simple(live_server, tmpdir):
     assert str(actual) == str(expected), expected
 
 
+def test_simple_api_v1(live_server, tmpdir):
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui = PickableMock()
+    base_url = '{webhost}/api/v1/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93f',
+        import_id=None,
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/temperatura_predict.csv.gz',
+        pred_name=None,
+        timeout=30,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+
+    assert ret is None
+    actual = out.read_text('utf-8')
+    with open('tests/fixtures/temperatura_api_v1_output.csv', 'rU') as f:
+        expected = f.read()
+    assert str(actual) == str(expected), expected
+
+
 def test_simple_transferable(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')

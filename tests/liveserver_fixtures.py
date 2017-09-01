@@ -117,6 +117,7 @@ def app():
     MAPPING = {
         '56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
         '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
+        '56dd9570018e213242dfa93f': 'tests/fixtures/temperatura_api_v1.json',
         '0ec5bcea7f0f45918fa88257bfe42c09': 'tests/fixtures/regression.json',
         None: 'tests/fixtures/temperatura.json'}
 
@@ -152,6 +153,7 @@ def app():
         return response
 
     @app.route('/predApi/v1.0/api_token')
+    @app.route('/api/v1/api_token')
     def auth():
         auth = flask.request.authorization
         if not auth:
@@ -168,6 +170,7 @@ def app():
             return '{"api_token": "Som3tok3n"}'
 
     @app.route('/predApi/v1.0/api_token', methods=['POST'])
+    @app.route('/api/v1/api_token', methods=['POST'])
     def post_auth():
         auth = flask.request.authorization
         if not auth:
@@ -178,10 +181,12 @@ def app():
             return '{"api_token": "Som3tok3n"}'
 
     @app.route('/predApi/v1.0/<pid>/<lid>/predict', methods=["POST"])
+    @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
         return _predict(lid)
 
     @app.route('/predApi/v1.0/<import_id>/predict', methods=["POST"])
+    @app.route('/api/v1/<import_id>/predict', methods=["POST"])
     def predict_transferable(import_id):
         return _predict(import_id)
 
@@ -218,16 +223,19 @@ def app():
         except ValueError:
             first_row = 0
 
-        with open(MAPPING.get(uid), 'r') as f:
-            reply = json.load(f)
-            std_predictions = reply["data"]
-
-            reply["data"] = []
+        def preprocess_response(response_data, pred_key):
+            std_predictions = response_data[pred_key]
+            response_data[pred_key] = []
             for i in range(rows_number):
                 row = std_predictions[(i + first_row) % 10].copy()
                 row["rowId"] = i
-                reply["data"].append(row)
+                response_data[pred_key].append(row)
+            return response_data
 
-            return json.dumps(reply).encode('utf-8')
+        with open(MAPPING.get(uid), 'r') as f:
+            resp_data = json.load(f)
+            pred_key = 'data' if 'data' in resp_data else 'predictions'
+            return json.dumps(
+                preprocess_response(resp_data, pred_key)).encode('utf-8')
 
     return app

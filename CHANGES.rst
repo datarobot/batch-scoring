@@ -1,3 +1,13 @@
+1.13.0 (unreleased)
+===================
+
+Enhancements
+------------
+* Brings back support for legacy predictions (api/v1) and a new parameter for specifying api version (``--api_version``).
+  Check ``batch_scoring --help`` for a list of valid options and the default value.
+
+
+
 1.12.1 (2017 August 14)
 =======================
 
