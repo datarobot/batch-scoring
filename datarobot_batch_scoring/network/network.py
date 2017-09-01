@@ -3,7 +3,6 @@ import json
 import logging
 import multiprocessing
 import signal
-import textwrap
 from functools import partial
 import functools
 try:
@@ -53,6 +52,10 @@ from datarobot_batch_scoring.utils import get_rusage
 
 from .base_network_worker import BaseNetworkWorker
 
+TIMEOUT_WARNING = """\
+The server did not send any data in the allotted amount of time.
+ You might want to decrease the "--n_concurrent" parameters or increase
+ "--timeout" parameter."""
 
 logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
@@ -164,14 +167,13 @@ class Network(BaseNetworkWorker):
             self.session.send(prepared, timeout=self._timeout)
         except Exception as exc:
             code = 400
-            if isinstance(exc, requests.exceptions.ReadTimeout):
-                self.ui.warning(textwrap.dedent(
-                    """The server did not send any data
-in the allotted amount of time.
-You might want to decrease the "--n_concurrent" parameters
-or
-increase "--timeout" parameter.
-"""))
+            exc_tuple = (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ReadTimeout,
+            )
+            is_timeout = isinstance(exc, exc_tuple)
+            if is_timeout:
+                self.ui.warning(TIMEOUT_WARNING)
                 code = 499
             else:
                 self.ui.debug('Exception {}: {}'.format(type(exc), exc))
