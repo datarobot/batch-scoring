@@ -4,7 +4,6 @@ import logging
 import multiprocessing
 import signal
 from functools import partial
-import functools
 
 from time import time
 from concurrent.futures import FIRST_COMPLETED
@@ -17,7 +16,6 @@ except ImportError:
 from six.moves import queue
 import requests
 import requests.adapters
-from requests.packages.urllib3.util.connection import socket as r_socket
 
 from datarobot_batch_scoring.consts import (SENTINEL,
                                             REPORT_INTERVAL,
