@@ -5,34 +5,8 @@ import multiprocessing
 import signal
 from functools import partial
 import functools
-try:
-    from functools import lru_cache
-except ImportError:
-    # Python 2.7 compatible lru_cache implementation
-    # https://stackoverflow.com/questions/17119154/python-decorator-optional-argument
-    def lru_cache(*setting_args, **setting_kwargs):
-        cache = {}
-        no_args = (
-            len(setting_args) == 1 and
-            not setting_kwargs and
-            callable(setting_args[0])
-        )
-        if no_args:
-            # We were called without args
-            func = setting_args[0]
-
-        def outer(func):
-            @functools.wraps(func)
-            def cacher(*args, **kwargs):
-                key = tuple(args) + tuple(sorted(kwargs.items()))
-                if key not in cache:
-                    cache[key] = func(*args, **kwargs)
-                return cache[key]
-            return cacher
-        return outer(func) if no_args else outer
 
 from time import time
-import threading
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import wait
 try:
@@ -59,36 +33,6 @@ The server did not send any data in the allotted amount of time.
 
 logger = logging.getLogger(__name__)
 FakeResponse = collections.namedtuple('FakeResponse', 'status_code, text')
-lock = threading.Lock()
-
-
-# Monkey-patch getaddrinfo with an LRU cache to minimize conflicting calls
-# There are a couple of problems here:
-# - getaddrinfo is not threadsafe although many articles say it is fixed
-#   We cache the result to avoid making a call to a non-threadsafe function.
-# - getaddrinfo is called many times to resolve only one address
-#   (We can cache the result and avoid making the call repeatedly.) However,
-#   we are not using caching principally because of a performance issue;
-#   it is about safety.
-#
-# There are several reasonable alternatives that are not helpful:
-# - putting a lock around the `session.send` call does not help because
-#   there is only one `.run` call
-# - using multiple `request.Session` objects (one per thread) eliminates
-#   access to thread-pooling
-#
-# The use of a cache is useful because it replaces the single lookup (there is
-# only one address we need resolved) with a read operation from then after.
-old_getaddrinfo = r_socket.getaddrinfo
-
-
-@lru_cache()
-def my_getaddrinfo(*args, **kwargs):
-    with lock:
-        return old_getaddrinfo(*args, **kwargs)
-
-
-r_socket.getaddrinfo = my_getaddrinfo
 
 
 class Network(BaseNetworkWorker):
