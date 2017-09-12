@@ -1,5 +1,3 @@
-import textwrap
-
 import pytest
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
@@ -43,12 +41,7 @@ def test_request_client_timeout(live_server, tmpdir, ui):
     returned = out.read_text('utf-8')
     assert '' in returned, returned
     logs = read_logs()
-    assert textwrap.dedent("""The server did not send any data
-in the allotted amount of time.
-You might want to decrease the "--n_concurrent" parameters
-or
-increase "--timeout" parameter.
-""") in logs
+    assert "server did not send any data" in logs
 
 
 def test_request_pool_is_full(live_server, tmpdir, ui):
@@ -76,7 +69,7 @@ def test_request_pool_is_full(live_server, tmpdir, ui):
         delimiter=None,
         dataset='tests/fixtures/criteo_top30_1m.csv.gz',
         pred_name=None,
-        timeout=30,
+        timeout=None,
         ui=ui,
         auto_sample=False,
         fast_mode=False,
@@ -114,7 +107,7 @@ def test_request_retry(live_server, tmpdir, ui):
         delimiter=None,
         dataset='tests/fixtures/temperatura_predict.csv.gz',
         pred_name=None,
-        timeout=30,
+        timeout=None,
         ui=ui,
         auto_sample=False,
         fast_mode=False,
@@ -155,7 +148,7 @@ def test_request_log_client_error(live_server, tmpdir, ui):
         delimiter=None,
         dataset='tests/fixtures/temperatura_predict.csv.gz',
         pred_name=None,
-        timeout=30,
+        timeout=None,
         ui=ui,
         auto_sample=False,
         fast_mode=False,
@@ -195,7 +188,7 @@ def test_compression(live_server, tmpdir, ui):
         delimiter=None,
         dataset='tests/fixtures/regression_jp.csv.gz',
         pred_name=None,
-        timeout=30,
+        timeout=None,
         ui=ui,
         auto_sample=False,
         fast_mode=False,
@@ -242,7 +235,7 @@ def test_wrong_result_order(live_server, tmpdir, ui):
         delimiter=None,
         dataset='tests/fixtures/regression_jp.csv',
         pred_name='new_name',
-        timeout=30,
+        timeout=None,
         ui=ui,
         auto_sample=False,
         fast_mode=False,
@@ -284,7 +277,7 @@ def test_lost_retry(live_server, tmpdir, ui):
         delimiter=None,
         dataset='tests/fixtures/regression_jp.csv',
         pred_name='new_name',
-        timeout=30,
+        timeout=None,
         ui=ui,
         auto_sample=False,
         fast_mode=False,
