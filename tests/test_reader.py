@@ -65,4 +65,3 @@ class TestCSVReaderWithTerminators(object):
         reader = SlowReader(csv_data_with_cr, 'utf-8', ui=Mock())
         data = list(reader)
         assert len(data) == 3
-
