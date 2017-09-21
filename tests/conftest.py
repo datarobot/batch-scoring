@@ -98,6 +98,33 @@ def csv_file_with_wide_dataset(csv_data_with_wide_dataset):
 
 
 @pytest.yield_fixture
+def csv_file_with_cr(csv_data_with_cr):
+    """Path to a file terminated with CR"""
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
+        f.write(csv_data_with_cr.getvalue().encode('utf-8'))
+    yield f.name
+    os.remove(f.name)
+
+
+@pytest.yield_fixture
+def csv_file_with_lf(csv_data_with_lf):
+    """Path to a file terminated with LF"""
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
+        f.write(csv_data_with_lf.getvalue().encode('utf-8'))
+    yield f.name
+    os.remove(f.name)
+
+
+@pytest.yield_fixture
+def csv_file_with_crlf(csv_data_with_crlf):
+    """Path to a file terminated with CRLF"""
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
+        f.write(csv_data_with_crlf.getvalue().encode('utf-8'))
+    yield f.name
+    os.remove(f.name)
+
+
+@pytest.yield_fixture
 def run_context_file():
     c_file = ContextFile('pid', 'lid', 10, None)
     open(c_file.file_name, 'a')
