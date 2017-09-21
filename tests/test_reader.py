@@ -52,3 +52,17 @@ class TestCSVReaderWithWideData(object):
                             ui=Mock())
         data = list(reader)
         assert len(data) == 4
+
+
+class TestCSVReaderWithTerminators(object):
+
+    def test_csv_file_with_cr_fast(self, csv_data_with_cr):
+        reader = FastReader(csv_data_with_cr, 'utf-8', ui=Mock())
+        data = list(reader)
+        assert len(data) == 3
+
+    def test_csv_file_with_cr_slow(self, csv_data_with_cr):
+        reader = SlowReader(csv_data_with_cr, 'utf-8', ui=Mock())
+        data = list(reader)
+        assert len(data) == 3
+

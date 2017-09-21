@@ -55,11 +55,34 @@ def csv_data_with_wide_dataset():
     return s
 
 
+@pytest.fixture
+def csv_data_with_cr():
+    """ Data where each line is terminated by \r """
+    s = six.StringIO()
+    # write header
+    s.write('idx,data\r')
+    # write 3 values
+    s.write('1,one\r')
+    s.write('2,two\r')
+    s.write('3,three\r')
+    s.seek(0)
+    return s
+
+
 @pytest.yield_fixture
 def csv_file_with_wide_dataset(csv_data_with_wide_dataset):
     """Path to a very wide dataset"""
     with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
         f.write(csv_data_with_wide_dataset.getvalue().encode('utf-8'))
+    yield f.name
+    os.remove(f.name)
+
+
+@pytest.yield_fixture
+def csv_file_with_cr(csv_data_with_cr):
+    """Path to dataset terminated by \r only"""
+    with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
+        f.write(csv_data_with_cr.getvalue().encode('utf-8'))
     yield f.name
     os.remove(f.name)
 
