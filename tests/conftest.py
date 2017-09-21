@@ -26,16 +26,16 @@ def ui():
 
 @pytest.fixture
 def csv_file_handle_with_wide_field():
-    s = six.StringIO()
-    s.write('idx,data\n')
-    s.write('1,one\n')
-    s.write('2,two\n')
-    s.write('3,three\n')
-    s.write('4,')
+    stream = six.StringIO()
+    stream.write('idx,data\n')
+    stream.write('1,one\n')
+    stream.write('2,two\n')
+    stream.write('3,three\n')
+    stream.write('4,')
     for idx in six.moves.range(50000):
-        s.write('spam{}'.format(idx))
-    s.seek(0)
-    return s
+        stream.write('spam{}'.format(idx))
+    stream.seek(0)
+    return stream
 
 
 @pytest.fixture
@@ -43,30 +43,49 @@ def csv_data_with_wide_dataset():
     """Data of a very wide dataset, whose first line does not fit within
     the threshold for the auto_sampler
     """
-    s = six.StringIO()
+    stream = six.StringIO()
     # write header
     for i in range(1024 * 128):
-        s.write('column_{:0>8},'.format(i))
-    s.write('end\n')
+        stream.write('column_{:0>8},'.format(i))
+    stream.write('end\n')
     for i in range(1024 * 128):
-        s.write('1,')
-    s.write('0\n')
-    s.seek(0)
-    return s
+        stream.write('1,')
+    stream.write('0\n')
+    stream.seek(0)
+    return stream
+
+
+def csv_data_with_term(term):
+    """ Data where each line is terminated by term """
+    stream = six.StringIO()
+    data = [
+        'idx,data',
+        '1,one',
+        '2,two',
+        '3,three',
+    ]
+    for line in data:
+        stream.write(line + term)
+    stream.seek(0)
+    return stream
 
 
 @pytest.fixture
 def csv_data_with_cr():
     """ Data where each line is terminated by \r """
-    s = six.StringIO()
-    # write header
-    s.write('idx,data\r')
-    # write 3 values
-    s.write('1,one\r')
-    s.write('2,two\r')
-    s.write('3,three\r')
-    s.seek(0)
-    return s
+    return csv_data_with_term('\r')
+
+
+@pytest.fixture
+def csv_data_with_crlf():
+    """ Data where each line is terminated by \r\n """
+    return csv_data_with_term('\r\n')
+
+
+@pytest.fixture
+def csv_data_with_lf():
+    """ Data where each line is terminated by \n """
+    return csv_data_with_term('\n')
 
 
 @pytest.yield_fixture

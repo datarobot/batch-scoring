@@ -65,3 +65,23 @@ class TestCSVReaderWithTerminators(object):
         reader = SlowReader(csv_data_with_cr, 'utf-8', ui=Mock())
         data = list(reader)
         assert len(data) == 3
+
+    def test_csv_file_with_crlf_fast(self, csv_data_with_crlf):
+        reader = FastReader(csv_data_with_crlf, 'utf-8', ui=Mock())
+        data = list(reader)
+        assert len(data) == 3
+
+    def test_csv_file_with_crlf_slow(self, csv_data_with_crlf):
+        reader = SlowReader(csv_data_with_crlf, 'utf-8', ui=Mock())
+        data = list(reader)
+        assert len(data) == 3
+
+    def test_csv_file_with_lf_fast(self, csv_data_with_lf):
+        reader = FastReader(csv_data_with_lf, 'utf-8', ui=Mock())
+        data = list(reader)
+        assert len(data) == 3
+
+    def test_csv_file_with_lf_slow(self, csv_data_with_lf):
+        reader = SlowReader(csv_data_with_lf, 'utf-8', ui=Mock())
+        data = list(reader)
+        assert len(data) == 3
