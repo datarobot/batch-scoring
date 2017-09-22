@@ -431,7 +431,10 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
         sample_size = DETECT_SAMPLE_SIZE_SLOW
 
     is_gz = dataset.endswith('.gz')
-    opener, mode = (gzip.open, 'rb') if is_gz else (open, ('rU' if six.PY2 else 'rb'))
+    opener, mode = (
+        gzip.open, 'rb') if is_gz
+        else (open, ('rU' if six.PY2 else 'rb')
+    )
     with opener(dataset, mode) as dfile:
         sample = dfile.read(sample_size)
 
