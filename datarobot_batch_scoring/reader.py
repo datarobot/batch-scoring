@@ -7,10 +7,11 @@ import os
 import signal
 import sys
 from itertools import chain
-from six.moves.queue import Full
 from time import time
-import chardet
+
 import six
+from six.moves.queue import Full
+import chardet
 
 from datarobot_batch_scoring.consts import (Batch,
                                             REPORT_INTERVAL,
