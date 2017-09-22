@@ -411,6 +411,8 @@ def sniff_dialect(sample, encoding, sep, skip_dialect, ui):
 
     if dialect.escapechar is None:
         csv.register_dialect('dataset_dialect', dialect,
+                             delimiter=str(dialect.delimiter),
+                             quotechar=str(dialect.quotechar),
                              doublequote=True)
         dialect = csv.get_dialect('dataset_dialect')
     return dialect
