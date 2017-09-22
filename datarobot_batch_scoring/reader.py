@@ -201,16 +201,14 @@ class BatchGenerator(object):
         self.n_skipped = 0
 
     def csv_input_file_reader(self):
-        if self.dataset.endswith('.gz'):
-            opener = gzip.open
-        else:
-            opener = open
+        filename = self.dataset
+        is_gz = filename.endswith('.gz'):
+        opener, mode = (gzip.open, 'rt') if is_gz else (open, 'rU')
 
         if six.PY3:
-            fd = opener(self.dataset, 'rt',
-                        encoding=self.encoding)
+            fd = opener(filename, mode, encoding=self.encoding)
         else:
-            fd = opener(self.dataset, 'rb')
+            fd = opener(filename, mode)
         return fd
 
     def __iter__(self):
