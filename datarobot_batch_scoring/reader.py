@@ -433,7 +433,7 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
     is_gz = dataset.endswith('.gz')
     opener, mode = (
         gzip.open, 'rb') if is_gz
-        else (open, ('rU' if six.PY2 else 'rb')
+        else (open, ('rU' if six.PY2 else 'rb'))
     )
     with opener(dataset, mode) as dfile:
         sample = dfile.read(sample_size)
