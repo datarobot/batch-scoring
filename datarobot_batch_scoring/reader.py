@@ -7,10 +7,11 @@ import os
 import signal
 import sys
 from itertools import chain
-from six.moves.queue import Full
 from time import time
-import chardet
+
 import six
+from six.moves.queue import Full
+import chardet
 
 from datarobot_batch_scoring.consts import (Batch,
                                             REPORT_INTERVAL,
@@ -201,16 +202,17 @@ class BatchGenerator(object):
         self.n_skipped = 0
 
     def csv_input_file_reader(self):
-        if self.dataset.endswith('.gz'):
-            opener = gzip.open
-        else:
-            opener = open
+        filename = self.dataset
+        is_gz = filename.endswith('.gz')
+        opener, mode = (
+            (gzip.open, 'rt' if six.PY3 else 'rb') if is_gz
+            else (open, 'rU')
+        )
 
         if six.PY3:
-            fd = opener(self.dataset, 'rt',
-                        encoding=self.encoding)
+            fd = opener(filename, mode, encoding=self.encoding)
         else:
-            fd = opener(self.dataset, 'rb')
+            fd = opener(filename, mode)
         return fd
 
     def __iter__(self):
@@ -409,6 +411,8 @@ def sniff_dialect(sample, encoding, sep, skip_dialect, ui):
 
     if dialect.escapechar is None:
         csv.register_dialect('dataset_dialect', dialect,
+                             delimiter=str(dialect.delimiter),
+                             quotechar=str(dialect.quotechar),
                              doublequote=True)
         dialect = csv.get_dialect('dataset_dialect')
     return dialect
@@ -426,11 +430,12 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
     else:
         sample_size = DETECT_SAMPLE_SIZE_SLOW
 
-    if dataset.endswith('.gz'):
-        opener = gzip.open
-    else:
-        opener = open
-    with opener(dataset, 'rb') as dfile:
+    is_gz = dataset.endswith('.gz')
+    opener, mode = (
+        (gzip.open, 'rb') if is_gz
+        else (open, ('rU' if six.PY2 else 'rb'))
+    )
+    with opener(dataset, mode) as dfile:
         sample = dfile.read(sample_size)
 
     if not encoding:
@@ -498,12 +503,13 @@ def auto_sampler(dataset, encoding, ui):
     t0 = time()
 
     sample_size = AUTO_SAMPLE_SIZE
-    if dataset.endswith('.gz'):
-        opener = gzip.open
-    else:
-        opener = open
-    with opener(dataset, 'rb') as dfile:
+    is_gz = dataset.endswith('.gz')
+    opener, mode = (gzip.open, 'rb') if is_gz else (open, 'rU')
+    with opener(dataset, mode) as dfile:
         sample = dfile.read(sample_size)
+        if six.PY3 and not is_gz:
+            sample = sample.encode(encoding or 'utf-8')
+
     ingestable_sample = sample.decode(encoding)
     size_bytes = sys.getsizeof(ingestable_sample.encode('utf-8'))
 
