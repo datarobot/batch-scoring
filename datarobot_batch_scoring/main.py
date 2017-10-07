@@ -58,6 +58,7 @@ def parse_args(argv, standalone=False):
         'stdout': False,
         'auto_sample': False,
         'api_version': PRED_API_V10,
+        'skip_verify_ssl': False
     }
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
@@ -162,6 +163,12 @@ def parse_args(argv, standalone=False):
                          default=False,
                          help='Compress batch. This can improve throughout '
                               'when bandwidth is limited.')
+    conn_gr.add_argument('--skip_verify_ssl', action='store_true',
+                         default=defaults['skip_verify_ssl'],
+                         help='Disable SSL certificates verification for '
+                              'HTTPS endpoints. By default SSL verification '
+                              'is enabled and batch_scoring throw SSLError '
+                              'if it\'s unable to verify the certificate')
     csv_gr = parser.add_argument_group('CVS parameters')
     csv_gr.add_argument('--keep_cols', type=str,
                         nargs='?',
@@ -302,6 +309,8 @@ def parse_generic_options(parsed_args):
     if not os.path.exists(dataset):
         ui.fatal('file {} does not exist.'.format(dataset))
 
+    verify_ssl = not parsed_args['skip_verify_ssl']
+
     ui.debug('batch_scoring v{}'.format(__version__))
 
     return {
@@ -324,6 +333,7 @@ def parse_generic_options(parsed_args):
         'skip_dialect': skip_dialect,
         'skip_row_id': skip_row_id,
         'timeout': timeout,
+        'verify_ssl': verify_ssl
     }
 
 

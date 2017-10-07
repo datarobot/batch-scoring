@@ -214,6 +214,7 @@ class Network(BaseNetworkWorker):
             pool_connections=self.concurrency, pool_maxsize=self.concurrency)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
+        self.session.verify = self.verify_ssl
 
         t0 = time()
         last_report = time()
