@@ -7,6 +7,11 @@ Enhancements
   Check ``batch_scoring --help`` for a list of valid options and the default value.
 * Default for timeout is now None, meaning that the code does not enforce a timeout for operations to the server. This allows completion of runs with higher numbers of threads, particularly in MacOS. The value remains modifiable, and 30 seconds is a reasonable value in most cases.
 
+Bugfixes
+--------
+* An issue which caused exit codes to not be set correctly from executables installed via the standalone installer
+  has been addressed. The exit codes will now be set correctly.
+
 1.12.1 (2017 August 14)
 =======================
 
