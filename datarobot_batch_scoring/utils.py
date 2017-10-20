@@ -57,7 +57,7 @@ config_validator = t.Dict({
     OptKey('skip_row_id'): t.Bool,
     OptKey('output_delimiter'): t.String,
     OptKey('field_size_limit'): t.Int,
-    OptKey('skip_verify_ssl'): t.Bool
+    OptKey('verify_ssl'): t.Bool | t.String,
 }).allow_extra('*')
 
 
@@ -415,6 +415,8 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                 ui.fatal('problem with the gateway -- please check your '
                          '"--host" argument and contact customer support'
                          'if the problem persists.')
+        except requests.exceptions.SSLError as e:
+            ui.error('SSL verification failed, reason: {}:'.format(e))
         except requests.exceptions.ConnectionError:
             ui.error('cannot connect to {}'.format(endpoint))
         n_retry -= 1
