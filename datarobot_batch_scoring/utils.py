@@ -57,7 +57,8 @@ config_validator = t.Dict({
     OptKey('skip_row_id'): t.Bool,
     OptKey('output_delimiter'): t.String,
     OptKey('field_size_limit'): t.Int,
-    OptKey('verify_ssl'): t.Bool | t.String,
+    OptKey('ca_bundle'): t.String,
+    OptKey('ca_bundle'): t.String,
 }).allow_extra('*')
 
 

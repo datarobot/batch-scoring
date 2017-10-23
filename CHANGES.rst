@@ -5,8 +5,8 @@ Enhancements
 ------------
 * Brings back support for legacy predictions (api/v1) and a new parameter for specifying api version (``--api_version``).
   Check ``batch_scoring --help`` for a list of valid options and the default value.
-* Adds ``--verify_ssl``/``--no_verify_ssl`` arguments for controlling SSL verification.
-  By default, SSL verification is enabled.
+* Adds  ``--no_verify_ssl`` argument for disabling SSL verification and ``--ca_bundle``
+  for specifying certificate(s) of trusted Certificate Authorities.
 * Default for timeout is now None, meaning that the code does not enforce a timeout for operations to the server. This allows completion of runs with higher numbers of threads, particularly in MacOS. The value remains modifiable, and 30 seconds is a reasonable value in most cases.
 
 1.12.1 (2017 August 14)

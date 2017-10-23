@@ -162,18 +162,14 @@ def parse_args(argv, standalone=False):
                          default=False,
                          help='Compress batch. This can improve throughout '
                               'when bandwidth is limited.')
-    conn_gr.add_argument('--verify_ssl',
-                         const=True,
-                         nargs='?',
+    conn_gr.add_argument('--ca_bundle',
                          dest='verify_ssl',
+                         metavar='PATH',
                          default=True,
-                         help='Enable SSL certificates verification for '
-                              'HTTPS endpoints. You can either omit the '
-                              'value to enable SSL verification or '
-                              'pass a path to CA bundle file as a value '
-                              'to use it for verification using private '
-                              'certificates. '
-                              'By default SSL verification is enabled.')
+                         help='Specifies the path to a CA_BUNDLE file or '
+                              'directory with certificates of '
+                              'trusted Certificate Authorities (CAs) '
+                              'to be used for SSL verification.')
     conn_gr.add_argument('--no_verify_ssl',
                          action='store_false',
                          dest='verify_ssl',
