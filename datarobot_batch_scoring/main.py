@@ -169,7 +169,9 @@ def parse_args(argv, standalone=False):
                          help='Specifies the path to a CA_BUNDLE file or '
                               'directory with certificates of '
                               'trusted Certificate Authorities (CAs) '
-                              'to be used for SSL verification.')
+                              'to be used for SSL verification. '
+                              'By default the system\'s set of trusted '
+                              'certificates will be used.')
     conn_gr.add_argument('--no_verify_ssl',
                          action='store_false',
                          dest='verify_ssl',
