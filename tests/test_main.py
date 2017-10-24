@@ -574,20 +574,17 @@ def test_resume_no(monkeypatch):
         )
 
 
-@pytest.mark.parametrize('ssl_argvs, expected_value', [
-    ([], True),
-    (['--no_verify_ssl'], False),
-    (['--ca_bundle', '/path/to/cert'], '/path/to/cert'),
-    (['--ca_bundle', '/path/to/cert', '--no_verify_ssl'], False)
+@pytest.mark.parametrize('ssl_argvs, verify_ssl_value', [
+    ('', True),
+    ('--no_verify_ssl', False),
+    ('--ca_bundle /path/to/cert', '/path/to/cert'),
+    ('--ca_bundle /path/to/cert --no_verify_ssl', False)
 ])
-def test_verify_ssl_parameter(ssl_argvs, expected_value):
-    argsv = [
-        '--host',
-        'http://localhost:53646/api',
-        '56dd9570018e213242dfa93c',
-        '56dd9570018e213242dfa93d',
-        'tests/fixtures/temperatura_predict.csv',
-        *ssl_argvs
-    ]
-    parsed_args = parse_args(argsv)
-    assert parsed_args['verify_ssl'] == expected_value
+def test_verify_ssl_parameter(ssl_argvs, verify_ssl_value):
+    argvs = (
+        '--host http://localhost:53646/api '
+        '56dd9570018e213242dfa93c 56dd9570018e213242dfa93d '
+        'tests/fixtures/temperatura_predict.csv ' + ssl_argvs
+    ).strip().split(' ')
+    parsed_args = parse_args(argvs)
+    assert parsed_args['verify_ssl'] == verify_ssl_value
