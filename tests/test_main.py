@@ -1,6 +1,6 @@
 import mock
 import pytest
-from datarobot_batch_scoring.main import main, UI, main_standalone
+from datarobot_batch_scoring.main import main, UI, main_standalone, parse_args
 
 
 def test_without_passed_user_and_passwd(monkeypatch):
@@ -49,6 +49,7 @@ def test_without_passed_user_and_passwd(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -95,7 +96,8 @@ def test_keep_cols(monkeypatch):
             skip_row_id=False,
             output_delimiter=None,
             compression=False,
-            field_size_limit=None
+            field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -186,7 +188,8 @@ def test_datarobot_key(monkeypatch):
             skip_row_id=False,
             output_delimiter=None,
             compression=False,
-            field_size_limit=None
+            field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -235,6 +238,7 @@ def test_encoding_options(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -376,7 +380,8 @@ def test_output_delimiter(monkeypatch):
             skip_row_id=False,
             output_delimiter='\t',
             compression=False,
-            field_size_limit=None
+            field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -424,7 +429,8 @@ def test_skip_row_id(monkeypatch):
             skip_row_id=True,
             output_delimiter=None,
             compression=False,
-            field_size_limit=None
+            field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -470,6 +476,7 @@ def test_datarobot_transferable_call(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -516,7 +523,8 @@ def test_resume(monkeypatch):
             skip_row_id=False,
             output_delimiter=None,
             compression=False,
-            field_size_limit=None
+            field_size_limit=None,
+            verify_ssl=True
         )
 
 
@@ -561,5 +569,22 @@ def test_resume_no(monkeypatch):
             skip_row_id=False,
             output_delimiter=None,
             compression=False,
-            field_size_limit=None
+            field_size_limit=None,
+            verify_ssl=True
         )
+
+
+@pytest.mark.parametrize('ssl_argvs, verify_ssl_value', [
+    ('', True),
+    ('--no_verify_ssl', False),
+    ('--ca_bundle /path/to/cert', '/path/to/cert'),
+    ('--ca_bundle /path/to/cert --no_verify_ssl', False)
+])
+def test_verify_ssl_parameter(ssl_argvs, verify_ssl_value):
+    argvs = (
+        '--host http://localhost:53646/api '
+        '56dd9570018e213242dfa93c 56dd9570018e213242dfa93d '
+        'tests/fixtures/temperatura_predict.csv ' + ssl_argvs
+    ).strip().split(' ')
+    parsed_args = parse_args(argvs)
+    assert parsed_args['verify_ssl'] == verify_ssl_value

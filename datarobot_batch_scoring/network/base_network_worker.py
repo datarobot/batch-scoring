@@ -77,7 +77,8 @@ class BaseNetworkWorker(Worker):
                  pred_name,
                  fast_mode,
                  max_batch_size,
-                 compression):
+                 compression,
+                 verify_ssl):
 
         Worker.__init__(self, network_status)
 
@@ -97,6 +98,7 @@ class BaseNetworkWorker(Worker):
         self.fast_mode = fast_mode
         self.max_batch_size = max_batch_size
         self.compression = compression
+        self.verify_ssl = verify_ssl
 
         self._timeout = timeout
         self.futures = []

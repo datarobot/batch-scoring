@@ -57,6 +57,8 @@ config_validator = t.Dict({
     OptKey('skip_row_id'): t.Bool,
     OptKey('output_delimiter'): t.String,
     OptKey('field_size_limit'): t.Int,
+    OptKey('ca_bundle'): t.String,
+    OptKey('no_verify_ssl'): t.Bool,
 }).allow_extra('*')
 
 
@@ -352,7 +354,7 @@ def get_endpoint(host, api_version):
 
 
 def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
-                         batch, ui, compression=None):
+                         batch, ui, compression=None, verify_ssl=True):
     """Check if user is authorized for the given model and that schema is
     correct.
 
@@ -372,10 +374,12 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
             if user and api_token:
                 r = requests.post(endpoint, headers=base_headers,
                                   data=data,
-                                  auth=(user, api_token))
+                                  auth=(user, api_token),
+                                  verify=verify_ssl)
             elif not (user and api_token):
                 r = requests.post(endpoint, headers=base_headers,
-                                  data=data)
+                                  data=data,
+                                  verify=verify_ssl)
             else:
                 ui.fatal("Aborting: no auth credentials passed")
 
@@ -412,6 +416,8 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                 ui.fatal('problem with the gateway -- please check your '
                          '"--host" argument and contact customer support'
                          'if the problem persists.')
+        except requests.exceptions.SSLError as e:
+            ui.error('SSL verification failed, reason: {}:'.format(e))
         except requests.exceptions.ConnectionError:
             ui.error('cannot connect to {}'.format(endpoint))
         n_retry -= 1

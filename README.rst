@@ -146,6 +146,9 @@ The following table describes each of the arguments:
  auto_sample                      \+         \+     Override the ``<n_samples>`` value and instead uses chunks of roughly 2.5 MB to improve throughput. Enabled by default.
  encoding                         \+         \+     Specifies dataset encoding. If not provided, the batch_scoring or batch_scoring_sse script attempts to detect the decoding (e.g., "utf-8", "latin-1", or "iso2022_jp"). See the `Python standard encodings <https://docs.python.org/3/library/codecs.html#standard-encodings>`_ for a list of valid values.
  skip_dialect                     \+         \+     Specifies that the script skips CSV dialect detection and uses default "excel" dialect for CSV parsing. By default, the scripts do detect CSV dialect for proper batch generation on the client side.
+ ca_bundle=<ca_bundle>            \+         \+     Specifies the path to a CA_BUNDLE file or directory with certificates of trusted Certificate Authorities (CAs) to be used for SSL verification.
+                                                    Note: if passed a path to a directory, the directory must have been processed using the c_rehash utility supplied with OpenSSL.
+ no_verify_ssl                    \+         \+     Disable SSL verification.
 ============================== ========== ========= ===========
 
 Example::

@@ -73,7 +73,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           skip_row_id=False,
                           output_delimiter=None,
                           max_batch_size=None, compression=None,
-                          field_size_limit=None):
+                          field_size_limit=None,
+                          verify_ssl=True):
 
     if field_size_limit is not None:
         csv.field_size_limit(field_size_limit)
@@ -167,7 +168,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
 
             make_validation_call(user, api_token, n_retry, endpoint,
                                  base_headers, first_row, ui,
-                                 compression=compression)
+                                 compression=compression,
+                                 verify_ssl=verify_ssl)
 
         ctx = stack.enter_context(
             RunContext.create(resume, n_samples, out_file, pid,
@@ -209,7 +211,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                 pred_name=pred_name,
                 fast_mode=fast_mode,
                 max_batch_size=max_batch_size,
-                compression=compression))
+                compression=compression,
+                verify_ssl=verify_ssl))
             network.go()
             ui.info('dry-run complete | time elapsed {}s'.format(time() - t0))
             ui.info('dry-run complete | total time elapsed {}s'.format(
@@ -257,7 +260,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                                               pred_name=pred_name,
                                               fast_mode=fast_mode,
                                               max_batch_size=max_batch_size,
-                                              compression=compression
+                                              compression=compression,
+                                              verify_ssl=verify_ssl
                                               ))
 
         exit_code = None

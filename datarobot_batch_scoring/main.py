@@ -162,6 +162,22 @@ def parse_args(argv, standalone=False):
                          default=False,
                          help='Compress batch. This can improve throughout '
                               'when bandwidth is limited.')
+    conn_gr.add_argument('--ca_bundle',
+                         dest='verify_ssl',
+                         metavar='PATH',
+                         default=True,
+                         help='Specifies the path to a CA_BUNDLE file or '
+                              'directory with certificates of '
+                              'trusted Certificate Authorities (CAs) '
+                              'to be used for SSL verification. '
+                              'By default the system\'s set of trusted '
+                              'certificates will be used.')
+    conn_gr.add_argument('--no_verify_ssl',
+                         action='store_false',
+                         dest='verify_ssl',
+                         help='Skip SSL certificates verification for HTTPS '
+                              'endpoints. Using this flag will cause the '
+                              'argument for ca_bundle to be ignored.')
     csv_gr = parser.add_argument_group('CVS parameters')
     csv_gr.add_argument('--keep_cols', type=str,
                         nargs='?',
@@ -324,6 +340,7 @@ def parse_generic_options(parsed_args):
         'skip_dialect': skip_dialect,
         'skip_row_id': skip_row_id,
         'timeout': timeout,
+        'verify_ssl': parsed_args['verify_ssl'],
     }
 
 

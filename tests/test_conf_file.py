@@ -141,7 +141,8 @@ def test_run_main_with_conf_file(monkeypatch):
                 skip_row_id=False,
                 output_delimiter=None,
                 compression=False,
-                field_size_limit=None
+                field_size_limit=None,
+                verify_ssl=True
             )
     finally:
         os.remove(test_file.name)
@@ -201,7 +202,8 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     skip_row_id=False,
                     output_delimiter=None,
                     compression=False,
-                    field_size_limit=None
+                    field_size_limit=None,
+                    verify_ssl=True
                 )
     finally:
         os.remove(test_file.name)
