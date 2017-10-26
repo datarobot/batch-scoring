@@ -1,5 +1,6 @@
 import os
 import mock
+import pytest
 from tempfile import NamedTemporaryFile
 import textwrap
 from datarobot_batch_scoring.utils import (get_config_file,
@@ -70,7 +71,7 @@ def test_section_basic_with_username():
         os.remove(test_file.name)
 
 
-def test_field_width_config_option():
+def test_field_with_config_option():
     raw_data = (
         '[batch_scoring]\n'
         'field_size_limit=12345678'
@@ -83,6 +84,24 @@ def test_field_width_config_option():
         assert parsed_result['field_size_limit'] == 12345678
     finally:
         os.remove(test_file.name)
+
+
+@pytest.mark.parametrize('str_value, bool_value', [
+    ('1', True),
+    ('0', False),
+    ('yes', True),
+    ('no', False),
+    ('true', True),
+    ('false', False),
+])
+def test_field_with_boolean_option(tmpdir, str_value, bool_value):
+    tmpdir.join('test.ini').write_text(
+        u'[batch_scoring]\nskip_row_id=%s' % str_value, 'utf-8')
+
+    conf = parse_config_file(tmpdir.join('test.ini').strpath)
+
+    assert isinstance(conf['skip_row_id'], bool)
+    assert conf['skip_row_id'] == bool_value
 
 
 def test_run_main_with_conf_file(monkeypatch):

@@ -13,6 +13,7 @@ Bugfixes
 --------
 * An issue which caused exit codes to not be set correctly from executables installed via the standalone installer
   has been addressed. The exit codes will now be set correctly.
+* An issue which caused script crashes if one or more boolean options were specified in the config file.
 
 1.12.1 (2017 August 14)
 =======================
