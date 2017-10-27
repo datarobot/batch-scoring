@@ -54,11 +54,11 @@ config_validator = t.Dict({
     OptKey('api_token'): t.String,
     OptKey('create_api_token'): t.String,
     OptKey('pred_name'): t.String,
-    OptKey('skip_row_id'): t.Bool,
+    OptKey('skip_row_id'): t.StrBool,
     OptKey('output_delimiter'): t.String,
     OptKey('field_size_limit'): t.Int,
     OptKey('ca_bundle'): t.String,
-    OptKey('no_verify_ssl'): t.Bool,
+    OptKey('no_verify_ssl'): t.StrBool,
 }).allow_extra('*')
 
 
