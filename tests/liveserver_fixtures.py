@@ -118,6 +118,8 @@ def app():
         '56dd9570018e213242dfa93d': 'tests/fixtures/temperatura.json',
         '56dd9570018e213242dfa93e': 'tests/fixtures/regression.json',
         '56dd9570018e213242dfa93f': 'tests/fixtures/temperatura_api_v1.json',
+        '5a29097f962d7465d1a81946': 'tests/fixtures/iris.json',
+        '098fa761405d1c9d8a5ea71dc0f3d2bb5ce898b5': 'tests/fixtures/iris.json',
         '0ec5bcea7f0f45918fa88257bfe42c09': 'tests/fixtures/regression.json',
         None: 'tests/fixtures/temperatura.json'}
 
