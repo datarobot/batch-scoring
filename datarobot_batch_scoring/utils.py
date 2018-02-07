@@ -421,7 +421,8 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                     msg = r.json()['message']
                 except:
                     msg = r.text
-                ui.fatal('Predictions are not available because: {}.'.format(msg))
+                ui.fatal('Predictions are not available '
+                         'because: {}.'.format(msg))
         except requests.exceptions.SSLError as e:
             ui.error('SSL verification failed, reason: {}.'.format(e))
         except requests.exceptions.ConnectionError:
