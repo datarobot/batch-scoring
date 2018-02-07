@@ -396,30 +396,36 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                     msg = r.json()['message']
                 except:
                     msg = r.text
-                ui.fatal('failed with client error: {}'.format(msg))
+                ui.fatal('Failed with client error: {}.'.format(msg))
             elif r.status_code == 403:
                 #  This is usually a bad API token. E.g.
                 #  {"status": "API token not valid", "code": 403}
-                ui.fatal('Failed with message:\n\t{}'.format(r.text))
+                ui.fatal('Failed with message:\n\t{}.'.format(r.text))
             elif r.status_code == 401:
                 #  This can be caused by having the wrong datarobot_key
-                ui.fatal('failed to authenticate -- '
-                         'please check your: datarobot_key (if required), '
+                ui.fatal('Failed to authenticate -- '
+                         'Please check your: datarobot_key (if required), '
                          'username/password and/or api token. Contact '
                          'customer support if the problem persists '
-                         'message:\n{}'
+                         'message:\n{}.'
                          ''.format(r.__dict__.get('_content')))
             elif r.status_code == 405:
-                ui.fatal('failed to request endpoint -- please check your '
-                         '"--host" argument')
+                ui.fatal('Failed to request endpoint -- Please check your '
+                         '"--host" argument.')
             elif r.status_code == 502:
-                ui.fatal('problem with the gateway -- please check your '
+                ui.fatal('Problem with the gateway -- Please check your '
                          '"--host" argument and contact customer support'
                          'if the problem persists.')
+            elif r.status_code == 422:
+                try:
+                    msg = r.json()['message']
+                except:
+                    msg = r.text
+                ui.fatal('Predictions are not available because: {}.'.format(msg))
         except requests.exceptions.SSLError as e:
-            ui.error('SSL verification failed, reason: {}:'.format(e))
+            ui.error('SSL verification failed, reason: {}.'.format(e))
         except requests.exceptions.ConnectionError:
-            ui.error('cannot connect to {}'.format(endpoint))
+            ui.error('Cannot connect to {}'.format(endpoint))
         n_retry -= 1
 
     if n_retry == 0:
@@ -431,10 +437,10 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
         content = r.content if r is not None else 'NO CONTENT'
         warn_if_redirected(r, ui)
         ui.debug("Failed authorization response \n{!r}".format(content))
-        ui.fatal('authorization failed -- please check project id and model '
-                 'id permissions: {}'.format(status))
+        ui.fatal('Authorization failed -- Please check project id and model '
+                 'id permissions: {}.'.format(status))
     else:
-        ui.debug('authorization has succeeded')
+        ui.debug('Authorization has succeeded.')
 
 
 try:
