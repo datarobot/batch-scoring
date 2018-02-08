@@ -28,8 +28,8 @@ install:
 - if [ $TRAVIS_OS_NAME == 'osx' ]; then git clone https://github.com/MacPython/terryfy;
   source terryfy/travis_tools.sh; get_python_environment  $pydist $pyver; fi
 - pip install -U pip wheel
-- pip install -Ur requirements.txt
-- pip install -Ur requirements-test.txt
+- pip install -r requirements.txt
+- pip install -r requirements-test.txt
 - pip install coveralls
 script:
 - if [ $TRAVIS_OS_NAME == 'osx' ]; then ulimit -n 2048; fi
