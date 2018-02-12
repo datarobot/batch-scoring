@@ -123,6 +123,9 @@ def app():
         '0ec5bcea7f0f45918fa88257bfe42c09': 'tests/fixtures/regression.json',
         None: 'tests/fixtures/temperatura.json'}
 
+    ERROR_MAPPING = {
+        '56dd9570018e213242eee422': ('Server raised 422.', 422)}
+
     app = flask.Flask(__name__)
     app.config['SECRET_KEY'] = '42'
     app.config['PREDICTION_DELAY'] = 0
@@ -233,6 +236,10 @@ def app():
                 row["rowId"] = i
                 response_data[pred_key].append(row)
             return response_data
+
+        if uid in ERROR_MAPPING:
+            error_info = ERROR_MAPPING[uid]
+            return error_info[0], error_info[1]
 
         with open(MAPPING.get(uid), 'r') as f:
             resp_data = json.load(f)

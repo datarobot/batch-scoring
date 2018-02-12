@@ -312,3 +312,45 @@ def test_pred_name_classification(live_server, tmpdir):
     expected = out.read_text('utf-8')
     with open('tests/fixtures/temperatura_output_healthy.csv', 'rU') as f:
         assert expected == f.read(), expected
+
+
+def test_422(live_server, tmpdir):
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui_class = mock.Mock(spec=UI)
+    ui = ui_class.return_value
+    ui.fatal.side_effect = SystemExit
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    with pytest.raises(SystemExit):
+        run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242eee422',
+            import_id=None,
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv.gz',
+            pred_name=None,
+            timeout=None,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+    ui.fatal.assert_called()
+    ui.fatal.assert_called_with(
+        '''Predictions are not available because: "Server raised 422.".'''
+    )
