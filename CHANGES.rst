@@ -1,3 +1,10 @@
+1.13.1 (unreleased)
+===================
+
+Bugfixes
+--------
+* Fix package installation in Python 3 environments.
+
 1.13.0 (2017 November 10)
 =========================
 
