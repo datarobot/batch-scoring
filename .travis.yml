@@ -79,7 +79,8 @@ deploy:
       all_branches: true 
       tags: false
       condition: $pyver = '3.5'
-# PyPi Push on tag 
+# PyPi Push on tag. Since we build different wheels for python2 and python3,
+# we need to deploy jobs, each for each version of python interpreter.
   - provider: pypi
     skip_upload_docs: true
     user: Axik
@@ -91,3 +92,14 @@ deploy:
       tags: true
       all_branches: true
       python: 3.5
+  - provider: pypi
+    skip_upload_docs: true
+    user: Axik
+    password:
+      secure: "kRbo6mHdrZDaG8plDdl18S3Ld/Ek7W37VPuX1qcdR5nbb1bm8nddH7us9kHZAVWl8p4o4s8uN6shaSUobXTYU+7MFK6cb22c+nVcSYJMlMDq1cOlRNwFs+gXIKT8bgnW1VX/DVfMMkHQSvD00SRDKoUDQdQXbauStlSV4Nj1wSGXfovkujneBKfmeXYo3TBX/I9HVc+VAyXG9mCDJwivS//gpJKwgkpIKu3TOCPJY/makubvGcPUYzbZPRvi5iMp5pQPFTX2rnmzbp6CGH6jaGhgHjAYeNVQVdeNuXqrxvoTSyfmzfYJRla7b5zqBILPb0nxH9YLlZC7WYuqGgoUaijk554jcq1+und0GBo3xo7lo5HIHRUgOILn8KlzOp2Z6Gp7APkRevlot11yb6avWb2f46BP9P2vFzycCHJmJkZ1klF0UVEOEbBhJyP8i4kGArI1Y4qrsqUfzQfjkm6YfFQvXdjVFdNnm1Ze6yTT+Tt4q3gO0u1DIX8H1ofaU7AhOWF5BQ67ytFkw9jeCxKCTRrAn/QYfAw/eSzZZcatCb1RsfPTtxTFfxkTHP5QzFELQ0RzorSCEtugLAetX613JM2eaRs1cGhzflhirrc6yFDYjsScgj675woc5pBXSgjKrM9I8oTEAdetRtewewOIrPlNfV3qNoQa+AQHlRqr4bQ="
+    distributions: bdist_wheel
+    on:
+      repo: datarobot/batch-scoring
+      tags: true
+      all_branches: true
+      python: 2.7

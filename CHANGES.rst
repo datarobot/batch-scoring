@@ -1,3 +1,10 @@
+1.13.2 (2018 February 26)
+=========================
+
+Bugfixes
+--------
+* Fix wheel installation for Python 2.
+
 1.13.1 (2018 February 26)
 =========================
 
