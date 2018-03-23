@@ -276,6 +276,7 @@ class Shovel(object):
         _ui.info('Shovel process started')
         csv.register_dialect('dataset_dialect', dialect)
         batch_generator = BatchGenerator(*args)
+        batch = None
         try:
             n = 0
             self.shovel_status.value = b"R"
@@ -326,7 +327,7 @@ class Shovel(object):
             self.shovel_status.value = b"C"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_CSV_ERROR,
                                      {
-                                         "batch": batch._replace(data=[]),
+                                         "batch": batch and batch._replace(data=[]),
                                          "error": str(e),
                                          "produced": n,
                                          "read": batch_generator.n_read,
@@ -338,7 +339,7 @@ class Shovel(object):
             self.shovel_status.value = b"E"
             self.progress_queue.put((ProgressQueueMsg.SHOVEL_ERROR,
                                      {
-                                         "batch": batch._replace("data", []),
+                                         "batch": batch and batch._replace("data", []),
                                          "error": str(e),
                                          "produced": n,
                                          "read": batch_generator.n_read,
