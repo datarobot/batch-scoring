@@ -328,7 +328,7 @@ class Shovel(object):
             self.progress_queue.put((
                 ProgressQueueMsg.SHOVEL_CSV_ERROR,
                 {
-                    "batch": batch and batch._replace(data=[]),
+                    "batch": batch and batch._replace(data=[]) or [],
                     "error": str(e),
                     "produced": n,
                     "read": batch_generator.n_read,
@@ -342,7 +342,7 @@ class Shovel(object):
             self.progress_queue.put((
                 ProgressQueueMsg.SHOVEL_ERROR,
                 {
-                    "batch": batch and batch._replace("data", []),
+                    "batch": batch and batch._replace("data", []) or [],
                     "error": str(e),
                     "produced": n,
                     "read": batch_generator.n_read,
