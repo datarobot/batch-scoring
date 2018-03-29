@@ -3,7 +3,7 @@
 
 Bugfixes
 --------
-* Change the sequence of config file look up: current directory first, then user's home directory
+* Changes the sequence of config file look up. A config file in the working directory will now take precedence over a config file in the user’s home directory.
 
 1.13.2 (2018 February 26)
 =========================
