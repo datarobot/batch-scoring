@@ -1,3 +1,10 @@
+1.13.3 (unreleased)
+====================
+
+Bugfixes
+--------
+* Change the sequence of config file look up: current directory first, then user's home directory
+
 1.13.2 (2018 February 26)
 =========================
 
