@@ -158,7 +158,7 @@ Example::
 
 Using the configuration file
 ----------------------------
-The `batch_scoring` command checks for the existence of a batch_scoring.ini file at the location `$HOME/batch_scoring.ini` (your home directory) and the directory where you are running the script (working directory). If this file exists, the command uses the same arguments as those described above. If the file does not exist, the command proceeds normally with the command line arguments. The command line arguments have higher priority than the file arguments (that is, you can override file arguments using the command line).
+The `batch_scoring` command checks for the existence of a batch_scoring.ini file at the directory where you are running the script (working directory) and, if it is not found in the working directory, in $HOME/batch_scoring.ini (your home directory). If this file exists, the command uses the same arguments as those described above. If the file does not exist, the command proceeds normally with the command line arguments. The command line arguments have higher priority than the file arguments (that is, you can override file arguments using the command line).
 
 The format of a `batch_scoring.ini` file is as follows::
 

@@ -1,42 +1,62 @@
 import os
-import mock
-import pytest
 from tempfile import NamedTemporaryFile
 import textwrap
+
+import mock
+import pytest
+
 from datarobot_batch_scoring.utils import (get_config_file,
                                            CONFIG_FILENAME,
                                            parse_config_file)
 from datarobot_batch_scoring.main import main as batch_scoring_main
 
 
+def create_file_and_clean_it(filename):
+    try:
+        with open(filename, 'w'):
+            yield
+
+    finally:
+        os.remove(filename)
+
+
+@pytest.yield_fixture
+def config_file_in_home_dir():
+    filename = os.path.join(
+        os.path.expanduser('~'),
+        CONFIG_FILENAME,
+    )
+    for _ in create_file_and_clean_it(filename):
+        yield filename
+
+
+@pytest.yield_fixture
+def config_file_in_current_dir():
+    filename = os.path.join(
+        os.getcwd(),
+        CONFIG_FILENAME,
+    )
+    for _ in create_file_and_clean_it(filename):
+        yield filename
+
+
 def test_no_file_is_ok():
     assert get_config_file() is None
 
 
-def test_file_from_home_directory():
-    with open(os.path.join(
-            os.path.expanduser('~'),
-            CONFIG_FILENAME), 'w'):
-        pass
-
-    try:
-        assert get_config_file() == os.path.join(
-            os.path.expanduser('~'),
-            CONFIG_FILENAME)
-    finally:
-        os.remove(os.path.expanduser('~') + '/' + CONFIG_FILENAME)
+def test_file_from_home_directory(config_file_in_home_dir):
+    assert get_config_file() == config_file_in_home_dir
 
 
-def test_file_from_working_directory():
-    with open(os.path.join(os.getcwd(),
-                           CONFIG_FILENAME), 'w'):
-        pass
-    try:
-        assert get_config_file() == os.path.join(os.getcwd(),
-                                                 CONFIG_FILENAME)
-    finally:
-        os.remove(os.path.join(os.getcwd(),
-                               CONFIG_FILENAME))
+def test_file_from_working_directory(config_file_in_current_dir):
+    assert get_config_file() == config_file_in_current_dir
+
+
+def test_file_from_working_directory__has_priority(
+        config_file_in_home_dir,
+        config_file_in_current_dir,
+):
+    assert get_config_file() == config_file_in_current_dir
 
 
 def test_empty_file_doesnt_error():

@@ -252,10 +252,10 @@ def get_config_file():
     """
     home_path = path_join(expanduser('~'), CONFIG_FILENAME)
     cwd_path = path_join(getcwd(), CONFIG_FILENAME)
-    if isfile(home_path):
-        return home_path
-    elif isfile(cwd_path):
+    if isfile(cwd_path):
         return cwd_path
+    elif isfile(home_path):
+        return home_path
     return None
 
 
