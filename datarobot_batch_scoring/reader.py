@@ -164,6 +164,10 @@ class SlowReader(CSVReader):
             if i == 0:
                 # skip header
                 continue
+
+            if len(row) == 0:
+                continue
+
             yield row
 
 
