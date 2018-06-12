@@ -210,6 +210,7 @@ def test_no_delimiter(live_server):
         )
     assert str(ctx.value) == ("Could not determine delimiter")
 
+
 def test_bad_newline(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
