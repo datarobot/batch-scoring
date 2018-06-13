@@ -243,7 +243,7 @@ def test_bad_newline(live_server):
         skip_dialect=False
     )
 
-    lines = len(open("out.csv", "rb").readlines())
+    lines = len(open('out.csv', 'rb').readlines())
 
     assert lines == 5
 
