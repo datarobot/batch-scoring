@@ -245,7 +245,7 @@ def test_bad_newline(live_server):
 
     lines = len(open("out.csv", "rb").readlines())
 
-    assert lines == 9
+    assert lines == 5
 
 
 def test_header_only(live_server):
