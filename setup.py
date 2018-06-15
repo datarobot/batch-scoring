@@ -39,11 +39,11 @@ extra['entry_points'] = {
 extra['install_requires'] = install_requires
 
 
-fname = os.path.join(os.path.abspath(os.path.dirname(
-    __file__)), 'datarobot_batch_scoring', '__init__.py')
+this_directory = os.path.abspath(os.path.dirname(__file__))
 
 
-with codecs.open(fname, 'r', 'latin1') as fp:
+init_fname = os.path.join(this_directory, 'datarobot_batch_scoring', '__init__.py')
+with codecs.open(init_fname, 'r', 'latin1') as fp:
     try:
         version = re.findall(r"^__version__ = '([^']+)'\r?$",
                              fp.read(), re.M)[0]
@@ -51,10 +51,16 @@ with codecs.open(fname, 'r', 'latin1') as fp:
         raise RuntimeError('Unable to determine version.')
 
 
+readme_fname = os.path.join(this_directory, 'README.rst')
+with codecs.open(readme_fname, 'r', 'utf-8') as f:
+    long_description = f.read()
+
+
 setup(
     name='datarobot_batch_scoring',
     version=version,
     description=("A script to score CSV files via DataRobot's prediction API"),
+    long_description=long_description,
     author='DataRobot',
     author_email='support@datarobot.com',
     maintainer='DataRobot',
