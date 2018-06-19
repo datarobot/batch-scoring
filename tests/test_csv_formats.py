@@ -246,6 +246,8 @@ def test_bad_newline(live_server):
     lines = len(open('out.csv', 'rb').readlines())
 
     assert lines == 5
+    ui.warning.assert_any_call('Detected empty rows in the CSV file. '
+                               'These rows will be discarded.')
 
 
 def test_header_only(live_server):
