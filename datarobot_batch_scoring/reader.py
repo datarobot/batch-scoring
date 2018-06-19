@@ -160,10 +160,19 @@ class SlowReader(CSVReader):
 
     def __iter__(self):
         self.reader = self._create_reader()
+        warned = False
         for i, row in enumerate(self.reader):
             if i == 0:
                 # skip header
                 continue
+
+            if len(row) == 0:
+                if not warned:
+                    self._ui.warning('Detected empty rows in the CSV file. '
+                                     'These rows will be discarded.')
+                    warned = True
+                continue
+
             yield row
 
 

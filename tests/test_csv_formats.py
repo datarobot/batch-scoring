@@ -211,6 +211,45 @@ def test_no_delimiter(live_server):
     assert str(ctx.value) == ("Could not determine delimiter")
 
 
+def test_bad_newline(live_server):
+    ui = PickableMock()
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+
+    run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='56dd9570018e213242dfa93c',
+        lid='56dd9570018e213242dfa93d',
+        import_id=None,
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file='out.csv',
+        keep_cols=None,
+        delimiter=',',
+        dataset='tests/fixtures/diabetes_bad_newline.csv',
+        pred_name=None,
+        timeout=None,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+
+    lines = len(open('out.csv', 'rb').readlines())
+
+    assert lines == 5
+    ui.warning.assert_any_call('Detected empty rows in the CSV file. '
+                               'These rows will be discarded.')
+
+
 def test_header_only(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
