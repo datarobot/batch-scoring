@@ -1,9 +1,12 @@
-1.13.3 (unreleased)
-====================
+1.13.3 (2018 June 20)
+=====================
 
 Bugfixes
 --------
 * Changes the sequence of config file look up. A config file in the working directory will now take precedence over a config file in the user’s home directory.
+
+Documentation
+-------------
 * Include ``README.rst`` into distribution as long description.
 
 1.13.2 (2018 February 26)
