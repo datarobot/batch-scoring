@@ -3,6 +3,10 @@ FROM quay.io/pypa/manylinux1_x86_64
 #  This image is based on pypa/manylinux1 because they use an ancient version of Centos 
 #  which we want for ABI compatibility. 
 #
+#  We are building OpenSSL because Python infrastructure uses TLS 1.2 and
+#  OpenSSL that exists in the image does not support it. This is what manylinux
+#  maintainers are doing when they built their own Python versions.
+#
 #  We are building Python3.5 instead of using the one that already exists in the image 
 #  because pypa specifically remove libpython for wheelbuilding. See: 
 #  https://github.com/pypa/manylinux/blob/fe0967cf35b84fecb6ac3163074f1627356854e8/pep-513.rst#libpythonxyso1
@@ -15,25 +19,40 @@ FROM quay.io/pypa/manylinux1_x86_64
 ENV LANG C.UTF-8
 ENV GPG_KEY 97FC712E4C024BBEA48A61ED3A5CA953F73C700D
 ENV PYTHON_VERSION 3.5.3
+ENV OPENSSL_VERSION 1.0.2o
+ENV OPENSSL_GPG_KEY 8657ABB260F056B1E5190839D9C4D26D0E604491
 
 RUN set -ex \
-    && yum install -y xz gpg zip openssl-devel zlib-devel bzip2-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel \
+    && yum install -y xz gpg zip zlib-devel bzip2-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel \
+	&& export GNUPGHOME="$(mktemp -d)" \
+	\
+	&& curl -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz" \
+	&& curl -o openssl.tar.gz.asc "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz.asc" \
+	&& gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$OPENSSL_GPG_KEY" \
+	&& gpg --batch --verify openssl.tar.gz.asc openssl.tar.gz \
+	&& mkdir -p /usr/src/openssl \
+	&& tar --use-compress-program=gzip -xC /usr/src/openssl --strip-components=1 -f openssl.tar.gz \
+	&& rm openssl.tar.gz openssl.tar.gz.asc \
+	&& cd /usr/src/openssl \
+	&& ./config no-ssl2 no-shared -fPIC --prefix=/usr/local/ssl \
+	&& make -j$(nproc) \
+	&& make install_sw \
+	\
 	&& curl -o python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
 	&& curl -o python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
-	&& export GNUPGHOME="$(mktemp -d)" \
 	&& gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY" \
 	&& gpg --batch --verify python.tar.xz.asc python.tar.xz \
-	&& rm -r "$GNUPGHOME" python.tar.xz.asc \
 	&& mkdir -p /usr/src/python \
 	&& tar --use-compress-program=xz -xC /usr/src/python --strip-components=1 -f python.tar.xz \
-	&& rm python.tar.xz \
-	\
+	&& rm python.tar.xz python.tar.xz.asc \
 	&& cd /usr/src/python \
 	&& ./configure \
 		--enable-loadable-sqlite-extensions \
 		--enable-shared \
 	&& make -j$(nproc) \
 	&& make install \
+	\
+	&& rm -r "$GNUPGHOME" \
 	&& ldconfig \
 	&& yum -y clean all > /dev/null 2>&1 \
 	&& ln -s /usr/local/bin/python3.5 /usr/local/bin/python
