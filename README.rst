@@ -69,13 +69,13 @@ Features
 * Parallel processing
 
 
-Running the batch_scoring or batch_scoring_sse scripts
-------------------------------------------------------
+Running the batch_scoring, batch_scoring_sse scripts or batch_scoring_deployment_aware
+--------------------------------------------------------------------------------------
 
-You can execute the ``batch_scoring`` or ``batch_scoring_sse`` command from the command line or
-you can pass parameters to a ``batch_scoring`` or ``batch_scoring_sse`` script from the .ini file.
-Place the .ini file in your home directory or the directory from which you are running the ``batch_scoring``
-or ``batch_scoring_sse`` command. Use the syntax and arguments below to define the parameters.
+You can execute the ``batch_scoring``, ``batch_scoring_sse`` or ``batch_scoring_deployment_aware``
+command from the command line with relevant parameters or you can pass parameters to a script from the .ini file.
+Place the .ini file in your home directory or the directory from which you are running the ``batch_scoring``,
+``batch_scoring_sse`` or ``batch_scoring_deployment_aware`` command. Use the syntax and arguments below to define the parameters.
 Note that if you run the script and also execute via the command line, the command line parameters take priority.
 
 The following table describes the syntax conventions; the syntax for running the script follows the table.
@@ -83,6 +83,7 @@ DataRobot supplies two scripts, each for a different application. Use:
 
 - ``batch_scoring`` to score on dedicated prediction instances.
 - ``batch_scoring_sse`` to score on standalone prediction instances. If you are unsure of your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
+- ``batch_scoring_deployment_aware`` to score on dedicated prediction instances using ``deployment_id`` instead of ``project_id`` and ``model_id``.
 
 ============  =======
  Convention   Meaning
@@ -95,6 +96,8 @@ DataRobot supplies two scripts, each for a different application. Use:
 Required arguments:
 
 ``batch_scoring --host=<host> --user=<user> <project_id> <model_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
+
+``batch_scoring_deployment_aware --host=<host> --user=<user> <deployment_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
 
 ``batch_scoring_sse --host=<host> <import_id> <dataset_filepath>``
 
@@ -117,6 +120,7 @@ The following table describes each of the arguments:
  <import_id>                      \+         \-     Specifies the unique ID for the imported model. If unknown, ask your prediction administrator (the person responsible for the import procedure).
  <project_id>                     \-         \+     Specifies the project identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard (for example, https://<host>/projects/<project_id>/models). Alternatively, when the prediction API is enabled, the project ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
  <model_id>                       \-         \+     Specifies the model identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard and have selected a model (for example, https://<host>/projects/<project_id>/models/<model_id>). Alternatively, when the prediction API is enabled, the model ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
+ <deployment_id>                  \-         \+     Specifies the unique ID for deployed model, can be used instead of ``<project_id>`` and ``<model_id>`` pair.
  <dataset_filepath>               \+         \+     Specifies the .csv input file that the script scores. DataRobot scores models by submitting prediction requests against ``<host>`` using project ``<project_id>`` and model ``<model_id>``.
  datarobot_key=<datarobot_key>    \-         \+     An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
  password=<pwd>                   \-         \+     Specifies the password used to acquire the API token. Use quotes if the password contains spaces. You must specify either the password or the API token argument. To avoid entering your password each time you run the script, use the ``api_token`` argument instead.
@@ -153,6 +157,7 @@ Example::
 
     batch_scoring --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 /home/greg/Downloads/diabetes_test.csv
     batch_scoring_sse --host=https://mycorp.orm.datarobot.com/ --out=pred.csv 0ec5bcea7f0f45918fa88257bfe42c09 /home/greg/Downloads/diabetes_test.csv
+    batch_scoring_deployment_aware --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb71b4912911244d4848 /home/greg/Downloads/diabetes_test.csv
 
 Using the configuration file
 ----------------------------

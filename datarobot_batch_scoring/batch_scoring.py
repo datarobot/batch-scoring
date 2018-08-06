@@ -74,7 +74,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           output_delimiter=None,
                           max_batch_size=None, compression=None,
                           field_size_limit=None,
-                          verify_ssl=True):
+                          verify_ssl=True,
+                          deployment_id=None):
 
     if field_size_limit is not None:
         csv.field_size_limit(field_size_limit)
@@ -123,8 +124,12 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             base_headers['Content-Encoding'] = 'gzip'
         if import_id:
             endpoint = base_url + '/'.join((import_id, 'predict'))
+        elif deployment_id is not None:
+            endpoint = base_url + '/'.join(
+                ('deployments', deployment_id, 'predictions'))
         else:
             endpoint = base_url + '/'.join((pid, lid, 'predict'))
+
         encoding = investigate_encoding_and_dialect(
             dataset=dataset,
             sep=delimiter, ui=ui,

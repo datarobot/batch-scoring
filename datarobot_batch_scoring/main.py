@@ -44,7 +44,9 @@ Example:
 VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
 
 
-def parse_args(argv, standalone=False):
+def parse_args(argv, standalone=False, deployment_aware=False):
+    both_set = standalone and deployment_aware
+    assert not both_set, 'Both options can not be used in the same time'
     defaults = {
         'prompt': None,
         'out': 'out.csv',
@@ -91,12 +93,17 @@ def parse_args(argv, standalone=False):
                                 default=defaults['api_version'],
                                 help='Specifies API version. '
                                      '(default: %(default)r)')
-        dataset_gr.add_argument('project_id', type=str,
-                                help='Specifies the project '
-                                'identification string.')
-        dataset_gr.add_argument('model_id', type=str,
-                                help='Specifies the model identification '
-                                     'string.')
+        if deployment_aware:
+            dataset_gr.add_argument('deployment_id', type=str,
+                                    help='Specifies the model deployment '
+                                    'identification string.')
+        else:
+            dataset_gr.add_argument('project_id', type=str,
+                                    help='Specifies the project '
+                                    'identification string.')
+            dataset_gr.add_argument('model_id', type=str,
+                                    help='Specifies the model identification '
+                                         'string.')
         auth_gr = parser.add_argument_group('Authentication parameters')
         auth_gr.add_argument('--user', type=str,
                              help='Specifies the username used to acquire '
@@ -344,23 +351,29 @@ def parse_generic_options(parsed_args):
     }
 
 
-def main(argv=sys.argv[1:]):
+def _main(argv, deployment_aware=False):
     freeze_support()
     global ui  # global variable hack, will get rid of a bit later
     warnings.simplefilter('ignore')
-    parsed_args = parse_args(argv)
+    parsed_args = parse_args(argv, deployment_aware=deployment_aware)
     exit_code = 1
 
     generic_opts = parse_generic_options(parsed_args)
 
     # parse args
-    pid = parsed_args['project_id']
-    lid = parsed_args['model_id']
-    try:
-        verify_objectid(pid)
-        verify_objectid(lid)
-    except ValueError as e:
-        ui.fatal(str(e))
+    if deployment_aware:
+        deployment_id = parsed_args['deployment_id']
+        verify_objectid(deployment_id)
+        pid, lid = None, None
+    else:
+        deployment_id = None
+        pid = parsed_args['project_id']
+        lid = parsed_args['model_id']
+        try:
+            verify_objectid(pid)
+            verify_objectid(lid)
+        except ValueError as e:
+            ui.fatal(str(e))
 
     # auth only ---
     datarobot_key = parsed_args.get('datarobot_key')
@@ -396,7 +409,8 @@ def main(argv=sys.argv[1:]):
         exit_code = run_batch_predictions(
             base_url=base_url, base_headers=base_headers, user=user, pwd=pwd,
             api_token=api_token, create_api_token=create_api_token,
-            pid=pid, lid=lid, import_id=None, ui=ui, **generic_opts
+            pid=pid, lid=lid, import_id=None, deployment_id=deployment_id,
+            ui=ui, **generic_opts
         )
     except SystemError:
         pass
@@ -418,6 +432,14 @@ def main(argv=sys.argv[1:]):
     finally:
         ui.close()
         return exit_code
+
+
+def main(argv=sys.argv[1:]):
+    return _main(argv, deployment_aware=False)
+
+
+def main_deployment_aware(argv=sys.argv[1:]):
+    return _main(argv, deployment_aware=True)
 
 
 def main_standalone(argv=sys.argv[1:]):

@@ -12,20 +12,34 @@ from datarobot_batch_scoring.utils import UI
 from utils import PickableMock, print_logs
 
 
-def test_args_from_subprocess(live_server):
+@pytest.fixture(params=['pid/lid', 'deployment_id'])
+def cli_args(request):
+    pid = '56dd9570018e213242dfa93c'
+    lid = '56dd9570018e213242dfa93d'
+    deployment_id = '56dd9570018e213242dfa93d'
+
+    if request.param == 'deployment_id':
+        return 'batch_scoring_deployment_aware', deployment_id
+    else:
+        return 'batch_scoring', pid + ' ' + lid
+    return request.param
+
+
+def test_args_from_subprocess(live_server, cli_args):
     # train one model in project
     with tempfile.NamedTemporaryFile(prefix='test_',
                                      suffix='.csv',
                                      delete=True) as fd:
         pass
-    bscore_name = 'batch_scoring'
+    bscore_name, params = cli_args
     if os.name is 'nt':
         exe = sys.executable
         head = os.path.split(exe)[0]
         bscore_name = os.path.normpath(os.path.join(head, 'scripts',
-                                       'batch_scoring.exe'))
+                                       bscore_name + '.exe'))
         assert os.path.isfile(bscore_name) is True
         assert os.path.supports_unicode_filenames is True
+
     arguments = ('{bscore_name} --host={webhost}/api'
                  ' --user={username}'
                  ' --password={password}'
@@ -34,16 +48,13 @@ def test_args_from_subprocess(live_server):
                  ' --n_concurrent=1'
                  ' --out={out}'
                  ' --no'
-                 ' {project_id}'
-                 ' {model_id}'
+                 ' {params}'
                  ' tests/fixtures/temperatura_predict.csv').format(
                     webhost=live_server.url(),
                     bscore_name=bscore_name,
                     username='username',
                     password='password',
-                    project_id='56dd9570018e213242dfa93c',
-                    model_id='56dd9570018e213242dfa93d',
-                    out=fd.name)
+                    out=fd.name, params=params)
     try:
         spc = subprocess.check_call(arguments.split(' '))
     except subprocess.CalledProcessError as e:
@@ -60,10 +71,20 @@ def test_args_from_subprocess(live_server):
     assert spc is 0
 
 
-def test_simple(live_server, tmpdir):
+@pytest.fixture(params=['pid/lid', 'deployment_id'])
+def func_params(request):
+    pid = '56dd9570018e213242dfa93c'
+    lid = '56dd9570018e213242dfa93d'
+    deployment_id = '56dd9570018e213242dfa93d'
+
+    if request.param == 'deployment_id':
+        return {'deployment_id': deployment_id, 'pid': None, 'lid': None}
+    return {'pid': pid, 'lid': lid, 'deployment_id': None}
+
+
+def test_simple(live_server, tmpdir, func_params):
     # train one model in project
     out = tmpdir.join('out.csv')
-
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     ret = run_batch_predictions(
@@ -73,8 +94,9 @@ def test_simple(live_server, tmpdir):
         pwd='password',
         api_token=None,
         create_api_token=False,
-        pid='56dd9570018e213242dfa93c',
-        lid='56dd9570018e213242dfa93d',
+        deployment_id=func_params['deployment_id'],
+        pid=func_params['pid'],
+        lid=func_params['lid'],
         import_id=None,
         n_retry=3,
         concurrent=1,
@@ -183,7 +205,7 @@ def test_simple_transferable(live_server, tmpdir):
     assert str(actual) == str(expected), expected
 
 
-def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
+def test_keep_cols(live_server, tmpdir, ui, func_params, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -195,8 +217,9 @@ def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
         pwd='password',
         api_token=None,
         create_api_token=False,
-        pid='56dd9570018e213242dfa93c',
-        lid='56dd9570018e213242dfa93d',
+        deployment_id=func_params['deployment_id'],
+        pid=func_params['pid'],
+        lid=func_params['lid'],
         import_id=None,
         n_retry=3,
         concurrent=1,
@@ -223,11 +246,11 @@ def test_keep_cols(live_server, tmpdir, ui, fast_mode=False):
         assert expected == f.read(), expected
 
 
-def test_keep_cols_fast_mode(live_server, tmpdir, ui):
-    test_keep_cols(live_server, tmpdir, ui, True)
+def test_keep_cols_fast_mode(live_server, tmpdir, ui, func_params):
+    test_keep_cols(live_server, tmpdir, ui, func_params, True)
 
 
-def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):
+def test_keep_wrong_cols(live_server, tmpdir, func_params, fast_mode=False):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -244,8 +267,9 @@ def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):
             pwd='password',
             api_token=None,
             create_api_token=False,
-            pid='56dd9570018e213242dfa93c',
-            lid='56dd9570018e213242dfa93d',
+            deployment_id=func_params['deployment_id'],
+            pid=func_params['pid'],
+            lid=func_params['lid'],
             import_id=None,
             n_retry=3,
             concurrent=1,
@@ -273,7 +297,7 @@ def test_keep_wrong_cols(live_server, tmpdir, fast_mode=False):
     )
 
 
-def test_pred_name_classification(live_server, tmpdir):
+def test_pred_name_classification(live_server, tmpdir, func_params):
     # train one model in project
     out = tmpdir.join('out.csv')
 
@@ -286,8 +310,9 @@ def test_pred_name_classification(live_server, tmpdir):
         pwd='password',
         api_token=None,
         create_api_token=False,
-        pid='56dd9570018e213242dfa93c',
-        lid='56dd9570018e213242dfa93d',
+        deployment_id=func_params['deployment_id'],
+        pid=func_params['pid'],
+        lid=func_params['lid'],
         import_id=None,
         n_retry=3,
         concurrent=1,

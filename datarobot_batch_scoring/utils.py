@@ -39,6 +39,7 @@ config_validator = t.Dict({
     OptKey('host'): t.String,
     OptKey('project_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
     OptKey('model_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
+    OptKey('deployment_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
     OptKey('import_id'): t.String,
     OptKey('n_retry'): t.Int,
     OptKey('keep_cols'): t.String,

@@ -8,7 +8,8 @@ import pytest
 from datarobot_batch_scoring.utils import (get_config_file,
                                            CONFIG_FILENAME,
                                            parse_config_file)
-from datarobot_batch_scoring.main import main as batch_scoring_main
+from datarobot_batch_scoring.main import (
+    main as batch_scoring_main, main_deployment_aware)
 
 
 def create_file_and_clean_it(filename):
@@ -160,6 +161,69 @@ def test_run_main_with_conf_file(monkeypatch):
                 create_api_token=False,
                 pid='56dd9570018e213242dfa93c',
                 lid='56dd9570018e213242dfa93d',
+                deployment_id=None,
+                import_id=None,
+                n_retry=3,
+                concurrent=1,
+                resume=None,
+                n_samples=10,
+                out_file='out.csv',
+                keep_cols=None,
+                delimiter=None,
+                dataset='tests/fixtures/temperatura_predict.csv',
+                pred_name=None,
+                timeout=None,
+                ui=mock.ANY,
+                auto_sample=False,
+                fast_mode=True,
+                dry_run=False,
+                encoding='',
+                skip_dialect=False,
+                skip_row_id=False,
+                output_delimiter=None,
+                compression=False,
+                field_size_limit=None,
+                verify_ssl=True
+            )
+    finally:
+        os.remove(test_file.name)
+
+
+def test_run_main_with_conf_file_deployment_aware(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '56dd9570018e213242dfa93d',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--n_samples',
+                 '10',
+                 '--n_concurrent', '1', '--no', '--fast']
+    raw_data = textwrap.dedent("""\
+        [batch_scoring]
+        host=file_host
+        deployment_id=56dd9570018e213242dfa93d
+        user=file_username
+        password=file_password""")
+    with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
+        test_file.write(str(raw_data).encode('utf-8'))
+
+    try:
+        monkeypatch.setattr(
+            'datarobot_batch_scoring.main.get_config_file',
+            lambda: test_file.name)
+        with mock.patch(
+                'datarobot_batch_scoring.main'
+                '.run_batch_predictions') as mock_method:
+            main_deployment_aware(argv=main_args)
+            mock_method.assert_called_once_with(
+                base_url='http://localhost:53646/predApi/v1.0/',
+                base_headers={},
+                user='file_username',
+                pwd='file_password',
+                api_token=None,
+                create_api_token=False,
+                pid=None,
+                lid=None,
+                deployment_id='56dd9570018e213242dfa93d',
                 import_id=None,
                 n_retry=3,
                 concurrent=1,
@@ -221,6 +285,7 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     create_api_token=False,
                     pid='56dd9570018e213242dfa93c',
                     lid='56dd9570018e213242dfa93d',
+                    deployment_id=None,
                     import_id=None,
                     n_retry=3,
                     concurrent=1,

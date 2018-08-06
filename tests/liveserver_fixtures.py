@@ -190,6 +190,11 @@ def app():
     def predict_sinc(pid, lid):
         return _predict(lid)
 
+    @app.route('/predApi/v1.0/deployments/<deployment_id>/predictions',
+               methods=["POST"])
+    def predict_deployment_aware(deployment_id):
+        return _predict(deployment_id)
+
     @app.route('/predApi/v1.0/<import_id>/predict', methods=["POST"])
     @app.route('/api/v1/<import_id>/predict', methods=["POST"])
     def predict_transferable(import_id):
