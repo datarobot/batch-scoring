@@ -1,4 +1,5 @@
 import csv
+import dbm.dumb
 import glob
 import hashlib
 import multiprocessing
@@ -83,7 +84,8 @@ class RunContext(object):
         assert(not self.is_open)
         self.is_open = True
         self._ui.debug('ENTER CALLED ON RUNCONTEXT')
-        self.db = shelve.open(self.file_context.file_name, writeback=True)
+        raw_db = dbm.dumb.open(self.file_context.file_name)
+        self.db = shelve.Shelf(raw_db, writeback=True)
         if not hasattr(self, 'partitions'):
             self.partitions = []
         return self
