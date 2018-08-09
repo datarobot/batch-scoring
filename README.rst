@@ -28,6 +28,15 @@ batch_scoring_version DataRobot Version
 >=1.13                2.7, 2.8, 2.9, 3.0, 3.1+
 ===================== =================
 
+Command ``batch_scoring_deployment_aware`` available only for new DataRobot
+versions.
+
+============================== =================
+batch_scoring_deployment_aware DataRobot Version
+------------------------------ -----------------
+>=1.14                         4.4+
+============================== =================
+
 How to install
 --------------
 
