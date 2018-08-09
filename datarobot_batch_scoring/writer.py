@@ -13,7 +13,7 @@ from time import time
 try:
     import dbm.dumb as dumb_dbm
 except ImportError:
-    import dbm.dumbdbm as dumb_dbm
+    import dumbdbm as dumb_dbm
 
 import six
 from six.moves import queue
