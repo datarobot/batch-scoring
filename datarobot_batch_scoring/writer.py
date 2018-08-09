@@ -1,5 +1,4 @@
 import csv
-import dbm.dumb
 import glob
 import hashlib
 import multiprocessing
@@ -10,6 +9,11 @@ import signal
 import sys
 from functools import reduce
 from time import time
+
+try:
+    import dbm.dumb as dumb_dbm
+except ImportError:
+    import dbm.dumbdbm as dumb_dbm
 
 import six
 from six.moves import queue
@@ -84,7 +88,7 @@ class RunContext(object):
         assert(not self.is_open)
         self.is_open = True
         self._ui.debug('ENTER CALLED ON RUNCONTEXT')
-        raw_db = dbm.dumb.open(self.file_context.file_name)
+        raw_db = dumb_dbm.open(self.file_context.file_name)
         self.db = shelve.Shelf(raw_db, writeback=True)
         if not hasattr(self, 'partitions'):
             self.partitions = []
