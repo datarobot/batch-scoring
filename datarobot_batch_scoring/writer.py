@@ -10,13 +10,13 @@ import sys
 from functools import reduce
 from time import time
 
-try:
-    import dbm.dumb as dumb_dbm
-except ImportError:
-    import dumbdbm as dumb_dbm
-
 import six
 from six.moves import queue
+
+if six.PY3:
+    import dbm.dumb as dumb_dbm
+else:
+    import dumbdbm as dumb_dbm
 
 from datarobot_batch_scoring.consts import SENTINEL, \
     WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
