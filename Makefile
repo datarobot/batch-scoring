@@ -13,6 +13,11 @@ flake8: .install-test-deps
 	pip install -e .
 	touch .install
 
+checkrst:
+	# Helps to find RST syntax errors, ensures that PyPI renders project
+	# page properly.
+	python setup.py check --restructuredtext
+
 test: .install .install-test-deps flake8
 	# test that we can make the HTML for pypi. 1(info) might be too strict
 	rst2html.py --report=1 --exit-status=1 README.rst > /dev/null
@@ -35,7 +40,7 @@ pyinstaller: clean
 
 pyinstaller_dockerized: .install-docker-compose
 	docker-compose run --rm centos5pyinstaller \
-	/batch-scoring/offline_install_scripts/build_pyinstaller_dockerized.sh 
+	/batch-scoring/offline_install_scripts/build_pyinstaller_dockerized.sh
 
 offlinebundle:
 	#  On Linux use "make offlinebundle_dockerized"

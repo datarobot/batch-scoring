@@ -1,3 +1,10 @@
+X.XX.X (YYYY MM DD)
+===================
+
+Enhancements
+------------
+* New command ``batch_scoring_deployment_aware`` for scoring with new deployment aware routes.
+
 1.13.3 (2018 June 20)
 =====================
 
