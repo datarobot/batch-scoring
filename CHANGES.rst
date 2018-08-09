@@ -1,3 +1,10 @@
+1.13.4 (2018 August 9)
+=====================
+
+Bugfixes
+--------
+* Enforce ``shelve`` to use ``dbm.dumb``/``dumbdbm`` modules for Python 3.x/2.7 respectively to prevent hiccups on a big amount of generated checkpoint. Was caught on macos X (``ndbm`` backend).
+
 1.13.3 (2018 June 20)
 =====================
 
