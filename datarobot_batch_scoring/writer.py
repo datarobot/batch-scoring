@@ -13,14 +13,14 @@ from time import time
 import six
 from six.moves import queue
 
+from datarobot_batch_scoring.consts import SENTINEL, \
+    WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
+from datarobot_batch_scoring.utils import get_rusage
+
 if six.PY3:
     import dbm.dumb as dumb_dbm
 else:
     import dumbdbm as dumb_dbm
-
-from datarobot_batch_scoring.consts import SENTINEL, \
-    WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
-from datarobot_batch_scoring.utils import get_rusage
 
 
 class ShelveError(Exception):
