@@ -17,6 +17,11 @@ from datarobot_batch_scoring.consts import SENTINEL, \
     WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
 from datarobot_batch_scoring.utils import get_rusage
 
+if six.PY3:
+    import dbm.dumb as dumb_dbm
+else:
+    import dumbdbm as dumb_dbm
+
 
 class ShelveError(Exception):
     pass
@@ -83,7 +88,8 @@ class RunContext(object):
         assert(not self.is_open)
         self.is_open = True
         self._ui.debug('ENTER CALLED ON RUNCONTEXT')
-        self.db = shelve.open(self.file_context.file_name, writeback=True)
+        raw_db = dumb_dbm.open(self.file_context.file_name)
+        self.db = shelve.Shelf(raw_db, writeback=True)
         if not hasattr(self, 'partitions'):
             self.partitions = []
         return self
