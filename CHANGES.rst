@@ -1,15 +1,9 @@
-1.13.5 (2018 August 16)
+1.14.0 (2018 August 16)
 =====================
 
 Bugfixes
 --------
 * Fixed setting proxy with env vars (``HTTP_PROXY``, ``HTTPS_PROXY``, ``NO_PROXY``)
-
-1.13.4 (2018 August 9)
-=====================
-
-Bugfixes
---------
 * Enforce ``shelve`` to use ``dbm.dumb``/``dumbdbm`` modules for Python 3.x/2.7 respectively to prevent hiccups on a big amount of generated checkpoint. Was caught on macos X (``ndbm`` backend).
 
 Enhancements
