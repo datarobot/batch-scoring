@@ -1,3 +1,10 @@
+1.13.5 (2018 August 16)
+=====================
+
+Bugfixes
+--------
+* Fixed setting proxy with env vars (``HTTP_PROXY``, ``HTTPS_PROXY``, ``NO_PROXY``)
+
 1.13.4 (2018 August 9)
 =====================
 
