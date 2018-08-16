@@ -200,3 +200,10 @@ Recommended Python Version
 Python 3.4 or greater is recommended, but all versions of Python 3 should work. Python 2.7.x. will work, but it sometimes errors decoding data
 that Python 3 handles gracefully. Python 3 is also faster.
 
+Proxy support
+-------------
+batch-scoring script handles standart `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` environment variables::
+
+  export HTTP_PROXY=http://192.168.1.3:3128
+  export HTTPS_PROXY=http://192.168.1.3:3128
+  export NO_PROXY=noproxy.domain.com
