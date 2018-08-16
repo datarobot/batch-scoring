@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from datarobot_batch_scoring.batch_scoring import run_batch_predictions
@@ -294,3 +296,43 @@ def test_lost_retry(live_server, tmpdir, ui):
         expected = f.read().splitlines()
         expected.sort()
         assert actual == expected
+
+
+def test_os_env_proxy_handling(live_server, tmpdir, ui):
+    os.environ["HTTP_PROXY"] = "http://localhost"
+
+    out = tmpdir.join('out.csv')
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    with pytest.raises(SystemExit):
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            import_id=None,
+            n_retry=1,
+            concurrent=2,
+            resume=False,
+            n_samples=1,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv.gz',
+            pred_name=None,
+            timeout=None,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+        assert ret is 1
+
+    logs = read_logs()
+    assert "Failed to establish a new connection" in logs
+    os.environ["HTTP_PROXY"] = ""

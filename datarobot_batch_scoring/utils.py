@@ -331,6 +331,8 @@ def warn_if_redirected(req, ui):
     test whether a request was redirect.
     Log a warning to the user if it was redirected
     """
+    if req is None:
+        return
     history = req.history
     if history:
         first = history[0]
