@@ -21,6 +21,7 @@ pip install -U urllib3[secure]
 pip install -r requirements.txt -r requirements-pyinstaller.txt
 pyinstaller -y --distpath=dist/pyinstaller --onefile -n batch_scoring batch_scoring.py
 pyinstaller -y --distpath=dist/pyinstaller --onefile -n batch_scoring_sse batch_scoring_sse.py
+pyinstaller -y --distpath=dist/pyinstaller --onefile -n batch_scoring_deployment_aware batch_scoring_deployment_aware.py
 
 VERSION=$($PYTHON -c 'from datarobot_batch_scoring.__init__ import __version__ as v ; print(v)')
 PLATFORM=$($PYTHON -c 'import platform; print(platform.system())')

@@ -76,5 +76,5 @@ clean:
 	@rm -rf datarobot_batch_scoring.egg-info build/* dist/* 
 	@rm -rf htmlcov
 	@rm -rf .coverage
-	@rm -f batch_scoring.spec batch_scoring_sse.spec
+	@rm -f batch_scoring.spec batch_scoring_sse.spec batch_scoring_deployment_aware.spec
 	@find . -name __pycache__ | xargs rm -rf

@@ -18,13 +18,14 @@ cd /tmp/test_pyinstaller/
 tar -xf "${EXECUTABLE}"*.tar
 cd "${EXECUTABLE}"*/
 mkdir -p ~/bin
-cp batch_scoring batch_scoring_sse ~/bin
+cp batch_scoring batch_scoring_sse batch_scoring_deployment_aware ~/bin
 export PATH=$PATH:~/bin
 cd /tmp/
 
 # dry-run test that the executables can start
 batch_scoring --help > /dev/null
 batch_scoring_sse --help > /dev/null
+batch_scoring_deployment_aware --help > /dev/null
 batch_scoring  --host=https://foo.bar.com --user=fooy@example.com \
 	--api_token=00000000000000000000000000000032 \
 	--datarobot_key=000000000000000000000000000000000036 \
@@ -35,3 +36,9 @@ batch_scoring  --host=https://foo.bar.com --user=fooy@example.com \
 batch_scoring_sse  --host=https://foo.bar.com  000000000000000000000024 \
 	"${REPO_BASE}"/tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
 
+batch_scoring_deployment_aware  --host=https://foo.bar.com --user=fooy@example.com \
+	--api_token=00000000000000000000000000000032 \
+	--datarobot_key=000000000000000000000000000000000036 \
+	000000000000000000000024 \
+	"${REPO_BASE}"/tests/fixtures/criteo_top30_1m.csv.gz \
+	--dry_run --compress  -y

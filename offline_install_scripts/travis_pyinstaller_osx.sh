@@ -16,7 +16,7 @@ mkdir -p dist/datarobot_batch_scoring_executables
 #  add documentation to zip
 cp BATCH_SCORING_EXECUTABLE_README.txt dist/datarobot_batch_scoring_executables/
 cd dist
-cp batch_scoring batch_scoring_sse datarobot_batch_scoring_executables/
+cp batch_scoring batch_scoring_sse batch_scoring_deployment_aware datarobot_batch_scoring_executables/
 tar -cf datarobot_batch_scoring_"${VERS}"_executables.OSX.x86_64.tar datarobot_batch_scoring_executables
 mkdir OSX
 mv datarobot_batch_scoring_"${VERS}"_executables.OSX.x86_64.tar OSX/

@@ -27,8 +27,10 @@ test_script:
   - "build.cmd %PYTHON%\\python.exe -m pip uninstall -y datarobot_batch_scoring"
   - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring batch_scoring.py"
   - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring_sse batch_scoring_sse.py"
+  - "build.cmd %PYTHON%\\Scripts\\pyinstaller.exe -y --distpath=dist/ --onefile -n batch_scoring_deployment_aware batch_scoring_deployment_aware.py"
   - "dist\\batch_scoring.exe --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
   - "dist\\batch_scoring_sse.exe --host=https://foo.bar.com  000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
+  - "dist\\batch_scoring_deployment_aware.exe --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y"
 
 after_test:
   - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
@@ -37,10 +39,12 @@ after_test:
 
   - "COPY dist\\batch_scoring.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
   - "COPY dist\\batch_scoring_sse.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
+  - "COPY dist\\batch_scoring_deployment_aware.exe build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
   - "COPY BATCH_SCORING_EXECUTABLE_README.txt build\\PR\\datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"
 
   - "COPY dist\\batch_scoring.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
   - "COPY dist\\batch_scoring_sse.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
+  - "COPY dist\\batch_scoring_deployment_aware.exe build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
   - "COPY BATCH_SCORING_EXECUTABLE_README.txt build\\TAG\\datarobot_batch_scoring_%APPVEYOR_REPO_TAG_NAME%_executables.Windows.x86_64"
   - ps: cd build\\PR
   - "7z a datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64.zip datarobot_batch_scoring_%APPVEYOR_REPO_COMMIT%_executables.Windows.x86_64"

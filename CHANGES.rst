@@ -1,3 +1,10 @@
+1.14.1 (2018 August 30)
+=======================
+
+Bugfixes
+--------
+* Added ``batch_scoring_deployment_aware`` to Windows/Linux/MacOSX assets.
+
 1.14.0 (2018 August 16)
 =====================
 

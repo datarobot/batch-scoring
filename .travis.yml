@@ -38,8 +38,10 @@ script:
 - pip install -r requirements-pyinstaller.txt -U urllib3[secure]
 - pyinstaller -y --distpath=dist/ --onefile -n batch_scoring batch_scoring.py
 - pyinstaller -y --distpath=dist/ --onefile -n batch_scoring_sse batch_scoring_sse.py
+- pyinstaller -y --distpath=dist/ --onefile -n batch_scoring_deployment_aware batch_scoring_deployment_aware.py
 - dist/batch_scoring  --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
 - dist/batch_scoring_sse  --host=https://foo.bar.com  000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
+- dist/batch_scoring_deployment_aware  --host=https://foo.bar.com --user=fooy@example.com --api_token=00000000000000000000000000000032 --datarobot_key=000000000000000000000000000000000036 000000000000000000000024 tests/fixtures/criteo_top30_1m.csv.gz --dry_run --compress  -y
 cache:
   directories:
   - "$HOME/.cache/pip"

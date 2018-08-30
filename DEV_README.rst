@@ -98,8 +98,8 @@ PyInstaller single-file executable
 `See an overview of PyInstaller here <http://pyinstaller.readthedocs.io/en/stable/operating-mode.html>`_
 
 PyInstaller bundles all the code and dependencies, including the Python interpreter, into a single 
-directory or executable file. Right now we are creating two single-file
-executables; ``batch_scoring_sse`` and ``batch_scoring``.
+directory or executable file. Right now we are creating three single-file
+executables; ``batch_scoring_sse``, ``batch_scoring`` and ``batch_scoring_deployment_aware``.
 
 We make a special image just for building this executable. 
 
