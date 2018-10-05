@@ -1,6 +1,8 @@
 import operator
 import json
 
+from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount
+
 
 def format_data(result, batch, **opts):
     pred_name = opts.get('pred_name')
@@ -50,8 +52,10 @@ def format_data(result, batch, **opts):
         for row, predicted in zip(batch.data, pred):
             if fast_mode:
                 # row is a full line, we need to cut it into fields
-                # FIXME this will fail on quoted fields!
                 row = row.rstrip().split(input_delimiter)
+                if len(row) != len(batch.fieldnames):
+                    raise UnexpectedKeptColumnCount()
+
             keeps = [row[i] for i in indices]
             output_row = []
             if not skip_row_id:

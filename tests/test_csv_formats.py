@@ -337,3 +337,53 @@ def test_quotechar_in_keep_cols(live_server):
         last_line = open("out.csv", "rb").readlines()[-1]
         expected_last_line = b'1044,2,"eeeeeeee ""eeeeee"" eeeeeeeeeeee'
         assert last_line[:len(expected_last_line)] == expected_last_line
+
+
+def test_quoted_newline_in_keep_cols_in_fast_mode_fails(live_server):
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    ui = PickableMock()
+    with tempfile.NamedTemporaryFile(prefix='test_',
+                                     suffix='.csv',
+                                     delete=False) as fd:
+        head = open("tests/fixtures/quotes_input_head.csv",
+                    "rb").read()
+        body_1 = open("tests/fixtures/quotes_input_first_part.csv",
+                      "rb").read()
+        body_2 = open("tests/fixtures/quotes_input_bad_part_with_newline.csv",
+                      "rb").read()
+        fd.file.write(head)
+        size = 0
+        while size < DETECT_SAMPLE_SIZE_SLOW:
+            fd.file.write(body_1)
+            size += len(body_1)
+        fd.file.write(body_2)
+        fd.close()
+
+        ret = run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            import_id=None,
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file='out.csv',
+            keep_cols=["b", "c"],
+            delimiter=None,
+            dataset=fd.name,
+            pred_name=None,
+            timeout=None,
+            ui=ui,
+            auto_sample=True,
+            fast_mode=True,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False
+        )
+        assert ret is 1

@@ -1,3 +1,10 @@
+1.14.2 (Unreleased)
+=======================
+
+Bugfixes
+--------
+* Added check to detect and warn about quoted delimiters during --fast mode with --keep_cols.
+
 1.14.1 (2018 August 30)
 =======================
 

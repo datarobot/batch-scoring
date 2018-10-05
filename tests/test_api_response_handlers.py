@@ -1,6 +1,7 @@
 import pytest
 from datarobot_batch_scoring.api_response_handlers import pred_api_v10, api_v1
 from datarobot_batch_scoring.consts import Batch
+from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount
 
 
 @pytest.fixture()
@@ -46,6 +47,31 @@ def batch():
                  data=[
                      ['Caucasian', 'Male', '[50-60)', '?', 'FALSE'],
                      ['Caucasian', 'Male', '[50-60)', '?', 'TRUE']
+                 ],
+                 rty_cnt=3)
+
+
+@pytest.fixture()
+def fast_batch_quoted_newline():
+    return Batch(id=0,
+                 fieldnames=['race', 'gender', 'age', 'weight', 'readmitted'],
+                 rows=2,
+                 data=[
+                     'Caucasian,Male,[50-60),?,FALSE',
+                     'Caucasian,Male,[50-60),?',
+                     'TRUE'
+                 ],
+                 rty_cnt=3)
+
+
+@pytest.fixture()
+def fast_batch_with_quoted_comma():
+    return Batch(id=0,
+                 fieldnames=['race', 'gender', 'age', 'weight', 'readmitted'],
+                 rows=2,
+                 data=[
+                     'Caucasian,Male,[50-60),?,FALSE',
+                     'Caucasian,Male,"[50,60)",?,TRUE'
                  ],
                  rty_cnt=3)
 
@@ -176,3 +202,32 @@ class TestApiV1Handlers(object):
             parsed_api_v1_predictions, batch, **opts)
         assert fields == expected_fields
         assert values == expected_values
+
+    @pytest.mark.parametrize('opts', [
+        {'pred_name': None,
+         'keep_cols': ['age'],
+         'skip_row_id': False,
+         'fast_mode': True,
+         'delimiter': ','}
+    ])
+    def test_fail_on_quoted_newline_in_fast_mode(self,
+                                                 parsed_api_v1_predictions,
+                                                 fast_batch_quoted_newline,
+                                                 opts):
+        with pytest.raises(UnexpectedKeptColumnCount):
+            api_v1.format_data(parsed_api_v1_predictions,
+                               fast_batch_quoted_newline, **opts)
+
+    @pytest.mark.parametrize('opts', [
+        {'pred_name': None,
+         'keep_cols': ['age'],
+         'skip_row_id': False,
+         'fast_mode': True,
+         'delimiter': ','}
+    ])
+    def test_fail_on_quoted_comma_in_fast_mode(self, parsed_api_v1_predictions,
+                                               fast_batch_with_quoted_comma,
+                                               opts):
+        with pytest.raises(UnexpectedKeptColumnCount):
+            api_v1.format_data(parsed_api_v1_predictions,
+                               fast_batch_with_quoted_comma, **opts)

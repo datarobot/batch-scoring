@@ -10,7 +10,7 @@ from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.api_response_handlers import (
     RESPONSE_HANDLERS, PRED_API_V10)
 from datarobot_batch_scoring.batch_scoring import (run_batch_predictions)
-from datarobot_batch_scoring.writer import ShelveError
+from datarobot_batch_scoring.exceptions import ShelveError
 from datarobot_batch_scoring.utils import (UI, get_config_file,
                                            parse_config_file,
                                            verify_objectid,

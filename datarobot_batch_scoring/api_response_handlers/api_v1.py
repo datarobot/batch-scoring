@@ -2,6 +2,7 @@ import operator
 import json
 
 from datarobot_batch_scoring.consts import TargetType
+from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount
 
 
 def format_data(result, batch, **opts):
@@ -9,7 +10,6 @@ def format_data(result, batch, **opts):
     keep_cols = opts.get('keep_cols')
     skip_row_id = opts.get('skip_row_id')
     fast_mode = opts.get('fast_mode')
-    input_delimiter = opts.get('delimiter')
 
     predictions = result['predictions']
     if result['task'] == TargetType.BINARY:
@@ -54,8 +54,8 @@ def format_data(result, batch, **opts):
         for row, predicted in zip(batch.data, pred):
             if fast_mode:
                 # row is a full line, we need to cut it into fields
-                # FIXME this will fail on quoted fields!
-                row = row.rstrip().split(input_delimiter)
+                if len(row) != len(batch.fieldnames):
+                    raise UnexpectedKeptColumnCount()
             keeps = [row[i] for i in indices]
             output_row = []
             if not skip_row_id:

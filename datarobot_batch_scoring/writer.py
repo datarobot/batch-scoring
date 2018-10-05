@@ -16,15 +16,13 @@ from six.moves import queue
 from datarobot_batch_scoring.consts import SENTINEL, \
     WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
 from datarobot_batch_scoring.utils import get_rusage
+from datarobot_batch_scoring.exceptions import ShelveError, \
+    UnexpectedKeptColumnCount
 
 if six.PY3:
     import dbm.dumb as dumb_dbm
 else:
     import dumbdbm as dumb_dbm
-
-
-class ShelveError(Exception):
-    pass
 
 
 class RunContext(object):
@@ -115,7 +113,7 @@ class RunContext(object):
            - put the batch_id into the journal.
         """
 
-        # if an error happends during/after the append we
+        # if an error happens during/after the append we
         # might end up with inconsistent state
         # TODO write partition files instead of appending
         #  store checksum of each partition and back-check
@@ -435,6 +433,11 @@ class WriterProcess(object):
                             skip_row_id=self.ctx.skip_row_id,
                             fast_mode=self.ctx.fast_mode,
                             delimiter=self.ctx.dialect.delimiter)
+                    except UnexpectedKeptColumnCount:
+                        self._ui.fatal('Unexpected number of kept columns ' +
+                                       'retrieved. This can happen in ' +
+                                       '--fast mode with --keep_cols where ' +
+                                       'some cells contain quoted delimiters')
                     except Exception as e:
                         self._ui.fatal(e)
 
