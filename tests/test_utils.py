@@ -169,7 +169,7 @@ def test_investigate_encoding_and_dialect():
         data = 'tests/fixtures/windows_encoded.csv'
         encoding = investigate_encoding_and_dialect(data, None, ui)
         dialect = csv.get_dialect('dataset_dialect')
-        assert encoding == 'iso-8859-2'
+        assert encoding == 'windows-1252'
         assert dialect.lineterminator == '\r\n'
         assert dialect.quotechar == '"'
         assert dialect.delimiter == ','
@@ -197,7 +197,7 @@ def test_investigate_encoding_and_dialect_skip_dialect():
                                                         fast=False,
                                                         encoding='',
                                                         skip_dialect=True)
-        assert encoding == 'iso-8859-2'
+        assert encoding == 'windows-1252'
         assert not sn.called
         dialect = csv.get_dialect('dataset_dialect')
         assert dialect.delimiter == ','
