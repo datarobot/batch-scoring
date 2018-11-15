@@ -5,5 +5,3 @@ include README.rst
 include LICENSE.txt
 include MANIFEST.in
 include requirements.txt
-include requirements-test.txt
-

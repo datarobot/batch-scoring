@@ -1,9 +1,16 @@
-1.14.2 (Unreleased)
+1.14.3 (Unreleased)
+===================
+
+1.14.2 (2018 Nov 14)
 =======================
 
 Bugfixes
 --------
 * Added check to detect and warn about quoted delimiters during --fast mode with --keep_cols.
+
+Security fixes
+--------
+* Update `requests` dependency due to https://nvd.nist.gov/vuln/detail/CVE-2018-18074
 
 1.14.1 (2018 August 30)
 =======================
