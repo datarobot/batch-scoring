@@ -121,6 +121,8 @@ def app():
         '5a29097f962d7465d1a81946': 'tests/fixtures/iris.json',
         '098fa761405d1c9d8a5ea71dc0f3d2bb5ce898b5': 'tests/fixtures/iris.json',
         '0ec5bcea7f0f45918fa88257bfe42c09': 'tests/fixtures/regression.json',
+        '5b2cad28aa1d12847310acf4':
+            'tests/fixtures/10kDiabetes_5explanations.json',
         None: 'tests/fixtures/temperatura.json'}
 
     ERROR_MAPPING = {
@@ -186,16 +188,23 @@ def app():
             return '{"api_token": "Som3tok3n"}'
 
     @app.route('/predApi/v1.0/<pid>/<lid>/predict', methods=["POST"])
+    @app.route('/predApi/v1.0/<pid>/<lid>/predictionExplanations',
+               methods=["POST"])
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
         return _predict(lid)
 
     @app.route('/predApi/v1.0/deployments/<deployment_id>/predictions',
                methods=["POST"])
+    @app.route(
+        '/predApi/v1.0/deployments/<deployment_id>/predictionExplanations',
+        methods=["POST"])
     def predict_deployment_aware(deployment_id):
         return _predict(deployment_id)
 
     @app.route('/predApi/v1.0/<import_id>/predict', methods=["POST"])
+    @app.route('/predApi/v1.0/<import_id>/predictionExplanations',
+               methods=["POST"])
     @app.route('/api/v1/<import_id>/predict', methods=["POST"])
     def predict_transferable(import_id):
         return _predict(import_id)

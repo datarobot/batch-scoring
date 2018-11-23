@@ -121,46 +121,47 @@ Additional optional arguments:
 Argument descriptions:
 The following table describes each of the arguments:
 
-============================== ========== ========= ===========
-  Argument                     Standalone Dedicated Description
------------------------------- ---------- --------- -----------
- host=<host>                      \+         \+     Specifies the hostname of the prediction API endpoint (the location of the data to use for predictions).
- user=<user>                      \-         \+     Specifies the username used to acquire the API token. Use quotes if the name contains spaces.
- <import_id>                      \+         \-     Specifies the unique ID for the imported model. If unknown, ask your prediction administrator (the person responsible for the import procedure).
- <project_id>                     \-         \+     Specifies the project identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard (for example, https://<host>/projects/<project_id>/models). Alternatively, when the prediction API is enabled, the project ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
- <model_id>                       \-         \+     Specifies the model identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard and have selected a model (for example, https://<host>/projects/<project_id>/models/<model_id>). Alternatively, when the prediction API is enabled, the model ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
- <deployment_id>                  \-         \+     Specifies the unique ID for deployed model, can be used instead of ``<project_id>`` and ``<model_id>`` pair.
- <dataset_filepath>               \+         \+     Specifies the .csv input file that the script scores. DataRobot scores models by submitting prediction requests against ``<host>`` using project ``<project_id>`` and model ``<model_id>``.
- datarobot_key=<datarobot_key>    \-         \+     An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
- password=<pwd>                   \-         \+     Specifies the password used to acquire the API token. Use quotes if the password contains spaces. You must specify either the password or the API token argument. To avoid entering your password each time you run the script, use the ``api_token`` argument instead.
- api_token=<api_token>            \-         \+     Specifies the API token for requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
- api_version=<api_version>        \+         \+     Specifies the API version for requests. If omitted, defaults to current latest.
-                                                    Override this if your DataRobot distribution doesn't support the latest API version.
-                                                    Valid options are ``predApi/v1.0`` and ``api/v1``; ``predApi/v1.0`` is the default.
- out=<filepath>                   \+         \+     Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
- verbose                          \+         \+     Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose), the default, displays very little output.
- keep_cols=<keep_cols>            \+         \+     Specifies the column names to append to the predictions. Enter as a comma-separated list.
- n_samples=<n_samples>            \+         \+     Specifies the number of samples (rows) to use per batch. If not defined, the ``auto_sample`` option is used.
- n_concurrent=<n_concurrent>      \+         \+     Specifies the number of concurrent requests to submit. By default, the script submits four concurrent requests. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
- create_api_token                 \+         \+     Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
- n_retry=<n_retry>                \+         \+     Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
- pred_name=<pred_name>            \+         \+     Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank. For binary predictions, only positive class columns are included in the output. The last class (in lexical order) is used as the name of the prediction column.
- skip_row_id                      \+         \+     Skip the row_id column in output.
- output_delimiter=<delimiter>     \+         \+     Specifies the delimiter for the output CSV file. The special keyword "tab" can be used to indicate a tab-delimited CSV.
- timeout=<timeout>                \+         \+     The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring or batch_scoring_sse command) closes the connection and retries, up to the number of times defined by the value of ``<n_retry>``. The default value is 30 seconds.
- delimiter=<delimiter>            \+         \+     Specifies the delimiter to recognize in the input .csv file (e.g., "--delimiter=,"). If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab-delimited CSV.
- resume                           \+         \+     Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same arguments plus this ``resume`` argument. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
- no-resume                        \+         \+     Starts the prediction from scratch disregarding previous run.
- help                             \+         \+     Shows usage help for the command.
- fast                             \+         \+     *Experimental*: Enables a faster .csv processor. Note that this method does not support multiline CSV files.
- stdout                           \+         \+     Sends all log messages to stdout. If not specified, the command sends log messages to the ``datarobot_batch_scoring_main.log`` file.
- auto_sample                      \+         \+     Override the ``<n_samples>`` value and instead uses chunks of roughly 2.5 MB to improve throughput. Enabled by default.
- encoding                         \+         \+     Specifies dataset encoding. If not provided, the batch_scoring or batch_scoring_sse script attempts to detect the decoding (e.g., "utf-8", "latin-1", or "iso2022_jp"). See the `Python standard encodings <https://docs.python.org/3/library/codecs.html#standard-encodings>`_ for a list of valid values.
- skip_dialect                     \+         \+     Specifies that the script skips CSV dialect detection and uses default "excel" dialect for CSV parsing. By default, the scripts do detect CSV dialect for proper batch generation on the client side.
- ca_bundle=<ca_bundle>            \+         \+     Specifies the path to a CA_BUNDLE file or directory with certificates of trusted Certificate Authorities (CAs) to be used for SSL verification.
-                                                    Note: if passed a path to a directory, the directory must have been processed using the c_rehash utility supplied with OpenSSL.
- no_verify_ssl                    \+         \+     Disable SSL verification.
-============================== ========== ========= ===========
+================================== ========== ========= ===========
+  Argument                         Standalone Dedicated Description
+---------------------------------- ---------- --------- -----------
+ host=<host>                          \+         \+     Specifies the hostname of the prediction API endpoint (the location of the data to use for predictions).
+ user=<user>                          \-         \+     Specifies the username used to acquire the API token. Use quotes if the name contains spaces.
+ <import_id>                          \+         \-     Specifies the unique ID for the imported model. If unknown, ask your prediction administrator (the person responsible for the import procedure).
+ <project_id>                         \-         \+     Specifies the project identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard (for example, https://<host>/projects/<project_id>/models). Alternatively, when the prediction API is enabled, the project ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
+ <model_id>                           \-         \+     Specifies the model identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard and have selected a model (for example, https://<host>/projects/<project_id>/models/<model_id>). Alternatively, when the prediction API is enabled, the model ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
+ <deployment_id>                      \-         \+     Specifies the unique ID for deployed model, can be used instead of ``<project_id>`` and ``<model_id>`` pair.
+ <dataset_filepath>                   \+         \+     Specifies the .csv input file that the script scores. DataRobot scores models by submitting prediction requests against ``<host>`` using project ``<project_id>`` and model ``<model_id>``.
+ datarobot_key=<datarobot_key>        \-         \+     An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
+ password=<pwd>                       \-         \+     Specifies the password used to acquire the API token. Use quotes if the password contains spaces. You must specify either the password or the API token argument. To avoid entering your password each time you run the script, use the ``api_token`` argument instead.
+ api_token=<api_token>                \-         \+     Specifies the API token for requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
+ api_version=<api_version>            \+         \+     Specifies the API version for requests. If omitted, defaults to current latest.
+                                                        Override this if your DataRobot distribution doesn't support the latest API version.
+                                                        Valid options are ``predApi/v1.0`` and ``api/v1``; ``predApi/v1.0`` is the default.
+ out=<filepath>                       \+         \+     Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
+ verbose                              \+         \+     Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose), the default, displays very little output.
+ keep_cols=<keep_cols>                \+         \+     Specifies the column names to append to the predictions. Enter as a comma-separated list.
+ max_prediction_explanations=<num>    \+         \+     Specifies the number of the top prediction explanations to generate for each prediction. If not specified, the default is ``0``. **Not compatible with api_version** ``api/v1``.
+ n_samples=<n_samples>                \+         \+     Specifies the number of samples (rows) to use per batch. If not defined, the ``auto_sample`` option is used.
+ n_concurrent=<n_concurrent>          \+         \+     Specifies the number of concurrent requests to submit. By default, the script submits four concurrent requests. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
+ create_api_token                     \+         \+     Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
+ n_retry=<n_retry>                    \+         \+     Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
+ pred_name=<pred_name>                \+         \+     Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank. For binary predictions, only positive class columns are included in the output. The last class (in lexical order) is used as the name of the prediction column.
+ skip_row_id                          \+         \+     Skip the row_id column in output.
+ output_delimiter=<delimiter>         \+         \+     Specifies the delimiter for the output CSV file. The special keyword "tab" can be used to indicate a tab-delimited CSV.
+ timeout=<timeout>                    \+         \+     The time, in seconds, that DataRobot tries to make a connection to satisfy a prediction request. When the timeout expires, the client (the batch_scoring or batch_scoring_sse command) closes the connection and retries, up to the number of times defined by the value of ``<n_retry>``. The default value is 30 seconds.
+ delimiter=<delimiter>                \+         \+     Specifies the delimiter to recognize in the input .csv file (e.g., "--delimiter=,"). If not specified, the script tries to automatically determine the delimiter. The special keyword "tab" can be used to indicate a tab-delimited CSV.
+ resume                               \+         \+     Starts the prediction from the point at which it was halted. If the prediction stopped, for example due to error or network connection issue, you can run the same command with all the same arguments plus this ``resume`` argument. If you do not include this argument, and the script detects a previous script was interrupted mid-execution, DataRobot prompts whether to resume. When resuming a script, you cannot change the ``dataset_filepath``,  ``model_id``, ``project_id``, ``n_samples``, or ``keep_cols``.
+ no-resume                            \+         \+     Starts the prediction from scratch disregarding previous run.
+ help                                 \+         \+     Shows usage help for the command.
+ fast                                 \+         \+     *Experimental*: Enables a faster .csv processor. Note that this method does not support multiline CSV files.
+ stdout                               \+         \+     Sends all log messages to stdout. If not specified, the command sends log messages to the ``datarobot_batch_scoring_main.log`` file.
+ auto_sample                          \+         \+     Override the ``<n_samples>`` value and instead uses chunks of roughly 2.5 MB to improve throughput. Enabled by default.
+ encoding                             \+         \+     Specifies dataset encoding. If not provided, the batch_scoring or batch_scoring_sse script attempts to detect the decoding (e.g., "utf-8", "latin-1", or "iso2022_jp"). See the `Python standard encodings <https://docs.python.org/3/library/codecs.html#standard-encodings>`_ for a list of valid values.
+ skip_dialect                         \+         \+     Specifies that the script skips CSV dialect detection and uses default "excel" dialect for CSV parsing. By default, the scripts do detect CSV dialect for proper batch generation on the client side.
+ ca_bundle=<ca_bundle>                \+         \+     Specifies the path to a CA_BUNDLE file or directory with certificates of trusted Certificate Authorities (CAs) to be used for SSL verification.
+                                                        Note: if passed a path to a directory, the directory must have been processed using the c_rehash utility supplied with OpenSSL.
+ no_verify_ssl                        \+         \+     Disable SSL verification.
+================================== ========== ========= ===========
 
 Example::
 
@@ -207,3 +208,4 @@ batch-scoring script handles standart `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` en
   export HTTP_PROXY=http://192.168.1.3:3128
   export HTTPS_PROXY=http://192.168.1.3:3128
   export NO_PROXY=noproxy.domain.com
+

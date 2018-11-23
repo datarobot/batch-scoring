@@ -52,7 +52,8 @@ def test_without_passed_user_and_passwd(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0,
         )
 
 
@@ -101,7 +102,8 @@ def test_keep_cols(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0,
         )
 
 
@@ -194,7 +196,8 @@ def test_datarobot_key(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -244,7 +247,8 @@ def test_encoding_options(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0,
         )
 
 
@@ -388,7 +392,8 @@ def test_output_delimiter(monkeypatch):
             output_delimiter='\t',
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -438,7 +443,8 @@ def test_skip_row_id(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -486,7 +492,8 @@ def test_batch_scoring_deployment_aware_call(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -532,7 +539,8 @@ def test_datarobot_transferable_call(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -581,7 +589,8 @@ def test_resume(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -628,7 +637,8 @@ def test_resume_no(monkeypatch):
             output_delimiter=None,
             compression=False,
             field_size_limit=None,
-            verify_ssl=True
+            verify_ssl=True,
+            max_prediction_explanations=0
         )
 
 
@@ -646,3 +656,29 @@ def test_verify_ssl_parameter(ssl_argvs, verify_ssl_value):
     ).strip().split(' ')
     parsed_args = parse_args(argvs)
     assert parsed_args['verify_ssl'] == verify_ssl_value
+
+
+def test_reason_codes_not_compatible_wit_old_api(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/',
+                 '56dd9570018e213242dfa93c',
+                 '56dd9570018e213242dfa93d',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--api_version', 'api/v1',
+                 '--max_prediction_explanations', '3']
+
+    ui_class = mock.Mock(spec=UI)
+    ui = ui_class.return_value
+    ui.fatal.side_effect = SystemExit
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', ui_class)
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        with pytest.raises(SystemExit):
+            main(argv=main_args)
+    assert not mock_method.called
+    ui.fatal.assert_called_with(
+        'Prediction explanation is not available for '
+        'api_version `api/v1` please use the '
+        '`predApi/v1.0` or deployments endpoint')

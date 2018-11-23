@@ -24,7 +24,7 @@ install_requires = open(fname, 'r').readlines()
 # batch scoring script may be installed in pretty outdated envs. So let's do it
 # old-fashioned way by adding condition here.
 #
-# [1] https://github.com/agronholm/pythonfutures/commit/d0393ad626d25622927bb0ed47d35ddb2f6cd321
+# [1] https://github.com/agronholm/pythonfutures/commit/d0393ad626d25622927bb0ed47d35ddb2f6cd321 # noqa: E501
 # [2] https://www.python.org/dev/peps/pep-0508/#environment-markers
 if sys.version_info[0] > 2:
     install_requires = [req

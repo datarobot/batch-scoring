@@ -1,0 +1,11 @@
+row_id,medical_specialty,number_diagnoses,0,1,explanation_1_feature,explanation_1_strength,explanation_2_feature,explanation_2_strength,explanation_3_feature,explanation_3_strength,explanation_4_feature,explanation_4_strength,explanation_5_feature,explanation_5_strength
+0,Surgery-Neuro,9,0.7374983461,0.2625016539,medical_specialty,-0.2230822974,number_diagnoses,0.2010719684,diag_1,-0.1882141621,number_inpatient,-0.1584939956,diag_3,-0.1538334979
+1,?,6,0.7534670614,0.2465329386,weight,0.4616938769,diag_2,-0.2817732676,payer_code,-0.1999593278,age,-0.1700208122,num_lab_procedures,-0.1699786261
+2,Family/GeneralPractice,9,0.673941752,0.326058248,discharge_disposition_id,0.3047681596,number_inpatient,0.2266360201,medical_specialty,-0.2049645033,admission_source_id,-0.1710960504,num_lab_procedures,-0.1579545292
+3,?,3,0.884682017,0.115317983,number_diagnoses,-0.4503520826,diag_2,-0.2808908801,admission_source_id,-0.2398130772,payer_code,-0.2143588931,number_inpatient,-0.1707111743
+4,Psychiatry,7,0.7116849878,0.2883150122,medical_specialty,-0.1814823805,race,-0.1575075199,number_inpatient,-0.1568230769,admission_source_id,0.1354087199,diag_3,-0.13507482
+5,Cardiology,8,0.5909996414,0.4090003586,medical_specialty,-0.1884195522,diag_2,-0.1807624347,number_inpatient,-0.142271611,admission_type_id,0.1354998853,number_diagnoses,0.1320297742
+6,InternalMedicine,8,0.8647944819,0.1352055181,discharge_disposition_id,-1.1295014348,medical_specialty,-0.2076687977,number_inpatient,-0.1461341051,payer_code,-0.1242433687,admission_type_id,0.0949499145
+7,?,9,0.5144554583,0.4855445417,number_inpatient,0.2826505121,diag_1,-0.2274929185,number_emergency,0.2071603004,number_diagnoses,0.1620381118,discharge_disposition_id,0.1560600053
+8,Family/GeneralPractice,9,0.3746314486,0.6253685514,admission_type_id,0.5009928124,number_inpatient,0.2401329203,medical_specialty,-0.1651539909,admission_source_id,-0.1571784835,number_diagnoses,0.1377384773
+9,Surgery-Cardiovascular/Thoracic,5,0.7117755608,0.2882244392,medical_specialty,-0.3821848966,number_diagnoses,-0.273826215,diag_3,0.229366976,number_inpatient,-0.1604879998,admission_type_id,0.1231549458

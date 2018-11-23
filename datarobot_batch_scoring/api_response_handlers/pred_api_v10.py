@@ -1,5 +1,6 @@
 import operator
 import json
+from six.moves import zip
 
 from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount
 
@@ -69,6 +70,22 @@ def format_data(result, batch, **opts):
         else:
             written_fields = out_fields[1:]
             comb = [row[1:] for row in pred]
+
+    if 'predictionExplanations' in single_row:
+        num_reason_codes = len(single_row['predictionExplanations'])
+        for num in range(1, num_reason_codes + 1):
+            written_fields += [
+                'explanation_{0}_feature'.format(num),
+                'explanation_{0}_strength'.format(num)
+            ]
+        for in_row, out_row in zip(result, comb):
+            reason_codes = []
+            for raw_reason_code in in_row['predictionExplanations']:
+                reason_codes += [
+                    raw_reason_code['feature'],
+                    raw_reason_code['strength']
+                ]
+            out_row.extend(reason_codes)
 
     return written_fields, comb
 

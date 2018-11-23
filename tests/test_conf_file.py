@@ -140,7 +140,8 @@ def test_run_main_with_conf_file(monkeypatch):
         project_id=56dd9570018e213242dfa93c
         model_id=56dd9570018e213242dfa93d
         user=file_username
-        password=file_password""")
+        password=file_password
+        max_prediction_explanations=3""")
     with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
         test_file.write(str(raw_data).encode('utf-8'))
 
@@ -183,7 +184,8 @@ def test_run_main_with_conf_file(monkeypatch):
                 output_delimiter=None,
                 compression=False,
                 field_size_limit=None,
-                verify_ssl=True
+                verify_ssl=True,
+                max_prediction_explanations=3
             )
     finally:
         os.remove(test_file.name)
@@ -245,7 +247,8 @@ def test_run_main_with_conf_file_deployment_aware(monkeypatch):
                 output_delimiter=None,
                 compression=False,
                 field_size_limit=None,
-                verify_ssl=True
+                verify_ssl=True,
+                max_prediction_explanations=0,
             )
     finally:
         os.remove(test_file.name)
@@ -307,7 +310,8 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     output_delimiter=None,
                     compression=False,
                     field_size_limit=None,
-                    verify_ssl=True
+                    verify_ssl=True,
+                    max_prediction_explanations=0,
                 )
     finally:
         os.remove(test_file.name)

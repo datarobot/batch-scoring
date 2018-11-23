@@ -1,0 +1,514 @@
+{
+    "data": [
+        {
+            "predictionValues": [
+                {
+                    "value": 0.2625016539,
+                    "label": 1
+                },
+                {
+                    "value": 0.7374983461,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 0,
+            "predictionExplanations": [
+                {
+                    "featureValue": "Surgery-Neuro",
+                    "strength": -0.2230822974,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 9,
+                    "strength": 0.2010719684,
+                    "feature": "number_diagnoses",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "723",
+                    "strength": -0.1882141621,
+                    "feature": "diag_1",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 0,
+                    "strength": -0.1584939956,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "719",
+                    "strength": -0.1538334979,
+                    "feature": "diag_3",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.2465329386,
+                    "label": 1
+                },
+                {
+                    "value": 0.7534670614,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 1,
+            "predictionExplanations": [
+                {
+                    "featureValue": "[50-75)",
+                    "strength": 0.4616938769,
+                    "feature": "weight",
+                    "qualitativeStrength": "+++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "648",
+                    "strength": -0.2817732676,
+                    "feature": "diag_2",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "UN",
+                    "strength": -0.1999593278,
+                    "feature": "payer_code",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "[20-30)",
+                    "strength": -0.1700208122,
+                    "feature": "age",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 8,
+                    "strength": -0.1699786261,
+                    "feature": "num_lab_procedures",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.326058248,
+                    "label": 1
+                },
+                {
+                    "value": 0.673941752,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 2,
+            "predictionExplanations": [
+                {
+                    "featureValue": "Discharged/transferred to home with home health service",
+                    "strength": 0.3047681596,
+                    "feature": "discharge_disposition_id",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": 1,
+                    "strength": 0.2266360201,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Family/GeneralPractice",
+                    "strength": -0.2049645033,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": null,
+                    "strength": -0.1710960504,
+                    "feature": "admission_source_id",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 12,
+                    "strength": -0.1579545292,
+                    "feature": "num_lab_procedures",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.115317983,
+                    "label": 1
+                },
+                {
+                    "value": 0.884682017,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 3,
+            "predictionExplanations": [
+                {
+                    "featureValue": 3,
+                    "strength": -0.4503520826,
+                    "feature": "number_diagnoses",
+                    "qualitativeStrength": "---",
+                    "label": 1
+                },
+                {
+                    "featureValue": "41",
+                    "strength": -0.2808908801,
+                    "feature": "diag_2",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Transfer from another health care facility",
+                    "strength": -0.2398130772,
+                    "feature": "admission_source_id",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "UN",
+                    "strength": -0.2143588931,
+                    "feature": "payer_code",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 0,
+                    "strength": -0.1707111743,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.2883150122,
+                    "label": 1
+                },
+                {
+                    "value": 0.7116849878,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 4,
+            "predictionExplanations": [
+                {
+                    "featureValue": "Psychiatry",
+                    "strength": -0.1814823805,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "AfricanAmerican",
+                    "strength": -0.1575075199,
+                    "feature": "race",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 0,
+                    "strength": -0.1568230769,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Emergency Room",
+                    "strength": 0.1354087199,
+                    "feature": "admission_source_id",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "298",
+                    "strength": -0.13507482,
+                    "feature": "diag_3",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.4090003586,
+                    "label": 1
+                },
+                {
+                    "value": 0.5909996414,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 5,
+            "predictionExplanations": [
+                {
+                    "featureValue": "Cardiology",
+                    "strength": -0.1884195522,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "427",
+                    "strength": -0.1807624347,
+                    "feature": "diag_2",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 0,
+                    "strength": -0.142271611,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Elective",
+                    "strength": 0.1354998853,
+                    "feature": "admission_type_id",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": 8,
+                    "strength": 0.1320297742,
+                    "feature": "number_diagnoses",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.1352055181,
+                    "label": 1
+                },
+                {
+                    "value": 0.8647944819,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 6,
+            "predictionExplanations": [
+                {
+                    "featureValue": "Expired",
+                    "strength": -1.1295014348,
+                    "feature": "discharge_disposition_id",
+                    "qualitativeStrength": "---",
+                    "label": 1
+                },
+                {
+                    "featureValue": "InternalMedicine",
+                    "strength": -0.2076687977,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 0,
+                    "strength": -0.1461341051,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "MC",
+                    "strength": -0.1242433687,
+                    "feature": "payer_code",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Elective",
+                    "strength": 0.0949499145,
+                    "feature": "admission_type_id",
+                    "qualitativeStrength": "+",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.4855445417,
+                    "label": 1
+                },
+                {
+                    "value": 0.5144554583,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 7,
+            "predictionExplanations": [
+                {
+                    "featureValue": 1,
+                    "strength": 0.2826505121,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "558",
+                    "strength": -0.2274929185,
+                    "feature": "diag_1",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 1,
+                    "strength": 0.2071603004,
+                    "feature": "number_emergency",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": 9,
+                    "strength": 0.1620381118,
+                    "feature": "number_diagnoses",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Discharged to home",
+                    "strength": 0.1560600053,
+                    "feature": "discharge_disposition_id",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.6253685514,
+                    "label": 1
+                },
+                {
+                    "value": 0.3746314486,
+                    "label": 0
+                }
+            ],
+            "prediction": 1,
+            "rowId": 8,
+            "predictionExplanations": [
+                {
+                    "featureValue": null,
+                    "strength": 0.5009928124,
+                    "feature": "admission_type_id",
+                    "qualitativeStrength": "+++",
+                    "label": 1
+                },
+                {
+                    "featureValue": 1,
+                    "strength": 0.2401329203,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Family/GeneralPractice",
+                    "strength": -0.1651539909,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": null,
+                    "strength": -0.1571784835,
+                    "feature": "admission_source_id",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": 9,
+                    "strength": 0.1377384773,
+                    "feature": "number_diagnoses",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                }
+            ]
+        },
+        {
+            "predictionValues": [
+                {
+                    "value": 0.2882244392,
+                    "label": 1
+                },
+                {
+                    "value": 0.7117755608,
+                    "label": 0
+                }
+            ],
+            "prediction": 0,
+            "rowId": 9,
+            "predictionExplanations": [
+                {
+                    "featureValue": "Surgery-Cardiovascular/Thoracic",
+                    "strength": -0.3821848966,
+                    "feature": "medical_specialty",
+                    "qualitativeStrength": "---",
+                    "label": 1
+                },
+                {
+                    "featureValue": 5,
+                    "strength": -0.273826215,
+                    "feature": "number_diagnoses",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "998",
+                    "strength": 0.229366976,
+                    "feature": "diag_3",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                },
+                {
+                    "featureValue": 0,
+                    "strength": -0.1604879998,
+                    "feature": "number_inpatient",
+                    "qualitativeStrength": "--",
+                    "label": 1
+                },
+                {
+                    "featureValue": "Elective",
+                    "strength": 0.1231549458,
+                    "feature": "admission_type_id",
+                    "qualitativeStrength": "++",
+                    "label": 1
+                }
+            ]
+        }
+    ]
+}

@@ -8,7 +8,7 @@ from multiprocessing import freeze_support
 
 from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.api_response_handlers import (
-    RESPONSE_HANDLERS, PRED_API_V10)
+    RESPONSE_HANDLERS, PRED_API_V10, API_V1)
 from datarobot_batch_scoring.batch_scoring import (run_batch_predictions)
 from datarobot_batch_scoring.exceptions import ShelveError
 from datarobot_batch_scoring.utils import (UI, get_config_file,
@@ -60,6 +60,7 @@ def parse_args(argv, standalone=False, deployment_aware=False):
         'stdout': False,
         'auto_sample': False,
         'api_version': PRED_API_V10,
+        'max_prediction_explanations': 0
     }
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, epilog=EPILOG,
@@ -131,6 +132,13 @@ def parse_args(argv, standalone=False, deployment_aware=False):
     dataset_gr.add_argument('dataset', type=str,
                             help='Specifies the .csv input file that '
                             'the script scores.')
+    dataset_gr.add_argument('--max_prediction_explanations',
+                            type=int,
+                            default=defaults['max_prediction_explanations'],
+                            help='The maximum number of prediction '
+                            'explanations that will be generate for '
+                            'each prediction.'
+                            'Not compatible with api version `api/v1`')
 
     conn_gr = parser.add_argument_group('Connection control')
     conn_gr.add_argument('--timeout', type=int,
@@ -324,6 +332,12 @@ def parse_generic_options(parsed_args):
     dataset = parsed_args['dataset']
     if not os.path.exists(dataset):
         ui.fatal('file {} does not exist.'.format(dataset))
+    api_version = parsed_args['api_version']
+    max_prediction_explanations = parsed_args['max_prediction_explanations']
+    if api_version == API_V1 and max_prediction_explanations > 0:
+        ui.fatal('Prediction explanation is not available for '
+                 'api_version `api/v1` please use the '
+                 '`predApi/v1.0` or deployments endpoint')
 
     ui.debug('batch_scoring v{}'.format(__version__))
 
@@ -348,6 +362,8 @@ def parse_generic_options(parsed_args):
         'skip_row_id': skip_row_id,
         'timeout': timeout,
         'verify_ssl': parsed_args['verify_ssl'],
+        'max_prediction_explanations':
+            parsed_args['max_prediction_explanations'],
     }
 
 
