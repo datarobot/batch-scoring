@@ -1,4 +1,11 @@
-1.15.0 (Unreleased)
+1.15.1 (Unreleased)
+===================
+
+Enhancements
+------------
+* Updated `trafaret` dependency to support the same version as https://pypi.org/project/datarobot/ .
+
+1.15.0 (2018 Nov 23)
 ===================
 
 Enhancements

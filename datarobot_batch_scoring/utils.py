@@ -30,16 +30,16 @@ CONFIG_FILENAME = 'batch_scoring.ini'
 def verify_objectid(value):
     """Verify if id_ is a proper ObjectId. """
     try:
-        t.String(regex='^[A-Fa-f0-9]{24}$').check(value)
+        t.Regexp(regexp='^[A-Fa-f0-9]{24}$').check(value)
     except t.DataError:
         raise ValueError('id {} not a valid project/model id'.format(value))
 
 
 config_validator = t.Dict({
     OptKey('host'): t.String,
-    OptKey('project_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
-    OptKey('model_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
-    OptKey('deployment_id'): t.String(regex='^[A-Fa-f0-9]{24}$'),
+    OptKey('project_id'): t.Regexp(regexp='^[A-Fa-f0-9]{24}$'),
+    OptKey('model_id'): t.Regexp(regexp='^[A-Fa-f0-9]{24}$'),
+    OptKey('deployment_id'): t.Regexp(regexp='^[A-Fa-f0-9]{24}$'),
     OptKey('import_id'): t.String,
     OptKey('n_retry'): t.Int,
     OptKey('keep_cols'): t.String,
