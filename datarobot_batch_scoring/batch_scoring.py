@@ -178,7 +178,8 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             if not (api_token or import_id):
                 try:
                     api_token = acquire_api_token(base_url, base_headers, user,
-                                                  pwd, create_api_token, ui)
+                                                  pwd, create_api_token, ui,
+                                                  verify_ssl)
                 except Exception as e:
                     ui.fatal(str(e))
 

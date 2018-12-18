@@ -272,7 +272,8 @@ def parse_config_file(file_path):
     return config_validator(parsed_dict)
 
 
-def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
+def acquire_api_token(base_url, base_headers, user, pwd,
+                      create_api_token, ui, verify_ssl):
     """Get the api token.
 
     Either supplied by user or requested from the API with username and pwd.
@@ -286,7 +287,11 @@ def acquire_api_token(base_url, base_headers, user, pwd, create_api_token, ui):
     else:
         request_meth = requests.get
 
-    r = request_meth(base_url + 'api_token', auth=auth, headers=base_headers)
+    r = request_meth(base_url + 'api_token',
+                     auth=auth,
+                     headers=base_headers,
+                     verify=verify_ssl)
+
     if r.status_code == 401:
         raise ValueError('wrong credentials')
     elif r.status_code != 200:

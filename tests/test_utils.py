@@ -252,7 +252,8 @@ def test_auto_small_dataset():
 def test_acquire_api_token(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
-    ret = acquire_api_token(base_url, {}, 'username', 'password', False, ui)
+    ret = acquire_api_token(base_url, {}, 'username', 'password', False, ui,
+                            False)
     assert ret == 'Som3tok3n'
     ui.info.assert_called_with('api-token acquired')
     ui.debug.assert_called_with('api-token: Som3tok3n')
@@ -262,7 +263,8 @@ def test_acquire_api_token_unauthorized(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        acquire_api_token(base_url, {}, 'unknown', 'passwd', False, ui)
+        acquire_api_token(base_url, {}, 'unknown', 'passwd', False, ui,
+                          False)
         assert not ui.info.called
         assert not ui.debug.called
     assert str(ctx.value) == 'wrong credentials'
@@ -272,7 +274,8 @@ def test_acquire_api_token_bad_status(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        acquire_api_token(base_url, {}, 'bad_status', 'passwd', False, ui)
+        acquire_api_token(base_url, {}, 'bad_status', 'passwd', False, ui,
+                          False)
         assert not ui.info.called
         assert not ui.debug.called
     assert str(ctx.value) == 'api_token request returned status code 500'
@@ -282,7 +285,8 @@ def test_acquire_api_token_no_token1(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        acquire_api_token(base_url, {}, 'no_token1', 'passwd', False, ui)
+        acquire_api_token(base_url, {}, 'no_token1', 'passwd', False, ui,
+                          False)
         assert not ui.info.called
         assert not ui.debug.called
     assert str(ctx.value) == ('no api-token registered; '
@@ -293,7 +297,8 @@ def test_acquire_api_token_no_token2(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
     with pytest.raises(ValueError) as ctx:
-        acquire_api_token(base_url, {}, 'no_token2', 'passwd', False, ui)
+        acquire_api_token(base_url, {}, 'no_token2', 'passwd', False, ui,
+                          False)
         assert not ui.info.called
         assert not ui.debug.called
     assert str(ctx.value) == ('no api-token registered; '
@@ -303,7 +308,8 @@ def test_acquire_api_token_no_token2(live_server):
 def test_create_and_acquire_api_token(live_server):
     ui = PickableMock()
     base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
-    ret = acquire_api_token(base_url, {}, 'username', 'password', True, ui)
+    ret = acquire_api_token(base_url, {}, 'username', 'password', True, ui,
+                            False)
     assert ret == 'Som3tok3n'
     ui.info.assert_called_with('api-token acquired')
     ui.debug.assert_called_with('api-token: Som3tok3n')

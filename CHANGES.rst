@@ -1,26 +1,33 @@
-1.15.1 (Unreleased)
-===================
+1.15.2  (2018 Dec 17)
+=====================
+
+Bugfixes
+--------
+* Fixed bug where retrieving the user's API token would fail when insecure SSL is required
+
+1.15.1  (2018 Dec 4)
+====================
 
 Enhancements
 ------------
 * Updated `trafaret` dependency to support the same version as https://pypi.org/project/datarobot/ .
 
 1.15.0 (2018 Nov 23)
-===================
+====================
 
 Enhancements
 ------------
 * Added new argument ``-max_prediction_explanations`` that allows batch scoring with predictions explanations and adds ``explanation_N_feature`` and ``explanation_N_strength`` to each row in output document (where ``N ∈ (1, max_prediction_explanations)`` )
 
 1.14.2 (2018 Nov 14)
-=======================
+====================
 
 Bugfixes
 --------
 * Added check to detect and warn about quoted delimiters during --fast mode with --keep_cols.
 
 Security fixes
---------
+--------------
 * Update `requests` dependency due to https://nvd.nist.gov/vuln/detail/CVE-2018-18074
 
 1.14.1 (2018 August 30)
@@ -31,7 +38,7 @@ Bugfixes
 * Added ``batch_scoring_deployment_aware`` to Windows/Linux/MacOSX assets.
 
 1.14.0 (2018 August 16)
-=====================
+=======================
 
 Bugfixes
 --------
@@ -131,11 +138,11 @@ Bugfixes
 * Fix issue when client error message wasn't logged properly.
 
 1.10.2 (2017 May 9)
-================
+===================
 * Set default timeout on server response to infinity.
 
 1.10.1 (2017 April 27)
-================
+======================
 
 * New semantic routes versioning support
 
@@ -145,12 +152,12 @@ Bugfixes
 
 
 1.10.0 (2017 January 27)
-=================
+========================
 
 * Independent prediction service support for scoring
 
 1.9.1 (2017 January 6)
-==================
+======================
 
 * switched to supervisor + workers architecture, improving handling of errors and
   subprocess lifecycle control.
@@ -158,7 +165,7 @@ Bugfixes
 * Source code split into more mostly isolated modules.
 
 1.9.0 (2016 December 1)
-==================
+=======================
 
 * added 3rd parallel process which handles post-processing and writing of responses.
   This should greatly improve performance.
@@ -166,7 +173,7 @@ Bugfixes
 * add ability to compress data in transit
 
 1.8.8 (2016 November 17)
-==================
+========================
 * --output_delimiter flag to set delimiter for output CSV. "tab" can be used
     for tab-delimited output
 
@@ -182,7 +189,7 @@ Bugfixes
 * Run all tests against Windows
 
 1.8.7 (2016 November 1)
-==================
+=======================
 * --pred_name parameter is documented. Potentially backward incompatible change:
     Previously, 1.0 class was used as positive result for binary predictions,
     now last class in lexical order is used
@@ -196,7 +203,7 @@ Bugfixes
 * auto sampler target batch size increased to 2.5M
 
 1.8.6 (2016 August 23)
-==================
+======================
 * improve url parsing. You no longer need to include "/api" in the host argument.
 
 * return more descriptive error messages when there is a problem
@@ -204,7 +211,7 @@ Bugfixes
 * include the version of the batch-scoring script in the user-agent header
 
 1.8.5 (2016 July 28)
-==================
+====================
 * add option to define document encoding
 
 * add option to skip csv dialect detection.
@@ -216,27 +223,27 @@ Bugfixes
 * allow "tab" command line arg keyword. e.g. "--delimiter=tab"
 
 1.8.4 (2016 July 11)
-==================
+====================
 * minor performance improvement for nix users
 
 1.8.3 (2016 July 6)
-==================
+===================
 * This release is compatible with Windows
 
 * logs are now sent to two files within the directory where the script is run
 
 1.8.2 (2016 June 16)
-==================
+====================
 * added --auto_sample option to find the n_samples automatically.
 
 1.8.1 (2016 June 15)
-==================
+====================
 * added --auto_sample option to find the n_samples automatically.
 
 * change how csv dialects are passed around in attempt to fix a bug on Windows.
 
 1.8.0 (2016 June 13)
-==================
+====================
 * use chardet module `chardet <https://pypi.python.org/pypi/chardet>`_ to
   attempt to detect character encoding
 
@@ -247,7 +254,7 @@ Bugfixes
 * provide a mode for sending all user messages to stdout
 
 1.7.0 (2016 May)
-==================
+================
 * separate process for disk IO and request payload serialization
 
 * avoid codecs.getreader due to IO bottleneck
@@ -260,7 +267,7 @@ Bugfixes
 
 
 1.6.0 alpha (2016 April 29)
-==================
+===========================
 
 * Get rid of gevent/asyncio, use thread-based networking
 
