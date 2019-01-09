@@ -190,6 +190,8 @@ def app():
     @app.route('/predApi/v1.0/<pid>/<lid>/predict', methods=["POST"])
     @app.route('/predApi/v1.0/<pid>/<lid>/predictionExplanations',
                methods=["POST"])
+    @app.route('/predApi/v1.0/<pid>/<lid>/reasonCodesPredictions',
+               methods=["POST"])
     @app.route('/api/v1/<pid>/<lid>/predict', methods=["POST"])
     def predict_sinc(pid, lid):
         return _predict(lid)
@@ -204,6 +206,8 @@ def app():
 
     @app.route('/predApi/v1.0/<import_id>/predict', methods=["POST"])
     @app.route('/predApi/v1.0/<import_id>/predictionExplanations',
+               methods=["POST"])
+    @app.route('/predApi/v1.0/<import_id>/reasonCodesPredictions',
                methods=["POST"])
     @app.route('/api/v1/<import_id>/predict', methods=["POST"])
     def predict_transferable(import_id):

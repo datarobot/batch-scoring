@@ -1,3 +1,10 @@
+1.15.3 (2019 Jan 7)
+===================
+
+Bugfixes
+--------
+* Added support for ``--max_prediction_explanations`` on DataRobot 4.3.x .
+
 1.15.2  (2018 Dec 17)
 =====================
 
@@ -17,7 +24,7 @@ Enhancements
 
 Enhancements
 ------------
-* Added new argument ``-max_prediction_explanations`` that allows batch scoring with predictions explanations and adds ``explanation_N_feature`` and ``explanation_N_strength`` to each row in output document (where ``N ∈ (1, max_prediction_explanations)`` )
+* Added new argument ``--max_prediction_explanations`` that allows batch scoring with predictions explanations and adds ``explanation_N_feature`` and ``explanation_N_strength`` to each row in output document (where ``N ∈ (1, max_prediction_explanations)`` )
 
 1.14.2 (2018 Nov 14)
 ====================

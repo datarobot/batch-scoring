@@ -71,8 +71,16 @@ def format_data(result, batch, **opts):
             written_fields = out_fields[1:]
             comb = [row[1:] for row in pred]
 
-    if 'predictionExplanations' in single_row:
-        num_reason_codes = len(single_row['predictionExplanations'])
+    prediction_explanations_keys = ('predictionExplanations', 'reasonCodes',
+                                    None)
+
+    def _find_prediction_explanations_key():
+        return [key for key in prediction_explanations_keys
+                if key in single_row or key is None][0]
+
+    prediction_explanations_key = _find_prediction_explanations_key()
+    if prediction_explanations_key:
+        num_reason_codes = len(single_row[prediction_explanations_key])
         for num in range(1, num_reason_codes + 1):
             written_fields += [
                 'explanation_{0}_feature'.format(num),
@@ -80,7 +88,7 @@ def format_data(result, batch, **opts):
             ]
         for in_row, out_row in zip(result, comb):
             reason_codes = []
-            for raw_reason_code in in_row['predictionExplanations']:
+            for raw_reason_code in in_row[prediction_explanations_key]:
                 reason_codes += [
                     raw_reason_code['feature'],
                     raw_reason_code['strength']

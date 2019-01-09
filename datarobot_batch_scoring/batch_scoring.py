@@ -133,8 +133,15 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
             endpoint = base_url + '/'.join((pid, lid))
 
         if max_prediction_explanations:
-            endpoint += '/predictionExplanations?maxCodes=' + \
-                        str(max_prediction_explanations)
+            if deployment_id is not None:
+                # Deployment routes only support predictionExplanations.
+                endpoint += '/predictionExplanations?maxCodes='
+            else:
+                # For non-deployment routes we use the old reasonCodesRoutes
+                # to support 4.3.x releases.
+                endpoint += '/reasonCodesPredictions?maxCodes='
+
+            endpoint += str(max_prediction_explanations)
         else:
             if deployment_id is not None:
                 endpoint += '/predictions'
