@@ -6,11 +6,11 @@ A script to score CSV files via DataRobot's prediction API.
 .. image:: https://coveralls.io/repos/github/datarobot/batch-scoring/badge.svg?branch=master
     :target: https://coveralls.io/github/datarobot/batch-scoring?branch=master
 
-.. image:: https://travis-ci.org/datarobot/batch-scoring.svg?branch=master
-    :target: https://travis-ci.org/datarobot/batch-scoring#master
+.. image:: https://travis-ci.com/datarobot/batch-scoring.svg?branch=master
+    :target: https://travis-ci.com/datarobot/batch-scoring#master
 
-.. image:: https://badge.fury.io/py/datarobot_batch_scoring.svg
-    :target: https://pypi.python.org/pypi/datarobot_batch_scoring
+.. image:: https://badge.fury.io/py/datarobot-batch-scoring.svg
+    :target: https://badge.fury.io/py/datarobot-batch-scoring
 
 
 Version Compatibility
