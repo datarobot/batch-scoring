@@ -29,6 +29,7 @@ install:
   source terryfy/travis_tools.sh; get_python_environment  $pydist $pyver; fi
 - pip install -U pip wheel setuptools
 - pip install -r requirements.txt
+- if [ $pyver != '2.7' ]; then pip uninstall futures; fi
 - pip install -r requirements-test.txt
 - pip install coveralls
 script:
