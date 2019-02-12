@@ -1,0 +1,2 @@
+# Dependencies for Py2 only
+futures>=3.0.4

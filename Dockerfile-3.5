@@ -1,11 +1,10 @@
 FROM python:3.5
 
-COPY requirements.txt requirements-test.txt /opt/project/
+COPY requirements-base.txt requirements-test.txt /opt/project/
 
 WORKDIR /opt/project
 
-RUN pip install -r requirements.txt -r requirements-test.txt
-RUN pip uninstall -y requests
+RUN pip install -r requirements-base.txt -r requirements-test.txt
 
 COPY . /opt/project
 

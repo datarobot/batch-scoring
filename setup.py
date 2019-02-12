@@ -7,11 +7,13 @@ from setuptools import setup, find_packages
 
 extra = {}
 
+def read_requirements_file(file):
+    fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), file)
+    with open(fname, 'r') as r:
+        return r.readlines()
 
-fname = os.path.join(os.path.abspath(os.path.dirname(
-    __file__)), 'requirements.txt')
 
-install_requires = open(fname, 'r').readlines()
+install_requires = read_requirements_file('requirements-base.txt')
 
 # Since futures 3.2 [1], the package enforces to be installed only in Python 2
 # environments because it's basically a backport of Python 3's built-in
@@ -24,12 +26,17 @@ install_requires = open(fname, 'r').readlines()
 # batch scoring script may be installed in pretty outdated envs. So let's do it
 # old-fashioned way by adding condition here.
 #
+# The above is implemented by splitting dependencies into 2 files:
+# `requirements-base.txt` - common deps for Py3 and Py2
+# `requirements-py27.txt` - for Python 2 only
+#
 # [1] https://github.com/agronholm/pythonfutures/commit/d0393ad626d25622927bb0ed47d35ddb2f6cd321 # noqa: E501
 # [2] https://www.python.org/dev/peps/pep-0508/#environment-markers
-if sys.version_info[0] > 2:
-    install_requires = [req
-                        for req in install_requires
-                        if not req.startswith('futures')]
+
+if sys.version_info[0] < 3:
+    install_requires.extend(
+        read_requirements_file('requirements-py27.txt')
+    )
 
 extra['entry_points'] = {
     'console_scripts': [
