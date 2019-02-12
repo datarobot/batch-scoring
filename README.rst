@@ -209,4 +209,3 @@ batch-scoring script handles standart `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` en
   export HTTPS_PROXY=http://192.168.1.3:3128
   export NO_PROXY=noproxy.domain.com
 
-
