@@ -18,7 +18,7 @@ cp BATCH_SCORING_EXECUTABLE_README.txt dist/pyinstaller
 
 pip install -U pip 
 pip install -U urllib3[secure]
-pip install -r requirements.txt -r requirements-pyinstaller.txt
+pip install -r requirements-base.txt -r requirements-pyinstaller.txt
 pyinstaller -y --distpath=dist/pyinstaller --onefile -n batch_scoring batch_scoring.py
 pyinstaller -y --distpath=dist/pyinstaller --onefile -n batch_scoring_sse batch_scoring_sse.py
 pyinstaller -y --distpath=dist/pyinstaller --onefile -n batch_scoring_deployment_aware batch_scoring_deployment_aware.py

@@ -1,7 +1,7 @@
+# Common dependencies for Py3 and Py2
 six>=1.9.0
 requests>=2.20.0
 trafaret>=0.7,<2.0,!=1.1.0
 contextlib2>=0.5.1
-futures>=3.0.4
 chardet>=3.0.2<3.1.0
 
