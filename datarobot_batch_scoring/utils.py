@@ -392,7 +392,7 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
             else:
                 ui.fatal("Aborting: no auth credentials passed")
 
-            ui.debug('authorization request response: {}|{}'
+            ui.debug(u'authorization request response: {}|{}'
                      .format(r.status_code, r.text))
             if r.status_code == 200:
                 # all good
@@ -405,11 +405,11 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                     msg = r.json()['message']
                 except:
                     msg = r.text
-                ui.fatal('Failed with client error: {}.'.format(msg))
+                ui.fatal(u'Failed with client error: {}.'.format(msg))
             elif r.status_code == 403:
                 #  This is usually a bad API token. E.g.
                 #  {"status": "API token not valid", "code": 403}
-                ui.fatal('Failed with message:\n\t{}.'.format(r.text))
+                ui.fatal(u'Failed with message:\n\t{}.'.format(r.text))
             elif r.status_code == 401:
                 #  This can be caused by having the wrong datarobot_key
                 ui.fatal('Failed to authenticate -- '
@@ -430,7 +430,7 @@ def make_validation_call(user, api_token, n_retry, endpoint, base_headers,
                     msg = r.json()['message']
                 except:
                     msg = r.text
-                ui.fatal('Predictions are not available '
+                ui.fatal(u'Predictions are not available '
                          'because: \"{}\".'.format(msg))
         except requests.exceptions.SSLError as e:
             ui.error('SSL verification failed, reason: {}.'.format(e))
