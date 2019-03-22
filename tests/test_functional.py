@@ -107,6 +107,8 @@ def test_simple(live_server, tmpdir, func_params):
         delimiter=None,
         dataset='tests/fixtures/temperatura_predict.csv.gz',
         pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -148,6 +150,8 @@ def test_prediction_explanations(live_server, tmpdir):
         delimiter=None,
         dataset='tests/fixtures/10kDiabetes.csv',
         pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -190,6 +194,8 @@ def test_prediction_explanations_keepcols(live_server, tmpdir):
         delimiter=None,
         dataset='tests/fixtures/10kDiabetes.csv',
         pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -233,6 +239,8 @@ def test_simple_api_v1(live_server, tmpdir):
         delimiter=None,
         dataset='tests/fixtures/temperatura_predict.csv.gz',
         pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -274,6 +282,8 @@ def test_simple_transferable(live_server, tmpdir):
         delimiter=None,
         dataset='tests/fixtures/regression_predict.csv',
         pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -315,6 +325,8 @@ def test_keep_cols(live_server, tmpdir, ui, func_params, fast_mode=False):
         delimiter=None,
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -365,6 +377,8 @@ def test_keep_wrong_cols(live_server, tmpdir, func_params, fast_mode=False):
             delimiter=None,
             dataset='tests/fixtures/temperatura_predict.csv',
             pred_name=None,
+            pred_threshold_name=None,
+            pred_decision_name=None,
             timeout=None,
             ui=ui,
             auto_sample=False,
@@ -408,6 +422,8 @@ def test_pred_name_classification(live_server, tmpdir, func_params):
         delimiter=None,
         dataset='tests/fixtures/temperatura_predict.csv',
         pred_name='healthy',
+        pred_threshold_name=None,
+        pred_decision_name=None,
         timeout=None,
         ui=ui,
         auto_sample=False,
@@ -421,6 +437,51 @@ def test_pred_name_classification(live_server, tmpdir, func_params):
 
     expected = out.read_text('utf-8')
     with open('tests/fixtures/temperatura_output_healthy.csv', 'rU') as f:
+        assert expected == f.read(), expected
+
+
+def test_pred_threshold_classification(live_server, tmpdir, func_params):
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui = PickableMock()
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        deployment_id=func_params['deployment_id'],
+        pid=func_params['pid'],
+        lid=func_params['lid'],
+        import_id=None,
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/temperatura_predict.csv',
+        pred_name='healthy',
+        pred_threshold_name='threshold',
+        timeout=None,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+
+    assert ret is None
+
+    expected = out.read_text('utf-8')
+    with open(
+        'tests/fixtures/temperatura_output_healthy_threshold.csv', 'rU'
+    ) as f:
         assert expected == f.read(), expected
 
 

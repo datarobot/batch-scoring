@@ -142,6 +142,7 @@ def test_run_main_with_conf_file(monkeypatch):
         user=file_username
         password=file_password
         max_prediction_explanations=3
+        pred_threshold=threshold
         pred_decision=label""")
     with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
         test_file.write(str(raw_data).encode('utf-8'))
@@ -174,6 +175,7 @@ def test_run_main_with_conf_file(monkeypatch):
                 delimiter=None,
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
+                pred_threshold_name='threshold',
                 pred_decision_name='label',
                 timeout=None,
                 ui=mock.ANY,
@@ -238,6 +240,7 @@ def test_run_main_with_conf_file_deployment_aware(monkeypatch):
                 delimiter=None,
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
+                pred_threshold_name=None,
                 pred_decision_name=None,
                 timeout=None,
                 ui=mock.ANY,
@@ -302,6 +305,7 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     delimiter=None,
                     dataset='tests/fixtures/temperatura_predict.csv',
                     pred_name=None,
+                    pred_threshold_name=None,
                     pred_decision_name=None,
                     timeout=None,
                     ui=mock.ANY,

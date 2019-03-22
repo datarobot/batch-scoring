@@ -1,7 +1,8 @@
 import pytest
 from datarobot_batch_scoring.api_response_handlers import pred_api_v10, api_v1
 from datarobot_batch_scoring.consts import Batch
-from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount
+from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount, \
+    NoPredictionThresholdInResult
 
 
 @pytest.fixture()
@@ -10,11 +11,28 @@ def parsed_pred_api_v10_predictions():
         {
             "predictionValues": [{"value": 1, "label": "readmitted"}],
             "prediction": 1,
+            "predictionThreshold": 0.5,
             "rowId": 0
         },
         {
             "predictionValues": [{"value": 1, "label": "readmitted"}],
             "prediction": 1,
+            "predictionThreshold": 0.5,
+            "rowId": 1
+        }]
+
+
+@pytest.fixture()
+def parsed_pred_api_v10_predictions_regression():
+    return [
+        {
+            "predictionValues": [{"value": 42.42, "label": "currency"}],
+            "prediction": 42.42,
+            "rowId": 0
+        },
+        {
+            "predictionValues": [{"value": 84.84, "label": "currency"}],
+            "prediction": 84.84,
             "rowId": 1
         }]
 
@@ -106,6 +124,7 @@ class TestPredApiV10Handlers(object):
 
     @pytest.mark.parametrize('opts, expected_fields, expected_values', (
         ({'pred_name': None,
+          'pred_threshold_name': None,
           'pred_decision_name': None,
           'keep_cols': None,
           'skip_row_id': False,
@@ -115,6 +134,7 @@ class TestPredApiV10Handlers(object):
          [[0, 1], [1, 1]]),
 
         ({'pred_name': None,
+          'pred_threshold_name': None,
           'pred_decision_name': None,
           'keep_cols': ['gender'],
           'skip_row_id': False,
@@ -124,6 +144,7 @@ class TestPredApiV10Handlers(object):
          [[0, 'Male', 1], [1, 'Male', 1]]),
 
         ({'pred_name': None,
+          'pred_threshold_name': None,
           'pred_decision_name': None,
           'keep_cols': ['gender'],
           'skip_row_id': True,
@@ -133,13 +154,33 @@ class TestPredApiV10Handlers(object):
          [['Male', 1], ['Male', 1]]),
 
         ({'pred_name': None,
+          'pred_threshold_name': 'threshold',
+          'keep_cols': None,
+          'skip_row_id': False,
+          'fast_mode': False,
+          'delimiter': ','},
+         ['row_id', 'readmitted', 'threshold'],
+         [[0, 1, 0.5], [1, 1, 0.5]]),
+
+        ({'pred_name': None,
           'pred_decision_name': 'label',
+          'pred_threshold_name': None,
           'keep_cols': None,
           'skip_row_id': False,
           'fast_mode': False,
           'delimiter': ','},
          ['row_id', 'readmitted', 'label'],
          [[0, 1, 1], [1, 1, 1]]),
+
+        ({'pred_name': None,
+          'pred_decision_name': 'label',
+          'pred_threshold_name': 'threshold',
+          'keep_cols': None,
+          'skip_row_id': False,
+          'fast_mode': False,
+          'delimiter': ','},
+         ['row_id', 'readmitted', 'threshold', 'label'],
+         [[0, 1, 0.5, 1], [1, 1, 0.5, 1]]),
     ))
     def test_format_data(self, parsed_pred_api_v10_predictions, batch,
                          opts, expected_fields, expected_values):
@@ -147,6 +188,21 @@ class TestPredApiV10Handlers(object):
             parsed_pred_api_v10_predictions, batch, **opts)
         assert fields == expected_fields
         assert values == expected_values
+
+    @pytest.mark.parametrize('opts', [
+        {'pred_name': None,
+         'pred_threshold_name': 'threshold',
+         'keep_cols': None,
+         'skip_row_id': False,
+         'fast_mode': False,
+         'delimiter': ','},
+    ])
+    def test_fail_threshold_on_non_binary_classification(
+            self, parsed_pred_api_v10_predictions_regression,
+            batch, opts):
+        with pytest.raises(NoPredictionThresholdInResult):
+            pred_api_v10.format_data(
+                parsed_pred_api_v10_predictions_regression, batch, **opts)
 
 
 class TestApiV1Handlers(object):

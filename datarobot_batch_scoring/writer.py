@@ -17,7 +17,7 @@ from datarobot_batch_scoring.consts import SENTINEL, \
     WriterQueueMsg, ProgressQueueMsg, REPORT_INTERVAL
 from datarobot_batch_scoring.utils import get_rusage
 from datarobot_batch_scoring.exceptions import ShelveError, \
-    UnexpectedKeptColumnCount
+    UnexpectedKeptColumnCount, NoPredictionThresholdInResult
 
 if six.PY3:
     import dbm.dumb as dumb_dbm
@@ -38,7 +38,7 @@ class RunContext(object):
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
                  fast_mode, encoding, skip_row_id, output_delimiter,
-                 pred_decision_name):
+                 pred_threshold_name, pred_decision_name):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -48,6 +48,7 @@ class RunContext(object):
         self.delimiter = delimiter
         self.dataset = dataset
         self.pred_name = pred_name
+        self.pred_threshold_name = pred_threshold_name
         self.pred_decision_name = pred_decision_name
         self.out_stream = None
         self._ui = ui
@@ -68,7 +69,7 @@ class RunContext(object):
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
                fast_mode, encoding, skip_row_id, output_delimiter,
-               pred_decision_name):
+               pred_threshold_name, pred_decision_name):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -84,7 +85,7 @@ class RunContext(object):
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
                          fast_mode, encoding, skip_row_id, output_delimiter,
-                         pred_decision_name)
+                         pred_threshold_name, pred_decision_name)
 
     def __enter__(self):
         assert(not self.is_open)
@@ -433,6 +434,7 @@ class WriterProcess(object):
                         written_fields, comb = format_data(
                             data, batch,
                             pred_name=self.ctx.pred_name,
+                            pred_threshold_name=self.ctx.pred_threshold_name,
                             pred_decision_name=self.ctx.pred_decision_name,
                             keep_cols=self.ctx.keep_cols,
                             skip_row_id=self.ctx.skip_row_id,
@@ -443,6 +445,11 @@ class WriterProcess(object):
                                        'retrieved. This can happen in ' +
                                        '--fast mode with --keep_cols where ' +
                                        'some cells contain quoted delimiters')
+                    except NoPredictionThresholdInResult:
+                        self._ui.fatal('No predictionThreshold returned from '
+                                       'API. --pred_threshold should be used '
+                                       'only for binary classification '
+                                       'predictions')
                     except Exception as e:
                         self._ui.fatal(e)
 

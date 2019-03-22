@@ -77,6 +77,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                           verify_ssl=True,
                           deployment_id=None,
                           max_prediction_explanations=0,
+                          pred_threshold_name=None,
                           pred_decision_name=None):
 
     if field_size_limit is not None:
@@ -201,7 +202,7 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
                               encoding, skip_row_id, output_delimiter,
-                              pred_decision_name))
+                              pred_threshold_name, pred_decision_name))
 
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'

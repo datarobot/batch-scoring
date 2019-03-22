@@ -4,3 +4,7 @@ class ShelveError(Exception):
 
 class UnexpectedKeptColumnCount(Exception):
     pass
+
+
+class NoPredictionThresholdInResult(Exception):
+    pass

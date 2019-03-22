@@ -9,6 +9,7 @@
                 "label":0.0
             }],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":0
         },
         {
@@ -20,6 +21,7 @@
                 "label":0.0
             }],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":1
         },
         {
@@ -31,6 +33,7 @@
                 "label":0.0
             }],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":2
         },
         {
@@ -39,6 +42,7 @@
                 {"value":1.0,"label":0.0}
             ],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":3
         },{
             "predictionValues":[
@@ -46,6 +50,7 @@
                 {"value":1.0,"label":0.0}
             ],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":4
         },
         {
@@ -55,6 +60,7 @@
                 "value":1.0,"label":0.0
             }],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":5
         },{
             "predictionValues":[{
@@ -63,12 +69,14 @@
                 "value":0.0,"label":0.0
             }],
             "prediction":1.0,
+            "predictionThreshold":0.5,
             "rowId":6
         },{
             "predictionValues":[{
                 "value":0.0,"label":1.0
             },{"value":1.0,"label":0.0}],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":7
         },{
             "predictionValues":[{
@@ -77,6 +85,7 @@
                 "value":1.0,"label":0.0
             }],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":8
         },{
             "predictionValues":[{
@@ -85,6 +94,7 @@
                 "value":1.0,"label":0.0
             }],
             "prediction":0.0,
+            "predictionThreshold":0.5,
             "rowId":9
         }]
 }

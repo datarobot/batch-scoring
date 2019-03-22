@@ -3,7 +3,8 @@ from itertools import chain
 import json
 from six.moves import zip
 
-from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount
+from datarobot_batch_scoring.exceptions import UnexpectedKeptColumnCount, \
+    NoPredictionThresholdInResult
 
 
 def row_id_field(result_sorted, batch):
@@ -150,6 +151,26 @@ def prediction_explanation_fields(
     return headers, rows_generator()
 
 
+def pred_threshold_field(result_sorted, pred_threshold_name):
+    """ Generate prediction threshold field (for classification)
+    Parameters
+    ----------
+    result_sorted : list[dict]
+        list of results sorted by rowId
+    pred_threshold_name : str
+        column name which should contain prediction threshold
+    Returns
+    -------
+    header: list[str]
+    row_generator: iterator
+    """
+
+    return [pred_threshold_name], (
+        [row.get('predictionThreshold')]
+        for row in result_sorted
+    )
+
+
 def pred_decision_field(result_sorted, pred_decision):
     """ Generate prediction decision field
 
@@ -177,7 +198,7 @@ def format_data(result, batch, **opts):
 
     Parameters
     ----------
-    result : list
+    result : list[dict]
         list of results
     batch
         batch information
@@ -192,6 +213,7 @@ def format_data(result, batch, **opts):
         list of rows
     """
     pred_name = opts.get('pred_name')
+    pred_threshold_name = opts.get('pred_threshold_name')
     pred_decision_name = opts.get('pred_decision_name')
     keep_cols = opts.get('keep_cols')
     skip_row_id = opts.get('skip_row_id')
@@ -240,7 +262,17 @@ def format_data(result, batch, **opts):
             )
         )
 
-    # Threshold and thresholded decision field ('prediction' value from result)
+    # Threshold field for classification
+    # ('predictionThreshold' value from result)
+    if pred_threshold_name:
+        if 'predictionThreshold' in single_row:
+            fields.append(
+                pred_threshold_field(result_sorted, pred_threshold_name)
+            )
+        else:
+            raise NoPredictionThresholdInResult()
+
+    # Thresholded decision field ('prediction' value from result)
     if pred_decision_name:
         fields.append(pred_decision_field(result_sorted, pred_decision_name))
 
