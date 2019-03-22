@@ -424,6 +424,49 @@ def test_pred_name_classification(live_server, tmpdir, func_params):
         assert expected == f.read(), expected
 
 
+def test_pred_decision_name_classification(live_server, tmpdir, func_params):
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui = PickableMock()
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        deployment_id=func_params['deployment_id'],
+        pid=func_params['pid'],
+        lid=func_params['lid'],
+        import_id=None,
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/temperatura_predict.csv',
+        pred_name=None,
+        pred_decision_name='label',
+        timeout=None,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False
+    )
+
+    assert ret is None
+
+    expected = out.read_text('utf-8')
+    with open('tests/fixtures/temperatura_output_decision.csv', 'rU') as f:
+        assert expected == f.read(), expected
+
+
 def test_422(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')

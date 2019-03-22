@@ -22,7 +22,8 @@ def test_no_resume_existing_no_ask_new_context(run_context_file):
             delimiter=',', dataset='dataset.csv',
             pred_name='pred_name', ui=ui_mock,
             fast_mode=None, encoding=None, skip_row_id=None,
-            output_delimiter=None)
+            output_delimiter=None,
+            pred_decision_name=None)
         assert ui_mock.call_count == 0
         assert isinstance(ctx, NewRunContext)
 
@@ -46,7 +47,8 @@ def test_resume_if_it_was_run_already(run_context_file):
             delimiter=',', dataset='dataset.csv',
             pred_name='pred_name', ui=ui_mock,
             fast_mode=None, encoding=None, skip_row_id=None,
-            output_delimiter=None)
+            output_delimiter=None,
+            pred_decision_name=None)
         assert ui_mock.call_count == 0
         assert isinstance(ctx, OldRunContext)
 
@@ -69,6 +71,7 @@ def test_asking_if_resume_not_provided(run_context_file):
             delimiter=',', dataset='dataset.csv',
             pred_name='pred_name', ui=ui_mock,
             fast_mode=None, encoding=None, skip_row_id=None,
-            output_delimiter=None)
+            output_delimiter=None,
+            pred_decision_name=None)
         ui_mock.prompt_yesno.assert_called_once_with(
             'Existing run found. Resume')

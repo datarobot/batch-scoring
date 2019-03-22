@@ -106,6 +106,7 @@ class TestPredApiV10Handlers(object):
 
     @pytest.mark.parametrize('opts, expected_fields, expected_values', (
         ({'pred_name': None,
+          'pred_decision_name': None,
           'keep_cols': None,
           'skip_row_id': False,
           'fast_mode': False,
@@ -114,6 +115,7 @@ class TestPredApiV10Handlers(object):
          [[0, 1], [1, 1]]),
 
         ({'pred_name': None,
+          'pred_decision_name': None,
           'keep_cols': ['gender'],
           'skip_row_id': False,
           'fast_mode': False,
@@ -122,12 +124,22 @@ class TestPredApiV10Handlers(object):
          [[0, 'Male', 1], [1, 'Male', 1]]),
 
         ({'pred_name': None,
+          'pred_decision_name': None,
           'keep_cols': ['gender'],
           'skip_row_id': True,
           'fast_mode': False,
           'delimiter': ','},
          ['gender', 'readmitted'],
          [['Male', 1], ['Male', 1]]),
+
+        ({'pred_name': None,
+          'pred_decision_name': 'label',
+          'keep_cols': None,
+          'skip_row_id': False,
+          'fast_mode': False,
+          'delimiter': ','},
+         ['row_id', 'readmitted', 'label'],
+         [[0, 1, 1], [1, 1, 1]]),
     ))
     def test_format_data(self, parsed_pred_api_v10_predictions, batch,
                          opts, expected_fields, expected_values):

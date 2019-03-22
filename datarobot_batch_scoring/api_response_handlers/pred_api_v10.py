@@ -150,6 +150,28 @@ def prediction_explanation_fields(
     return headers, rows_generator()
 
 
+def pred_decision_field(result_sorted, pred_decision):
+    """ Generate prediction decision field
+
+    Parameters
+    ----------
+    result_sorted : list[dict]
+        list of results sorted by rowId
+    pred_decision : str
+        column name which should contain prediction decision (label)
+
+    Returns
+    -------
+    header: list[str]
+    row_generator: iterator
+    """
+
+    return [pred_decision], (
+        [row.get('prediction')]
+        for row in result_sorted
+    )
+
+
 def format_data(result, batch, **opts):
     """ Generate rows of response from results
 
@@ -170,7 +192,7 @@ def format_data(result, batch, **opts):
         list of rows
     """
     pred_name = opts.get('pred_name')
-    # pred_decision = opts.get('pred_decision')
+    pred_decision_name = opts.get('pred_decision_name')
     keep_cols = opts.get('keep_cols')
     skip_row_id = opts.get('skip_row_id')
     fast_mode = opts.get('fast_mode')
@@ -217,6 +239,11 @@ def format_data(result, batch, **opts):
                 prediction_explanations_key
             )
         )
+
+    # Threshold and thresholded decision field ('prediction' value from result)
+    if pred_decision_name:
+        fields.append(pred_decision_field(result_sorted, pred_decision_name))
+
     # endregion
 
     headers = list(

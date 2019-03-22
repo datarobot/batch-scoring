@@ -141,7 +141,8 @@ def test_run_main_with_conf_file(monkeypatch):
         model_id=56dd9570018e213242dfa93d
         user=file_username
         password=file_password
-        max_prediction_explanations=3""")
+        max_prediction_explanations=3
+        pred_decision=label""")
     with NamedTemporaryFile(suffix='.ini', delete=False) as test_file:
         test_file.write(str(raw_data).encode('utf-8'))
 
@@ -173,6 +174,7 @@ def test_run_main_with_conf_file(monkeypatch):
                 delimiter=None,
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
+                pred_decision_name='label',
                 timeout=None,
                 ui=mock.ANY,
                 auto_sample=False,
@@ -236,6 +238,7 @@ def test_run_main_with_conf_file_deployment_aware(monkeypatch):
                 delimiter=None,
                 dataset='tests/fixtures/temperatura_predict.csv',
                 pred_name=None,
+                pred_decision_name=None,
                 timeout=None,
                 ui=mock.ANY,
                 auto_sample=False,
@@ -299,6 +302,7 @@ def test_run_empty_main_with_conf_file(monkeypatch):
                     delimiter=None,
                     dataset='tests/fixtures/temperatura_predict.csv',
                     pred_name=None,
+                    pred_decision_name=None,
                     timeout=None,
                     ui=mock.ANY,
                     auto_sample=False,

@@ -213,6 +213,11 @@ def parse_args(argv, standalone=False, deployment_aware=False):
                         'empty name is used if not specified. For binary '
                         'predictions assumes last class in lexical order '
                         'as positive')
+    csv_gr.add_argument('--pred_decision', type=str,
+                        nargs='?', default=None,
+                        help='Specifies column name for prediction decision, '
+                        'the value predicted by the model (class label '
+                        'for classification)')
     csv_gr.add_argument('--fast', action='store_true',
                         default=defaults['fast'],
                         help='Experimental: faster CSV processor. '
@@ -301,6 +306,7 @@ def parse_generic_options(parsed_args):
     skip_row_id = parsed_args['skip_row_id']
     field_size_limit = parsed_args.get('field_size_limit')
     pred_name = parsed_args.get('pred_name')
+    pred_decision_name = parsed_args.get('pred_decision')
     dry_run = parsed_args.get('dry_run', False)
 
     n_samples = int(parsed_args['n_samples'])
@@ -357,6 +363,7 @@ def parse_generic_options(parsed_args):
         'out_file': out_file,
         'output_delimiter': output_delimiter,
         'pred_name': pred_name,
+        'pred_decision_name': pred_decision_name,
         'resume': resume,
         'skip_dialect': skip_dialect,
         'skip_row_id': skip_row_id,
