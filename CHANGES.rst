@@ -1,3 +1,11 @@
+1.16.0 (2019 Mar 28)
+====================
+
+Enhancements
+-------------
+* Added new argument ``--pred_threshold`` that allows adding the prediction threshold (which is 0.5 by default, but can be changed during deployment) as a column.
+* Added new argument ``--pred_decision`` that allows adding the prediction decision (the value predicted by the model or the class label for classification) as a column.
+
 1.15.3 (2019 Jan 7)
 ===================
 
