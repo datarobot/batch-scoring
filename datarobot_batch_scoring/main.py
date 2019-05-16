@@ -414,6 +414,7 @@ def _main(argv, deployment_aware=False):
 
     if not generic_opts['dry_run']:
         user = user or ui.prompt_user()
+        user = user.lower()
         user = user.strip()
 
         if not api_token and not pwd:

@@ -5,6 +5,61 @@ from datarobot_batch_scoring.main import (
 )
 
 
+def test_lower_case_for_user(monkeypatch):
+    main_args = ['--host',
+                 'http://localhost:53646/api',
+                 '--user', 'DataRobot@datarobot.com',
+                 '56dd9570018e213242dfa93c',
+                 '56dd9570018e213242dfa93d',
+                 'tests/fixtures/temperatura_predict.csv',
+                 '--n_samples',
+                 '10',
+                 '--n_concurrent', '1']
+
+    monkeypatch.setattr('datarobot_batch_scoring.main.UI', mock.Mock(spec=UI))
+
+    with mock.patch(
+            'datarobot_batch_scoring.main'
+            '.run_batch_predictions') as mock_method:
+        main(argv=main_args)
+        mock_method.assert_called_once_with(
+            base_url='http://localhost:53646/predApi/v1.0/',
+            base_headers={},
+            user='datarobot@datarobot.com',
+            pwd=mock.ANY,
+            api_token=None,
+            create_api_token=False,
+            pid='56dd9570018e213242dfa93c',
+            lid='56dd9570018e213242dfa93d',
+            deployment_id=None,
+            import_id=None,
+            n_retry=3,
+            concurrent=1,
+            resume=None,
+            n_samples=10,
+            out_file='out.csv',
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/temperatura_predict.csv',
+            pred_name=None,
+            pred_threshold_name=None,
+            pred_decision_name=None,
+            timeout=None,
+            ui=mock.ANY,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='',
+            skip_dialect=False,
+            skip_row_id=False,
+            output_delimiter=None,
+            compression=False,
+            field_size_limit=None,
+            verify_ssl=True,
+            max_prediction_explanations=0,
+        )
+
+
 def test_without_passed_user_and_passwd(monkeypatch):
     main_args = ['--host',
                  'http://localhost:53646/api',
