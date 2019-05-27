@@ -1,3 +1,10 @@
+1.16.1 (2019 May 27)
+====================
+
+Enhancements
+-------------
+* Set the username to lowercase internaly.
+
 1.16.0 (2019 Mar 28)
 ====================
 
