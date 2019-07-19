@@ -210,9 +210,9 @@ def test_investigate_encoding_and_dialect_substitute_delimiter():
             data = 'tests/fixtures/windows_encoded.csv'
             encoding = investigate_encoding_and_dialect(data, '|', ui,
                                                         fast=False,
-                                                        encoding='utf-8',
+                                                        encoding='',
                                                         skip_dialect=True)
-        assert encoding == 'utf-8'  # Intentionally wrong
+        assert encoding == 'windows-1252'
         assert not sn.called
         dialect = csv.get_dialect('dataset_dialect')
         assert dialect.delimiter == '|'

@@ -1,9 +1,12 @@
+import codecs
 import csv
 import getpass
+import gzip
 import io
 import logging
 import os
 import sys
+from contextlib import contextmanager
 from collections import namedtuple
 from functools import partial
 from gzip import GzipFile
@@ -518,3 +521,16 @@ class Worker(object):
 
     def state_name(self, s=None):
         return self.state_names[s or self.state]
+
+
+@contextmanager
+def gzip_with_encoding(data, mode, encoding=None):
+    """ Decorator to support encoding for gzip in PY2
+    """
+    if encoding is not None:
+        reader = codecs.getreader(encoding)
+        with gzip.open(data, mode) as f:
+            yield reader(f)
+    else:
+        with gzip.open(data, mode) as f:
+            yield f
