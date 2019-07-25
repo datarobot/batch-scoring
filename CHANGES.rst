@@ -1,3 +1,10 @@
+1.16.2 (2019 Jul 25)
+====================
+
+Bugfixes
+-------------
+* Fix ``utf-8`` encoding error for Japanese data sets.
+
 1.16.1 (2019 May 27)
 ====================
 
