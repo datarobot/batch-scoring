@@ -14,6 +14,10 @@ Install package in virtualenv::
 
 Now ``batch_scoring`` script should be available in your PATH.
 
+Make sure pip version is less than 10.0.0. Otherwise::
+
+    $ pip install pip==9.0.1
+
 You can also create virtualenvs with different python versions::
 
     $ mkvirtualenv batch_scoring_3 -p /usr/bin/python3.5
@@ -51,11 +55,12 @@ Release
 5. build the **PyInstaller** and **Offlinebundle** for Linux
 
   1. build the image for PyInstaller with ``docker-compose build centos5pyinstaller``
-  2. build both releases with ``make build_release_dockerized``. This will add the following to the dist dir:
+  2. build both releases with ``make build_release_dockerized`` (does not work on MacOS, use Linux instead). This will add the following to the dist dir:
 
     - datarobot_batch_scoring_<TAG>_offlinebundle.zip
     - datarobot_batch_scoring_<TAG>_offlinebundle.tar
     - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.tar
+    - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.zip
 
 6. Collect the **PyInstaller** artifacts for OSX and Windows from S3
 
@@ -68,14 +73,19 @@ Release
 
 7. upload the builds produced by step 5 and 6
 
-  1. find the release page for the version that was pushed at https://github.com/datarobot/batch-scoring/releases
-  2. ``edit`` the release on github and attach the 5 files:
+  1. find new version tag that was pushed at https://github.com/datarobot/batch-scoring/tags
+  2. ``create`` the release on github for selected tag and attach 6 files:
 
+    - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.tar
+    - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.zip
     - datarobot_batch_scoring_<TAG>_offlinebundle.zip
     - datarobot_batch_scoring_<TAG>_offlinebundle.tar
-    - datarobot_batch_scoring_<TAG>_executables.Windows.x86_64.zip
     - datarobot_batch_scoring_<TAG>_executables.OSX.x86_64.tar
-    - datarobot_batch_scoring_<TAG>_executables.Linux.x86_64.tar
+    - datarobot_batch_scoring_<TAG>_executables.Windows.x86_64.zip
+
+  3. update release subject and description
+  4. publish new release
+
 
 Offline Bundle
 --------------
