@@ -112,7 +112,8 @@ def keep_original_fields(batch, keep_cols, fast_mode, input_delimiter):
 
 def prediction_explanation_fields(
     result_sorted,
-    prediction_explanations_key
+    prediction_explanations_key,
+    num_prediction_explanations,
 ):
     """ Generate prediction explanations fields
 
@@ -122,6 +123,11 @@ def prediction_explanation_fields(
         list of results sorted by rowId
     prediction_explanations_key : str
         key of results by which explanation fields can be found
+    num_prediction_explanations : int
+        the total number of prediction explanations in response.
+        Please note that in case output contains less explanations
+        than this limit, the rest of the columns in the output will be pad
+        with empty values for the sake of fixed columns count in the response.
 
     Returns
     -------
@@ -129,10 +135,8 @@ def prediction_explanation_fields(
     row_generator: iterator
     """
     headers = []
-    single_row = result_sorted[0]
 
-    num_reason_codes = len(single_row[prediction_explanations_key])
-    for num in range(1, num_reason_codes + 1):
+    for num in range(1, num_prediction_explanations + 1):
         headers += [
             'explanation_{0}_feature'.format(num),
             'explanation_{0}_strength'.format(num)
@@ -146,6 +150,9 @@ def prediction_explanation_fields(
                     raw_reason_code['feature'],
                     raw_reason_code['strength']
                 ]
+            # pad response with empty values in case not all prediction
+            # explanations are present
+            reason_codes += [''] * (len(headers) - len(reason_codes))
             yield reason_codes
 
     return headers, rows_generator()
@@ -219,6 +226,7 @@ def format_data(result, batch, **opts):
     skip_row_id = opts.get('skip_row_id')
     fast_mode = opts.get('fast_mode')
     input_delimiter = opts.get('delimiter')
+    max_prediction_explanations = opts.get('max_prediction_explanations')
 
     result_sorted = sorted(
         result,
@@ -258,7 +266,8 @@ def format_data(result, batch, **opts):
         fields.append(
             prediction_explanation_fields(
                 result_sorted,
-                prediction_explanations_key
+                prediction_explanations_key,
+                max_prediction_explanations,
             )
         )
 

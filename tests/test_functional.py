@@ -214,6 +214,51 @@ def test_prediction_explanations(live_server, tmpdir):
     assert str(actual) == str(expected), expected
 
 
+def test_prediction_explanations_not_all_explanations(live_server, tmpdir):
+    """Test scenario when some prediction explanations are missing"""
+    # train one model in project
+    out = tmpdir.join('out.csv')
+
+    ui = PickableMock()
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    ret = run_batch_predictions(
+        base_url=base_url,
+        base_headers={},
+        user='username',
+        pwd='password',
+        api_token=None,
+        create_api_token=False,
+        pid='5afb150782c7dd45fcc03951',
+        lid='5b2cad28aa1d12847310acf5',
+        import_id=None,
+        n_retry=3,
+        concurrent=1,
+        resume=False,
+        n_samples=10,
+        out_file=str(out),
+        keep_cols=None,
+        delimiter=None,
+        dataset='tests/fixtures/10kDiabetes.csv',
+        pred_name=None,
+        pred_threshold_name=None,
+        pred_decision_name=None,
+        timeout=None,
+        ui=ui,
+        auto_sample=False,
+        fast_mode=False,
+        dry_run=False,
+        encoding='',
+        skip_dialect=False,
+        max_prediction_explanations=5
+    )
+
+    assert ret is None
+    actual = out.read_text('utf-8')
+    with open('tests/fixtures/10kDiabetes_mixed_explanations.csv', 'rU') as f:
+        expected = f.read()
+    assert str(actual) == str(expected), actual
+
+
 def test_prediction_explanations_keepcols(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')

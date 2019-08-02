@@ -202,7 +202,9 @@ def run_batch_predictions(base_url, base_headers, user, pwd,
                               lid, keep_cols, n_retry, delimiter,
                               dataset, pred_name, ui, fast_mode,
                               encoding, skip_row_id, output_delimiter,
-                              pred_threshold_name, pred_decision_name))
+                              pred_threshold_name, pred_decision_name,
+                              max_prediction_explanations)
+        )
 
         n_batches_checkpointed_init = len(ctx.db['checkpoints'])
         ui.debug('number of batches checkpointed initially: {}'

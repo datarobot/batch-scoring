@@ -38,7 +38,9 @@ class RunContext(object):
     def __init__(self, n_samples, out_file, pid, lid, keep_cols,
                  n_retry, delimiter, dataset, pred_name, ui, file_context,
                  fast_mode, encoding, skip_row_id, output_delimiter,
-                 pred_threshold_name, pred_decision_name):
+                 pred_threshold_name, pred_decision_name,
+                 max_prediction_explanations,
+                 ):
         self.n_samples = n_samples
         self.out_file = out_file
         self.project_id = pid
@@ -63,13 +65,16 @@ class RunContext(object):
         self.writer_dialect = csv.get_dialect('writer_dialect')
         self.scoring_succeeded = False  # Removes shelves when True
         self.is_open = False  # Removes shelves when True
+        self.max_prediction_explanations = max_prediction_explanations
 
     @classmethod
     def create(cls, resume, n_samples, out_file, pid, lid,
                keep_cols, n_retry,
                delimiter, dataset, pred_name, ui,
                fast_mode, encoding, skip_row_id, output_delimiter,
-               pred_threshold_name, pred_decision_name):
+               pred_threshold_name, pred_decision_name,
+               max_prediction_explanations,
+               ):
         """Factory method for run contexts.
 
         Either resume or start a new one.
@@ -85,7 +90,8 @@ class RunContext(object):
         return ctx_class(n_samples, out_file, pid, lid, keep_cols, n_retry,
                          delimiter, dataset, pred_name, ui, file_context,
                          fast_mode, encoding, skip_row_id, output_delimiter,
-                         pred_threshold_name, pred_decision_name)
+                         pred_threshold_name, pred_decision_name,
+                         max_prediction_explanations)
 
     def __enter__(self):
         assert(not self.is_open)
@@ -439,7 +445,11 @@ class WriterProcess(object):
                             keep_cols=self.ctx.keep_cols,
                             skip_row_id=self.ctx.skip_row_id,
                             fast_mode=self.ctx.fast_mode,
-                            delimiter=self.ctx.dialect.delimiter)
+                            delimiter=self.ctx.dialect.delimiter,
+                            max_prediction_explanations=(
+                                self.ctx.max_prediction_explanations
+                            )
+                            )
                     except UnexpectedKeptColumnCount:
                         self._ui.fatal('Unexpected number of kept columns ' +
                                        'retrieved. This can happen in ' +

@@ -123,6 +123,8 @@ def app():
         '0ec5bcea7f0f45918fa88257bfe42c09': 'tests/fixtures/regression.json',
         '5b2cad28aa1d12847310acf4':
             'tests/fixtures/10kDiabetes_5explanations.json',
+        '5b2cad28aa1d12847310acf5':
+            'tests/fixtures/10kDiabetes_mixed_explanations.json',
         None: 'tests/fixtures/temperatura.json'}
 
     ERROR_MAPPING = {
