@@ -193,7 +193,7 @@ def parse_args(argv, standalone=False, deployment_aware=False):
                          help='Skip SSL certificates verification for HTTPS '
                               'endpoints. Using this flag will cause the '
                               'argument for ca_bundle to be ignored.')
-    csv_gr = parser.add_argument_group('CVS parameters')
+    csv_gr = parser.add_argument_group('CSV parameters')
     csv_gr.add_argument('--keep_cols', type=str,
                         nargs='?',
                         help='Specifies the column names to append '
