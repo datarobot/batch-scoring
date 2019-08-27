@@ -310,6 +310,9 @@ class OldRunContext(RunContext):
                                     self.db['output_delimiter'],
                                     self.output_delimiter))
 
+        self.db['warnings'] = {}
+        self.db['errors'] = {}
+
         if six.PY2:
             self.out_stream = open(self.out_file, 'ab')
         elif six.PY3:
