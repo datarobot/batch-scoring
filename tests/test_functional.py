@@ -170,6 +170,46 @@ def test_simple_with_unicode(live_server, tmpdir, func_params, dataset_name):
     assert str(actual) == str(expected), expected
 
 
+def test_simple_with_wrong_encoding(live_server, tmpdir, func_params):
+    out = tmpdir.join('out.csv')
+    ui = PickableMock()
+    base_url = '{webhost}/predApi/v1.0/'.format(webhost=live_server.url())
+    with pytest.raises(UnicodeDecodeError) as execinfo:
+        run_batch_predictions(
+            base_url=base_url,
+            base_headers={},
+            user='username',
+            pwd='password',
+            api_token=None,
+            create_api_token=False,
+            deployment_id=func_params['deployment_id'],
+            pid=func_params['pid'],
+            lid=func_params['lid'],
+            import_id=None,
+            n_retry=3,
+            concurrent=1,
+            resume=False,
+            n_samples=10,
+            out_file=str(out),
+            keep_cols=None,
+            delimiter=None,
+            dataset='tests/fixtures/jpReview_books_reg.csv',
+            pred_name=None,
+            pred_threshold_name=None,
+            pred_decision_name=None,
+            timeout=None,
+            ui=ui,
+            auto_sample=False,
+            fast_mode=False,
+            dry_run=False,
+            encoding='cp932',
+            skip_dialect=False
+        )
+
+    # Fixture dataset encoding 'utf-8' and we trying to decode it with 'cp932'
+    assert "'cp932' codec can't decode byte" in str(execinfo.value)
+
+
 def test_prediction_explanations(live_server, tmpdir):
     # train one model in project
     out = tmpdir.join('out.csv')

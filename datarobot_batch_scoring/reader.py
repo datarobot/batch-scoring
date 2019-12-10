@@ -458,7 +458,6 @@ def investigate_encoding_and_dialect(dataset, sep, ui, fast=False,
     else:
         ui.debug('investigate_encoding_and_dialect - skip encoding detect')
         encoding = encoding.lower()
-        sample[:1000].decode(encoding)  # Fail here if the encoding is invalid
 
     opener, mode = _get_opener_and_mode(is_gz, text=True)
     with opener(dataset, mode, encoding=encoding) as dfile:
