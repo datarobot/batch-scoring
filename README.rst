@@ -78,21 +78,35 @@ Features
 * Parallel processing
 
 
+Deprecation warning
+-------------------
+
+The ``batch_scoring`` command is deprecated because the following API routes that are used by this command are
+deprecated:
+
+- ``/api/v1/``
+- ``/predApi/v1.0/<projectId>/<modelId>/``
+
+Instead, use ``batch_scoring_deployment_aware`` command since ``/predApi/v1.0/deployments/<deploymentId>/`` is
+the only supported endpoint for prediction servers.
+
+
 Running the batch_scoring, batch_scoring_sse scripts or batch_scoring_deployment_aware
 --------------------------------------------------------------------------------------
 
-You can execute the ``batch_scoring``, ``batch_scoring_sse`` or ``batch_scoring_deployment_aware``
+You can execute the ``batch_scoring_deployment_aware``, ``batch_scoring_sse`` or ``batch_scoring`` (deprecated)
 command from the command line with relevant parameters or you can pass parameters to a script from the .ini file.
-Place the .ini file in your home directory or the directory from which you are running the ``batch_scoring``,
-``batch_scoring_sse`` or ``batch_scoring_deployment_aware`` command. Use the syntax and arguments below to define the parameters.
-Note that if you run the script and also execute via the command line, the command line parameters take priority.
+Place the .ini file in your home directory or the directory from which you are running the
+``batch_scoring_deployment_aware``, ``batch_scoring_sse`` or ``batch_scoring`` (deprecated) command. Use the syntax
+and arguments below to define the parameters. Note that if you run the script and also execute via the command line,
+the command line parameters take priority.
 
 The following table describes the syntax conventions; the syntax for running the script follows the table.
 DataRobot supplies two scripts, each for a different application. Use:
 
-- ``batch_scoring`` to score on dedicated prediction instances.
-- ``batch_scoring_sse`` to score on standalone prediction instances. If you are unsure of your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
 - ``batch_scoring_deployment_aware`` to score on dedicated prediction instances using ``deployment_id`` instead of ``project_id`` and ``model_id``.
+- ``batch_scoring_sse`` to score on standalone prediction instances. If you are unsure of your instance type, contact `DataRobot Support <https://support.datarobot.com/hc/en-us>`_.
+- ``batch_scoring`` (deprecated) to score on dedicated prediction instances using ``project_id`` and ``model_id``.
 
 ============  =======
  Convention   Meaning
@@ -104,11 +118,11 @@ DataRobot supplies two scripts, each for a different application. Use:
 
 Required arguments:
 
-``batch_scoring --host=<host> --user=<user> <project_id> <model_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
-
 ``batch_scoring_deployment_aware --host=<host> --user=<user> <deployment_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
 
 ``batch_scoring_sse --host=<host> <import_id> <dataset_filepath>``
+
+(deprecated) ``batch_scoring --host=<host> --user=<user> <project_id> <model_id> <dataset_filepath> --datarobot_key=<datarobot_key> {--password=<pwd> | --api_token=<api_token>}``
 
 Additional recommended arguments:
 
@@ -127,23 +141,19 @@ The following table describes each of the arguments:
  host=<host>                          \+         \+     Specifies the hostname of the prediction API endpoint (the location of the data to use for predictions).
  user=<user>                          \-         \+     Specifies the username used to acquire the API token. Use quotes if the name contains spaces.
  <import_id>                          \+         \-     Specifies the unique ID for the imported model. If unknown, ask your prediction administrator (the person responsible for the import procedure).
- <project_id>                         \-         \+     Specifies the project identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard (for example, https://<host>/projects/<project_id>/models). Alternatively, when the prediction API is enabled, the project ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
- <model_id>                           \-         \+     Specifies the model identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard and have selected a model (for example, https://<host>/projects/<project_id>/models/<model_id>). Alternatively, when the prediction API is enabled, the model ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
- <deployment_id>                      \-         \+     Specifies the unique ID for deployed model, can be used instead of ``<project_id>`` and ``<model_id>`` pair.
+ <project_id>                         \-         \+     **Deprecated.** Specifies the project identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard (for example, https://<host>/projects/<project_id>/models). Alternatively, when the prediction API is enabled, the project ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
+ <model_id>                           \-         \+     **Deprecated.** Specifies the model identification string. You can find the ID embedded in the URL that displays when you are in the Leaderboard and have selected a model (for example, https://<host>/projects/<project_id>/models/<model_id>). Alternatively, when the prediction API is enabled, the model ID displays in the example shown when you click **Deploy Model** for a specific model in the Leaderboard.
+ <deployment_id>                      \-         \+     Specifies the unique ID for deployed model. You can find the ID embedded in the URL that displays when you select a deployment (for example, https://<host>/deployments/<deployment_id>/overview). Alternatively, you can find the ID in the Integrations snippet.
  <dataset_filepath>                   \+         \+     Specifies the .csv input file that the script scores. DataRobot scores models by submitting prediction requests against ``<host>`` using project ``<project_id>`` and model ``<model_id>``.
  datarobot_key=<datarobot_key>        \-         \+     An additional datarobot_key for dedicated prediction instances. This argument is required when using on-demand workers on the Cloud platform, but not for Enterprise users.
  password=<pwd>                       \-         \+     Specifies the password used to acquire the API token. Use quotes if the password contains spaces. You must specify either the password or the API token argument. To avoid entering your password each time you run the script, use the ``api_token`` argument instead.
  api_token=<api_token>                \-         \+     Specifies the API token for requests; if you do not have a token, you must specify the password argument. You can retrieve your token from your profile on the **My Account** page.
- api_version=<api_version>            \+         \+     Specifies the API version for requests. If omitted, defaults to current latest.
-                                                        Override this if your DataRobot distribution doesn't support the latest API version.
-                                                        Valid options are ``predApi/v1.0`` and ``api/v1``; ``predApi/v1.0`` is the default.
  out=<filepath>                       \+         \+     Specifies the file name, and optionally path, to which the results are written. If not specified, the default file name is ``out.csv``, written to the directory containing the script. The value of the output file must be a single .csv file that can be gzipped (extension .gz).
  verbose                              \+         \+     Provides status updates while the script is running. It is recommended that you include this argument to track script execution progress. Silent mode (non-verbose), the default, displays very little output.
  keep_cols=<keep_cols>                \+         \+     Specifies the column names to append to the predictions. Enter as a comma-separated list.
- max_prediction_explanations=<num>    \+         \+     Specifies the number of the top prediction explanations to generate for each prediction. If not specified, the default is ``0``. **Compatible only with api_version** ``predApi/v1.0``.
+ max_prediction_explanations=<num>    \+         \+     Specifies the number of the top prediction explanations to generate for each prediction. If not specified, the default is ``0``.
  n_samples=<n_samples>                \+         \+     Specifies the number of samples (rows) to use per batch. If not defined, the ``auto_sample`` option is used.
  n_concurrent=<n_concurrent>          \+         \+     Specifies the number of concurrent requests to submit. By default, the script submits four concurrent requests. Set ``<n_concurrent>`` to match the number of cores in the prediction API endpoint.
- create_api_token                     \+         \+     Requests a new API token. To use this option, you must specify the ``password`` argument for this request (not the ``api_token`` argument). Specifying this argument invalidates your existing API token and creates and stores a new token for future prediction requests.
  n_retry=<n_retry>                    \+         \+     Specifies the number of times DataRobot will retry if a request fails. A value of -1, the default, specifies an infinite number of retries.
  pred_name=<pred_name>                \+         \+     Applies a name to the prediction column of the output file. If you do not supply the argument, the column name is blank. For binary predictions, only positive class columns are included in the output. The last class (in lexical order) is used as the name of the prediction column.
  skip_row_id                          \+         \+     Skip the row_id column in output.
@@ -165,30 +175,28 @@ The following table describes each of the arguments:
 
 Example::
 
-    batch_scoring --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 /home/greg/Downloads/diabetes_test.csv
-    batch_scoring_sse --host=https://mycorp.orm.datarobot.com/ --out=pred.csv 0ec5bcea7f0f45918fa88257bfe42c09 /home/greg/Downloads/diabetes_test.csv
     batch_scoring_deployment_aware --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb71b4912911244d4848 /home/greg/Downloads/diabetes_test.csv
+    batch_scoring_sse --host=https://mycorp.orm.datarobot.com/ --out=pred.csv 0ec5bcea7f0f45918fa88257bfe42c09 /home/greg/Downloads/diabetes_test.csv
+    batch_scoring --host=https://mycorp.orm.datarobot.com/ --user="greg@mycorp.com" --out=pred.csv 5545eb20b4912911244d4835 5545eb71b4912911244d4847 /home/greg/Downloads/diabetes_test.csv
 
 Using the configuration file
 ----------------------------
-The `batch_scoring` command checks for the existence of a batch_scoring.ini file at the directory where you are running the script (working directory) and, if it is not found in the working directory, in $HOME/batch_scoring.ini (your home directory). If this file exists, the command uses the same arguments as those described above. If the file does not exist, the command proceeds normally with the command line arguments. The command line arguments have higher priority than the file arguments (that is, you can override file arguments using the command line).
+The ``batch_scoring`` command checks for the existence of a batch_scoring.ini file at the directory where you are running the script (working directory) and, if it is not found in the working directory, in $HOME/batch_scoring.ini (your home directory). If this file exists, the command uses the same arguments as those described above. If the file does not exist, the command proceeds normally with the command line arguments. The command line arguments have higher priority than the file arguments (that is, you can override file arguments using the command line).
 
-The format of a `batch_scoring.ini` file is as follows::
+The format of a ``batch_scoring.ini`` file is as follows::
 
   [batch_scoring]
   host=file_host
   project_id=file_project_id
   model_id=file_model_id
   user=file_username
-  password=file_password
-
 
 Usage Notes
 -----------
 
 * If the script detects that a previous script was interrupted in mid-execution, it will prompt whether to resume that execution.
 * If no interrupted script was detected or if you indicate not to resume the previous execution, the script checks to see if the specified output file exists. If yes, the script prompts to confirm before overwriting this file.
-* The logs from each ``batch_scoring`` and ``batch_scoring_sse`` run are stored in the current working directory. All users see a ``datarobot_batch_scoring_main.log`` log file. Windows users see two additional log files, ``datarobot_batch_scoring_batcher.log`` and ``datarobot_batch_scoring_writer.log``.
+* The logs from each ``batch_scoring_deployment_aware``, ``batch_scoring_sse`` and ``batch_scoring`` run are stored in the current working directory. All users see a ``datarobot_batch_scoring_main.log`` log file. Windows users see two additional log files, ``datarobot_batch_scoring_batcher.log`` and ``datarobot_batch_scoring_writer.log``.
 * Batch scoring won't work if there is only 1 feature in the scoring data. This issue is caused by limitations of standard python CSV parser. For resolving this issue, please add index column to the dataset - it'll be ignored in scoring, but will help it in parsing.
 
 

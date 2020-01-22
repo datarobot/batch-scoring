@@ -396,6 +396,10 @@ def _main(argv, deployment_aware=False):
         verify_objectid(deployment_id)
         pid, lid = None, None
     else:
+        ui.warning(
+            'batch_scoring command is deprecated. '
+            'Use batch_scoring_deployment_aware command instead.'
+        )
         deployment_id = None
         pid = parsed_args['project_id']
         lid = parsed_args['model_id']
