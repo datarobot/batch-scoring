@@ -6,20 +6,12 @@ matrix:
     env: pyver=2.7 pydist=macpython
     sudo: required
   - language: generic
-    python: 3.4
-    os: osx
-    env: pyver=3.4 pydist=macpython
-    sudo: required
-  - language: generic
     python: 3.5
     os: osx
     env: pyver=3.5 pydist=macpython
     sudo: required
   - language: python
     python: 2.7
-    os: linux
-  - language: python
-    python: 3.4
     os: linux
   - language: python
     python: 3.5

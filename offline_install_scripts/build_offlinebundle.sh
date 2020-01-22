@@ -6,7 +6,7 @@ set -e
 
 REPO_BASE="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 cd $REPO_BASE
-# venv as a module requires python3.4+
+# venv as a module requires python3.5+
 PYTHON=`which python3.5 || which python3`
 
 rm -rf /tmp/TEMPVENV ./dist/batch_scoring_offlinebundle

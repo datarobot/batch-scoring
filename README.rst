@@ -198,7 +198,7 @@ datarobot_batch_scoring is tested on Linux and Windows and OS X. Both Python 2.7
 
 Recommended Python Version
 --------------------------
-Python 3.4 or greater is recommended, but all versions of Python 3 should work. Python 2.7.x. will work, but it sometimes errors decoding data
+Python 3.5 or greater is recommended, but all versions of Python 3 should work. Python 2.7.x. will work, but it sometimes errors decoding data
 that Python 3 handles gracefully. Python 3 is also faster.
 
 Proxy support

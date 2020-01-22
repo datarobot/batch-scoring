@@ -123,7 +123,7 @@ We make a special image just for building this executable.
 
 **PyInstaller build instructions - OSX / Other nixes**
 
-  **Dependencies:** Make, Python>=3.4 
+  **Dependencies:** Make, Python>=3.5
   Note this build is performed on Travis CI and the artifacts are uploaded on PRs to s3://datarobot-batch-scoring-artifacts/ on both PRs and tags
 
 
