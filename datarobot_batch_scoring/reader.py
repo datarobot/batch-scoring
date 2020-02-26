@@ -576,7 +576,7 @@ def auto_sampler(dataset, encoding, ui):
     avg_line = int(size_bytes / csv_lines)
     chunk_size_goal = AUTO_GOAL_SIZE  # size we want per batch
     lines_per_sample = int(chunk_size_goal / avg_line) + 1
-    ui.debug('auto_sampler: lines counted: {},  avgerage line size: {}, '
+    ui.debug('auto_sampler: lines counted: {},  average line size: {}, '
              'recommended lines per sample: {}'.format(csv_lines, avg_line,
                                                        lines_per_sample))
     ui.info('auto_sampler: total time seconds - {}'.format(time() - t0))
