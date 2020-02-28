@@ -14,9 +14,9 @@ Install package in virtualenv::
 
 Now ``batch_scoring`` script should be available in your PATH.
 
-Make sure pip version is less than 10.0.0. Otherwise::
+Install the package itself::
 
-    $ pip install pip==9.0.1
+    $ python setup.py install
 
 You can also create virtualenvs with different python versions::
 

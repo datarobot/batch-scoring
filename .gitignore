@@ -1,4 +1,3 @@
-
 __pycache__
 *.egg-info
 dist
@@ -7,9 +6,8 @@ build
 *.pyc
 .cache
 .coverage
-.install
-.install-deps
-*.shelve
+.install*
+*.shelve*
 htmlcov
 .idea
 datarobot_batch_scoring_*.log

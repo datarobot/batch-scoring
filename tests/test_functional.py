@@ -22,7 +22,6 @@ def cli_args(request):
         return 'batch_scoring_deployment_aware', deployment_id
     else:
         return 'batch_scoring', pid + ' ' + lid
-    return request.param
 
 
 def test_args_from_subprocess(live_server, cli_args):
@@ -55,6 +54,7 @@ def test_args_from_subprocess(live_server, cli_args):
                     username='username',
                     password='password',
                     out=fd.name, params=params)
+    spc = None
     try:
         spc = subprocess.check_call(arguments.split(' '))
     except subprocess.CalledProcessError as e:
