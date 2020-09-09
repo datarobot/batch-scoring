@@ -1,3 +1,9 @@
+Deprecation Notice
+=======================
+The Batch Scoring script is deprecated. It will continue functioning indefinitely,
+but it will not receive any new bug fixes and new functionality.
+Please, use the [Batch Prediction command-line tools](https://app.datarobot.com/docs/predictions/batch/cli-scripts.html) instead.
+
 datarobot_batch_scoring
 =======================
 
@@ -11,12 +17,6 @@ A script to score CSV files via DataRobot's prediction API.
 
 .. image:: https://badge.fury.io/py/datarobot-batch-scoring.svg
     :target: https://badge.fury.io/py/datarobot-batch-scoring
-
-Deprecation Notice
-=======================
-The Batch Scoring script is deprecated. It will continue functioning indefinitely,
-but it will not receive any new bug fixes and new functionality.
-Please, use the [Batch Prediction command-line tools](https://app.datarobot.com/docs/predictions/batch/cli-scripts.html] instead.
 
 Version Compatibility
 ---------------------
