@@ -5,6 +5,8 @@ import os.path
 import re
 from setuptools import setup, find_packages
 
+from datarobot_batch_scoring.consts import DEPRECATION_WARNING
+
 extra = {}
 
 def read_requirements_file(file):
@@ -83,3 +85,5 @@ setup(
     ],
     **extra
 )
+
+print(DEPRECATION_WARNING)

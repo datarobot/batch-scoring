@@ -10,6 +10,7 @@ from datarobot_batch_scoring import __version__
 from datarobot_batch_scoring.api_response_handlers import (
     RESPONSE_HANDLERS, PRED_API_V10, API_V1)
 from datarobot_batch_scoring.batch_scoring import (run_batch_predictions)
+from datarobot_batch_scoring.consts import DEPRECATION_WARNING
 from datarobot_batch_scoring.exceptions import ShelveError
 from datarobot_batch_scoring.utils import (UI, get_config_file,
                                            parse_config_file,
@@ -38,7 +39,8 @@ Example:
   $ batch_scoring --host https://example.orm.datarobot.com \
   --user="<username>" --password="<password>" 5545eb20b4912911244d4835 \
   5545eb71b4912911244d4847 ~/Downloads/diabetes_test.csv
-"""
+  {deprecation_warning}
+""".format(deprecation_warning=DEPRECATION_WARNING)
 
 
 VALID_DELIMITERS = {';', ',', '|', '\t', ' ', '!', '  '}
@@ -519,5 +521,6 @@ def main_standalone(argv=sys.argv[1:]):
 
 
 if __name__ == '__main__':
+    print(DEPRECATION_WARNING)
     exit_code = main()  # pragma: no cover
     sys.exit(exit_code)
